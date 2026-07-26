@@ -105,6 +105,32 @@ export const FolderOpenIcon = createIcon(
   <path d="M3 8a2 2 0 0 1 2-2h4l2 2h8a1 1 0 0 1 1 1l-2 9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />,
 )
 
+export const PencilIcon = createIcon(
+  <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />,
+)
+
+export const MoveIcon = createIcon(
+  <>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M9 14h6M12 11l3 3-3 3" />
+  </>,
+)
+
+export const SearchIcon = createIcon(
+  <>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </>,
+)
+
+export const UsersIcon = createIcon(
+  <>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5" />
+    <path d="M16 8.2a3.2 3.2 0 1 1 1.8 5.9M18.5 19c-.5-1.7-1.4-3-2.7-3.9" />
+  </>,
+)
+
 export const AlertCircleIcon = createIcon(
   <>
     <circle cx="12" cy="12" r="9" />
