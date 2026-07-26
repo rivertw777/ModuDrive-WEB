@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { FileEntry } from '../types'
 
@@ -46,12 +46,16 @@ async function resumableUpload(fileId: string, file: File, onProgress?: (percent
   await apiClient.post(`/api/v1/storage/upload/resumable/${sessionId}/complete`)
 }
 
-async function uploadFile({ file, path, onProgress }: UploadFileInput) {
+async function uploadFile({ file, path, onProgress }: UploadFileInput, queryClient: QueryClient) {
   const metadata = await apiClient.post<FileEntry>('/api/v1/files/metadata', {
     name: file.name,
     path,
     directory: false,
   })
+  // Reflect the file in the list as soon as its record exists, instead of
+  // waiting for the (potentially slow) byte transfer below to finish —
+  // this is what makes an upload appear immediately, the same as a folder.
+  queryClient.invalidateQueries({ queryKey: ['directory', path] })
 
   if (file.size > RESUMABLE_THRESHOLD) {
     await resumableUpload(metadata.fileId, file, onProgress)
@@ -65,7 +69,7 @@ async function uploadFile({ file, path, onProgress }: UploadFileInput) {
 export function useUploadFile() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: uploadFile,
+    mutationFn: (input: UploadFileInput) => uploadFile(input, queryClient),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['directory', variables.path] })
     },
