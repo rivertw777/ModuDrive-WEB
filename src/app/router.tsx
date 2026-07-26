@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import LandingRoute from '@/app/routes/landing'
 import LoginRoute from '@/app/routes/login'
 import SignupRoute from '@/app/routes/signup'
+import NotFoundRoute from '@/app/routes/not-found'
 
 const router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupRoute />,
+  },
+  {
+    path: '*',
+    element: <NotFoundRoute />,
   },
 ])
 
