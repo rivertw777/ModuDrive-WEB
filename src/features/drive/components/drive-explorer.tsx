@@ -40,7 +40,7 @@ export function DriveExplorer({ path }: { path: string }) {
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 p-6">
+      <div className="min-w-0 flex-1 p-6">
         <Toolbar
           path={path}
           onNewFolder={() => setNewFolderOpen(true)}
