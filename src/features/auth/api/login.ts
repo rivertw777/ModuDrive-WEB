@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
-import { apiClient, ACCESS_TOKEN_STORAGE_KEY } from '@/lib/api-client'
+import { apiClient } from '@/lib/api-client'
+import { useAuthStore } from '@/stores/auth-store'
 
 export type LoginInput = {
   email: string
@@ -19,7 +20,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, data.accessToken)
+      useAuthStore.getState().login(data.accessToken)
     },
   })
 }
