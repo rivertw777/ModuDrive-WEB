@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn'
 import { formatFileSize, isImageFile, joinPath, type FileEntry } from '../types'
 
 function EntryIcon({ file }: { file: FileEntry }) {
-  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-blue-500" />
+  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
   if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
   return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-neutral-500" />
 }
@@ -43,7 +43,7 @@ export function FileList({
             onClick={() => (file.directory ? onNavigate(joinPath(path, file.name)) : onSelect(file))}
             className={cn(
               'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-neutral-900 dark:hover:bg-neutral-900',
-              selectedFileId === file.fileId && 'bg-blue-50 hover:bg-blue-50 dark:bg-blue-950 dark:hover:bg-blue-950',
+              selectedFileId === file.fileId && 'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
             )}
           >
             <td className="py-2.5">

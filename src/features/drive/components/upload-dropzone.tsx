@@ -28,7 +28,7 @@ export function UploadDropzone({
       className="relative rounded-lg"
     >
       {isDragging && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50/90 text-blue-700 dark:bg-blue-950/90 dark:text-blue-300">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-violet-400 bg-violet-50/90 text-violet-700 dark:bg-violet-950/90 dark:text-violet-300">
           <UploadIcon size={28} />
           <p className="text-sm font-medium">여기에 파일을 놓아 업로드</p>
         </div>

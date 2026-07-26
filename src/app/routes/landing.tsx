@@ -4,7 +4,7 @@ export default function LandingRoute() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-neutral-950">
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl font-bold text-white">
+        <span className="flex size-14 items-center justify-center rounded-2xl bg-violet-600 text-2xl font-bold text-white">
           M
         </span>
         <h1 className="mt-6 text-3xl font-semibold text-slate-900 dark:text-neutral-100">ModuDrive</h1>
@@ -14,7 +14,7 @@ export default function LandingRoute() {
         <div className="mt-8 flex gap-3">
           <Link
             to="/signup"
-            className="rounded-full bg-blue-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded-full bg-violet-600 px-6 py-2.5 text-sm font-medium text-white hover:bg-violet-700"
           >
             시작하기
           </Link>
