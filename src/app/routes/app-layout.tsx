@@ -1,36 +1,68 @@
-import { Navigate, Outlet, Link } from 'react-router-dom'
+import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { FolderIcon, LogOutIcon } from '@/components/ui/icons'
+import { cn } from '@/utils/cn'
 
 export default function AppLayoutRoute() {
   const accessToken = useAuthStore((state) => state.accessToken)
   const logout = useAuthStore((state) => state.logout)
   const { data: member } = useCurrentMember(accessToken !== null)
+  const location = useLocation()
+  const isDriveActive = location.pathname.startsWith('/drive')
 
   if (!accessToken) {
     return <Navigate to="/login" replace />
   }
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-slate-50 p-4">
-        <Link to="/drive" className="text-lg font-semibold text-slate-900">
-          ModuDrive
+    <div className="flex min-h-screen bg-white dark:bg-neutral-950">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 p-4 dark:border-neutral-800">
+        <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white">
+            M
+          </span>
+          <span className="text-lg font-semibold text-slate-900 dark:text-neutral-100">ModuDrive</span>
         </Link>
-        <nav className="mt-6 text-sm">
-          <Link to="/drive" className="block rounded-md px-2 py-1.5 font-medium text-slate-700 hover:bg-slate-100">
-            내 드라이브
+
+        <nav className="mt-6 flex flex-col gap-1 text-sm">
+          <Link
+            to="/drive"
+            className={cn(
+              'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors',
+              isDriveActive
+                ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                : 'text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800',
+            )}
+          >
+            <FolderIcon size={18} />내 드라이브
           </Link>
         </nav>
+
+        <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-neutral-800">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-neutral-800 dark:text-neutral-300">
+              {member?.name?.slice(0, 1) ?? '?'}
+            </span>
+            {member && (
+              <span className="truncate text-sm text-slate-600 dark:text-neutral-400">{member.name}</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              onClick={logout}
+              aria-label="로그아웃"
+              className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+            >
+              <LogOutIcon size={17} />
+            </button>
+          </div>
+        </div>
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-end gap-3 border-b border-slate-200 px-6 py-3">
-          {member && <span className="text-sm text-slate-600">{member.name}</span>}
-          <button onClick={logout} className="text-sm font-medium text-slate-500 hover:text-slate-900">
-            로그아웃
-          </button>
-        </header>
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
