@@ -63,7 +63,6 @@ export function DriveExplorer({ path }: { path: string }) {
           {files && (
             <UploadDropzone onFilesSelected={onFilesSelected}>
               <FileList
-                path={path}
                 files={files}
                 selectedFileId={selectedFileId}
                 onNavigate={onNavigate}

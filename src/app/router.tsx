@@ -6,6 +6,7 @@ import AppLayoutRoute from '@/app/routes/app-layout'
 import DriveRoute from '@/app/routes/drive'
 import TrashRoute from '@/app/routes/trash'
 import SharedRoute from '@/app/routes/shared'
+import SearchRoute from '@/app/routes/search'
 import NotFoundRoute from '@/app/routes/not-found'
 
 const router = createBrowserRouter([
@@ -38,6 +39,11 @@ const router = createBrowserRouter([
     path: '/shared',
     element: <AppLayoutRoute />,
     children: [{ index: true, element: <SharedRoute /> }],
+  },
+  {
+    path: '/search',
+    element: <AppLayoutRoute />,
+    children: [{ index: true, element: <SearchRoute /> }],
   },
   {
     path: '*',

@@ -1,3 +1,5 @@
 export { DriveExplorer } from './components/drive-explorer'
 export { TrashExplorer } from './components/trash-explorer'
 export { SharedWithMeExplorer } from './components/shared-with-me-explorer'
+export { SearchExplorer } from './components/search-explorer'
+export { SearchBar } from './components/search-bar'

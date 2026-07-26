@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { FolderIcon, LogOutIcon, TrashIcon, UsersIcon } from '@/components/ui/icons'
+import { SearchBar } from '@/features/drive'
 import { cn } from '@/utils/cn'
 
 const NAV_LINK_CLASS =
@@ -80,6 +81,9 @@ export default function AppLayoutRoute() {
       </aside>
 
       <div className="flex flex-1 flex-col">
+        <header className="flex items-center border-b border-slate-200 px-6 py-3 dark:border-neutral-800">
+          <SearchBar />
+        </header>
         <main className="flex-1 overflow-auto">
           <Outlet />
         </main>
