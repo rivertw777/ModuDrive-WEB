@@ -2,8 +2,14 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { FolderIcon, LogOutIcon } from '@/components/ui/icons'
+import { FolderIcon, LogOutIcon, UsersIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
+
+const NAV_LINK_CLASS =
+  'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors'
+const NAV_LINK_ACTIVE_CLASS = 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
+const NAV_LINK_INACTIVE_CLASS =
+  'text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
 
 export default function AppLayoutRoute() {
   const accessToken = useAuthStore((state) => state.accessToken)
@@ -11,6 +17,7 @@ export default function AppLayoutRoute() {
   const { data: member } = useCurrentMember(accessToken !== null)
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
+  const isSharedActive = location.pathname.startsWith('/shared')
 
   if (!accessToken) {
     return <Navigate to="/login" replace />
@@ -29,14 +36,16 @@ export default function AppLayoutRoute() {
         <nav className="mt-6 flex flex-col gap-1 text-sm">
           <Link
             to="/drive"
-            className={cn(
-              'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors',
-              isDriveActive
-                ? 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-                : 'text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800',
-            )}
+            className={cn(NAV_LINK_CLASS, isDriveActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
           >
             <FolderIcon size={18} />내 드라이브
+          </Link>
+          <Link
+            to="/shared"
+            className={cn(NAV_LINK_CLASS, isSharedActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <UsersIcon size={18} />
+            공유 문서함
           </Link>
         </nav>
 
