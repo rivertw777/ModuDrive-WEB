@@ -1,13 +1,24 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { DownloadIcon, FileIcon, FolderIcon, ShareIcon, TrashIcon, XIcon } from '@/components/ui/icons'
+import {
+  DownloadIcon,
+  FileIcon,
+  FolderIcon,
+  MoveIcon,
+  PencilIcon,
+  ShareIcon,
+  TrashIcon,
+  XIcon,
+} from '@/components/ui/icons'
 import { formatFileSize } from '../types'
 import { useFile } from '../api/get-file'
 import { useFileRevisions } from '../api/get-file-revisions'
 import { downloadFile } from '../api/download-file'
 import { ShareDialog } from './share-dialog'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
+import { RenameDialog } from './rename-dialog'
+import { MoveDialog } from './move-dialog'
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: '업로드 중',
@@ -26,6 +37,8 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
   const { data: revisions } = useFileRevisions(fileId)
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [moveOpen, setMoveOpen] = useState(false)
 
   return (
     <aside className="w-80 shrink-0 border-l border-slate-200 p-4 dark:border-neutral-800">
@@ -98,6 +111,14 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
                 다운로드
               </Button>
             )}
+            <Button variant="secondary" onClick={() => setRenameOpen(true)}>
+              <PencilIcon size={16} />
+              이름 변경
+            </Button>
+            <Button variant="secondary" onClick={() => setMoveOpen(true)}>
+              <MoveIcon size={16} />
+              이동
+            </Button>
             <Button variant="secondary" onClick={() => setShareOpen(true)}>
               <ShareIcon size={16} />
               공유
@@ -118,6 +139,17 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
         fileName={file?.name ?? ''}
         onDeleted={onClose}
       />
+      {file && (
+        <>
+          <RenameDialog
+            open={renameOpen}
+            onClose={() => setRenameOpen(false)}
+            fileId={fileId}
+            currentName={file.name}
+          />
+          <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} fileId={fileId} currentPath={file.path} />
+        </>
+      )}
     </aside>
   )
 }

@@ -10,22 +10,24 @@ function EntryIcon({ file }: { file: FileEntry }) {
 }
 
 export function FileList({
-  path,
   files,
   selectedFileId,
   onNavigate,
   onSelect,
+  navigable = true,
+  emptyLabel = '이 폴더는 비어 있습니다',
 }: {
-  path: string
   files: FileEntry[]
   selectedFileId: string | null
   onNavigate: (path: string) => void
   onSelect: (file: FileEntry) => void
+  navigable?: boolean
+  emptyLabel?: string
 }) {
   const visible = files.filter((file) => file.status !== 'DELETED')
 
   if (visible.length === 0) {
-    return <EmptyState label="이 폴더는 비어 있습니다" />
+    return <EmptyState label={emptyLabel} />
   }
 
   return (
@@ -40,7 +42,9 @@ export function FileList({
         {visible.map((file) => (
           <tr
             key={file.fileId}
-            onClick={() => (file.directory ? onNavigate(joinPath(path, file.name)) : onSelect(file))}
+            onClick={() =>
+              file.directory && navigable ? onNavigate(joinPath(file.path, file.name)) : onSelect(file)
+            }
             className={cn(
               'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-neutral-900 dark:hover:bg-neutral-900',
               selectedFileId === file.fileId && 'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
