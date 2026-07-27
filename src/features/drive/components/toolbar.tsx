@@ -1,4 +1,6 @@
 import { useRef } from 'react'
+import { Button } from '@/components/ui/button'
+import { FolderPlusIcon, LoaderIcon, UploadIcon } from '@/components/ui/icons'
 import { Breadcrumb } from './breadcrumb'
 
 export function Toolbar({
@@ -15,22 +17,23 @@ export function Toolbar({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   return (
-    <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+    <div className="flex items-center justify-between pb-4">
       <Breadcrumb path={path} />
       <div className="flex items-center gap-2">
-        {uploadingLabel && <span className="text-sm text-slate-500">{uploadingLabel}</span>}
-        <button
-          onClick={onNewFolder}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-        >
+        {uploadingLabel && (
+          <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-neutral-400">
+            <LoaderIcon size={14} className="animate-spin" />
+            {uploadingLabel}
+          </span>
+        )}
+        <Button variant="secondary" onClick={onNewFolder}>
+          <FolderPlusIcon size={16} />
           새 폴더
-        </button>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-        >
+        </Button>
+        <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
+          <UploadIcon size={16} />
           업로드
-        </button>
+        </Button>
         <input
           ref={fileInputRef}
           type="file"

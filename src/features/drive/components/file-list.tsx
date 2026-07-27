@@ -1,11 +1,12 @@
 import { EmptyState } from '@/components/ui/state'
-import { joinPath, type FileEntry } from '../types'
+import { FileIcon, FolderIcon, ImageIcon } from '@/components/ui/icons'
+import { cn } from '@/utils/cn'
+import { formatFileSize, isImageFile, joinPath, type FileEntry } from '../types'
 
-function formatSize(bytes: number | null) {
-  if (bytes === null) return '-'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+function EntryIcon({ file }: { file: FileEntry }) {
+  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
+  if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
+  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-neutral-500" />
 }
 
 export function FileList({
@@ -30,28 +31,30 @@ export function FileList({
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-200 text-left text-slate-500">
+        <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-neutral-800 dark:text-neutral-400">
           <th className="py-2 font-medium">이름</th>
-          <th className="py-2 font-medium">크기</th>
-          <th className="py-2 font-medium">상태</th>
+          <th className="w-28 py-2 text-right font-medium">크기</th>
         </tr>
       </thead>
       <tbody>
         {visible.map((file) => (
           <tr
             key={file.fileId}
-            onClick={() =>
-              file.directory ? onNavigate(joinPath(path, file.name)) : onSelect(file)
-            }
-            className={`cursor-pointer border-b border-slate-100 hover:bg-slate-50 ${
-              selectedFileId === file.fileId ? 'bg-slate-50' : ''
-            }`}
+            onClick={() => (file.directory ? onNavigate(joinPath(path, file.name)) : onSelect(file))}
+            className={cn(
+              'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-neutral-900 dark:hover:bg-neutral-900',
+              selectedFileId === file.fileId && 'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
+            )}
           >
-            <td className="py-2">
-              {file.directory ? '📁' : '📄'} {file.name}
+            <td className="py-2.5">
+              <span className="flex items-center gap-2.5 text-slate-800 dark:text-neutral-200">
+                <EntryIcon file={file} />
+                {file.name}
+              </span>
             </td>
-            <td className="py-2 text-slate-500">{file.directory ? '-' : formatSize(file.fileSize)}</td>
-            <td className="py-2 text-slate-500">{file.status}</td>
+            <td className="py-2.5 text-right text-slate-500 dark:text-neutral-400">
+              {file.directory ? '-' : formatFileSize(file.fileSize)}
+            </td>
           </tr>
         ))}
       </tbody>

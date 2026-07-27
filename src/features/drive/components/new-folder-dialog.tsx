@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Dialog } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useCreateDirectory } from '../api/create-directory'
 
 const schema = z.object({
@@ -46,31 +47,23 @@ export function NewFolderDialog({
           <input
             autoFocus
             placeholder="폴더 이름"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
             {...register('name')}
           />
-          {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>}
+          {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
         </div>
 
         {createDirectory.isError && (
-          <p className="text-sm text-red-600">{createDirectory.error.message}</p>
+          <p className="text-sm text-red-600 dark:text-red-400">{createDirectory.error.message}</p>
         )}
 
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             취소
-          </button>
-          <button
-            type="submit"
-            disabled={createDirectory.isPending}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" variant="primary" disabled={createDirectory.isPending}>
             {createDirectory.isPending ? '만드는 중...' : '만들기'}
-          </button>
+          </Button>
         </div>
       </form>
     </Dialog>

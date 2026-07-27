@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Dialog } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useShareFile } from '../api/share-file'
 
 const schema = z.object({
@@ -44,21 +45,21 @@ export function ShareDialog({
     <Dialog open={open} onClose={onClose} title="파일 공유">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div>
-          <label className="block text-sm font-medium text-slate-700">대상 회원 UUID</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">대상 회원 UUID</label>
           <input
             placeholder="11111111-1111-1111-1111-111111111111"
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
             {...register('sharedWithUserId')}
           />
           {errors.sharedWithUserId && (
-            <p className="mt-1 text-sm text-red-600">{errors.sharedWithUserId.message}</p>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.sharedWithUserId.message}</p>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700">권한</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">권한</label>
           <select
-            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
             {...register('permission')}
           >
             <option value="READ">읽기</option>
@@ -66,23 +67,15 @@ export function ShareDialog({
           </select>
         </div>
 
-        {shareFile.isError && <p className="text-sm text-red-600">{shareFile.error.message}</p>}
+        {shareFile.isError && <p className="text-sm text-red-600 dark:text-red-400">{shareFile.error.message}</p>}
 
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-          >
+          <Button type="button" variant="ghost" onClick={onClose}>
             취소
-          </button>
-          <button
-            type="submit"
-            disabled={shareFile.isPending}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
+          </Button>
+          <Button type="submit" variant="primary" disabled={shareFile.isPending}>
             {shareFile.isPending ? '공유 중...' : '공유'}
-          </button>
+          </Button>
         </div>
       </form>
     </Dialog>

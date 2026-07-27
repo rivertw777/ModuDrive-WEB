@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import { Button } from '@/components/ui/button'
 import { useLogin } from '../api/login'
 
 const loginSchema = z.object({
@@ -25,42 +26,40 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
           이메일
         </label>
         <input
           id="email"
           type="email"
           autoComplete="email"
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           {...register('email')}
         />
-        {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+        <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
           비밀번호
         </label>
         <input
           id="password"
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           {...register('password')}
         />
-        {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
+        {errors.password && (
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
+        )}
       </div>
 
-      {login.isError && <p className="text-sm text-red-600">{login.error.message}</p>}
+      {login.isError && <p className="text-sm text-red-600 dark:text-red-400">{login.error.message}</p>}
 
-      <button
-        type="submit"
-        disabled={login.isPending}
-        className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
+      <Button type="submit" variant="primary" disabled={login.isPending} className="w-full">
         {login.isPending ? '로그인 중...' : '로그인'}
-      </button>
+      </Button>
     </form>
   )
 }

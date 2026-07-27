@@ -1,4 +1,5 @@
 import { useState, type DragEvent, type ReactNode } from 'react'
+import { UploadIcon } from '@/components/ui/icons'
 
 export function UploadDropzone({
   onFilesSelected,
@@ -24,10 +25,14 @@ export function UploadDropzone({
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
-      className={`rounded-md border-2 border-dashed transition-colors ${
-        isDragging ? 'border-slate-400 bg-slate-50' : 'border-transparent'
-      }`}
+      className="relative rounded-lg"
     >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-violet-400 bg-violet-50/90 text-violet-700 dark:bg-violet-950/90 dark:text-violet-300">
+          <UploadIcon size={28} />
+          <p className="text-sm font-medium">여기에 파일을 놓아 업로드</p>
+        </div>
+      )}
       {children}
     </div>
   )

@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { DownloadIcon, FileIcon, FolderIcon, ShareIcon, TrashIcon, XIcon } from '@/components/ui/icons'
+import { formatFileSize } from '../types'
 import { useFile } from '../api/get-file'
 import { useFileRevisions } from '../api/get-file-revisions'
 import { downloadFile } from '../api/download-file'
@@ -12,6 +15,12 @@ const STATUS_LABEL: Record<string, string> = {
   DELETED: '삭제됨',
 }
 
+const STATUS_CLASSES: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  UPLOADED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  DELETED: 'bg-slate-200 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400',
+}
+
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
   const { data: file, isLoading, isError } = useFile(fileId)
   const { data: revisions } = useFileRevisions(fileId)
@@ -19,11 +28,15 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   return (
-    <aside className="w-72 shrink-0 border-l border-slate-200 p-4">
+    <aside className="w-80 shrink-0 border-l border-slate-200 p-4 dark:border-neutral-800">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">파일 정보</h2>
-        <button onClick={onClose} className="text-sm text-slate-400 hover:text-slate-700">
-          닫기
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">파일 정보</h2>
+        <button
+          onClick={onClose}
+          aria-label="닫기"
+          className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+        >
+          <XIcon size={16} />
         </button>
       </div>
 
@@ -31,62 +44,68 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
       {isError && <ErrorState message="파일 정보를 불러오지 못했습니다" />}
 
       {file && (
-        <div className="mt-4 space-y-4 text-sm">
-          <div>
-            <p className="font-medium text-slate-900">{file.name}</p>
-            <dl className="mt-2 space-y-1 text-slate-500">
-              <div className="flex justify-between">
-                <dt>크기</dt>
-                <dd>{file.fileSize ?? '-'}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt>상태</dt>
-                <dd>{STATUS_LABEL[file.status] ?? file.status}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt>소유자</dt>
-                <dd className="truncate" title={file.ownerId}>
-                  {file.ownerId}
-                </dd>
-              </div>
-            </dl>
+        <div className="mt-4 space-y-5 text-sm">
+          <div className="flex flex-col items-center gap-2 rounded-lg bg-slate-50 py-6 dark:bg-neutral-900">
+            {file.directory ? (
+              <FolderIcon size={36} className="text-violet-500" />
+            ) : (
+              <FileIcon size={36} className="text-slate-400 dark:text-neutral-500" />
+            )}
+            <p className="max-w-full truncate px-4 text-center font-medium text-slate-900 dark:text-neutral-100">
+              {file.name}
+            </p>
           </div>
+
+          <dl className="space-y-2 text-slate-500 dark:text-neutral-400">
+            <div className="flex justify-between">
+              <dt>크기</dt>
+              <dd className="text-slate-700 dark:text-neutral-300">{formatFileSize(file.fileSize)}</dd>
+            </div>
+            <div className="flex items-center justify-between">
+              <dt>상태</dt>
+              <dd
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[file.status] ?? ''}`}
+              >
+                {STATUS_LABEL[file.status] ?? file.status}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0">소유자</dt>
+              <dd className="truncate text-slate-700 dark:text-neutral-300" title={file.ownerId}>
+                {file.ownerId}
+              </dd>
+            </div>
+          </dl>
 
           {revisions && revisions.length > 0 && (
             <div>
-              <p className="font-medium text-slate-900">버전 기록</p>
-              <ul className="mt-2 space-y-1 text-slate-500">
+              <p className="font-medium text-slate-900 dark:text-neutral-100">버전 기록</p>
+              <ul className="mt-2 space-y-1 text-slate-500 dark:text-neutral-400">
                 {revisions.map((revision) => (
                   <li key={revision.versionId} className="flex justify-between">
                     <span>{revision.versionId.slice(0, 8)}</span>
-                    <span>{revision.fileSize} bytes</span>
+                    <span>{formatFileSize(revision.fileSize)}</span>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 pt-1">
             {file.status === 'UPLOADED' && !file.directory && (
-              <button
-                onClick={() => downloadFile(file.fileId, file.name)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-              >
+              <Button variant="secondary" onClick={() => downloadFile(file.fileId, file.name)}>
+                <DownloadIcon size={16} />
                 다운로드
-              </button>
+              </Button>
             )}
-            <button
-              onClick={() => setShareOpen(true)}
-              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
-            >
+            <Button variant="secondary" onClick={() => setShareOpen(true)}>
+              <ShareIcon size={16} />
               공유
-            </button>
-            <button
-              onClick={() => setDeleteOpen(true)}
-              className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
+            </Button>
+            <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+              <TrashIcon size={16} />
               삭제
-            </button>
+            </Button>
           </div>
         </div>
       )}
