@@ -4,6 +4,7 @@ import LoginRoute from '@/app/routes/login'
 import SignupRoute from '@/app/routes/signup'
 import AppLayoutRoute from '@/app/routes/app-layout'
 import DriveRoute from '@/app/routes/drive'
+import SharedRoute from '@/app/routes/shared'
 import NotFoundRoute from '@/app/routes/not-found'
 
 const router = createBrowserRouter([
@@ -26,6 +27,11 @@ const router = createBrowserRouter([
       { index: true, element: <DriveRoute /> },
       { path: '*', element: <DriveRoute /> },
     ],
+  },
+  {
+    path: '/shared',
+    element: <AppLayoutRoute />,
+    children: [{ index: true, element: <SharedRoute /> }],
   },
   {
     path: '*',
