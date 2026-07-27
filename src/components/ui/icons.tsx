@@ -111,3 +111,11 @@ export const AlertCircleIcon = createIcon(
     <path d="M12 8v5M12 16h.01" />
   </>,
 )
+
+export const UsersIcon = createIcon(
+  <>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3.5 19c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5" />
+    <path d="M16 8.2a3.2 3.2 0 1 1 1.8 5.9M18.5 19c-.5-1.7-1.4-3-2.7-3.9" />
+  </>,
+)
