@@ -130,3 +130,10 @@ export const UsersIcon = createIcon(
     <path d="M16 8.2a3.2 3.2 0 1 1 1.8 5.9M18.5 19c-.5-1.7-1.4-3-2.7-3.9" />
   </>,
 )
+
+export const SearchIcon = createIcon(
+  <>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m21 21-4.3-4.3" />
+  </>,
+)
