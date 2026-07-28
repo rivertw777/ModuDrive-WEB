@@ -2,7 +2,7 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { FolderIcon, LogOutIcon, UsersIcon } from '@/components/ui/icons'
+import { FolderIcon, LogOutIcon, TrashIcon, UsersIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 
 const NAV_LINK_CLASS =
@@ -17,6 +17,7 @@ export default function AppLayoutRoute() {
   const { data: member } = useCurrentMember(accessToken !== null)
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
+  const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
 
   if (!accessToken) {
@@ -39,6 +40,13 @@ export default function AppLayoutRoute() {
             className={cn(NAV_LINK_CLASS, isDriveActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
           >
             <FolderIcon size={18} />내 드라이브
+          </Link>
+          <Link
+            to="/trash"
+            className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <TrashIcon size={18} />
+            휴지통
           </Link>
           <Link
             to="/shared"
