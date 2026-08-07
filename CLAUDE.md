@@ -28,30 +28,33 @@ Structure follows the **bulletproof-react** convention:
 
 ```
 src/
-  app/            # entry point: provider, router, routes
-    routes/
-    provider.tsx  # global providers (QueryClientProvider, etc.)
-    router.tsx    # createBrowserRouter
-  components/ui/  # shared UI components (currently empty)
+  app/
+    routes/          # landing, login, signup, app-layout (drive shell), drive, search, shared, not-found
+    provider.tsx     # global providers (QueryClientProvider, ReactQueryDevtools in dev)
+    router.tsx       # createBrowserRouter
+  components/ui/     # shared UI primitives (button, dialog, icons, state, theme-toggle)
   config/
-    env.ts        # validates import.meta.env via zod
-  features/       # feature modules (auth, files, ...) — not created yet
-  hooks/          # shared hooks
+    env.ts           # validates import.meta.env via zod
+  features/
+    auth/            # login/signup forms, current-member query
+    drive/            # file explorer, upload, search, sharing — the app's core feature
   lib/
-    api-client.ts # axios instance: unwraps ApiResponse, handles 401
+    api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
-  stores/         # global state (zustand)
+  stores/             # zustand: auth-store (access token), theme-store (light/dark)
+  testing/
+    setup-tests.ts
   types/
-    api.ts        # backend ApiResponse<T> shape
+    api.ts            # backend ApiResponse<T> shape
   utils/
-    cn.ts         # clsx + tailwind-merge
+    cn.ts              # clsx + tailwind-merge
 ```
 
-**Feature boundary rule**: `features/*` modules may not import each other's internals. This is enforced in `eslint.config.js` via `no-restricted-imports` (pattern `@/features/*/*` is an error) — a feature must only be reached through its public barrel `@/features/<name>`, never a file inside it. No separate plugin is used for this; when adding a new feature, keep its public exports in the feature root so other features/routes can import it without violating the rule.
+**Feature boundary rule**: `features/*` modules may not import each other's internals. This is enforced in `eslint.config.js` via `no-restricted-imports` (pattern `@/features/*/*` is an error) — a feature must only be reached through its public barrel `@/features/<name>`, never a file inside it. No separate plugin is used for this; when adding a new feature, keep its public exports in the feature root (`index.ts`) so other features/routes can import it without violating the rule.
 
 Path alias `@/` → `src/` is configured in both `tsconfig.app.json` and `vite.config.ts` — keep them in sync if it ever changes.
 
-`features/*` does not exist yet; the codebase is currently just the app shell (`app/`, `lib/`, `config/`, `types/`, `utils/`).
+`/drive`, `/search`, and `/shared` all render inside `app-layout.tsx` (the authenticated shell: sidebar nav, search bar, theme toggle), and each route maps to a `features/drive` explorer component (`DriveExplorer`, `SearchExplorer`, `SharedWithMeExplorer`) that shares the same `FileEntry` type and file-list UI patterns.
 
 ## Backend integration (ModuDrive-API)
 
@@ -71,5 +74,5 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
 ## State management
 
 - **Server state**: TanStack Query (`src/lib/react-query.ts`), `retry: false`, `staleTime: 60s`. DevTools mounted only in dev (`import.meta.env.DEV`) inside `AppProvider`.
-- **Client/global state**: Zustand is installed but has no stores yet — add one only when a real cross-cutting concern (e.g. auth) needs it.
+- **Client/global state**: Zustand. `auth-store.ts` holds the access token (persisted to `localStorage`, same key as `api-client.ts`). `theme-store.ts` toggles the `dark` class on `<html>` and persists the choice. Add a new store only when a real cross-cutting concern needs it.
 - **Forms**: React Hook Form + Zod via `@hookform/resolvers`.
