@@ -47,3 +47,15 @@ export function isImageFile(name: string) {
   const ext = name.split('.').pop()?.toLowerCase()
   return ext ? IMAGE_EXTENSIONS.has(ext) : false
 }
+
+export type SortDirection = 'asc' | 'desc' | null
+
+/** Folders always sort above files. Within each group, `direction` orders by name; null keeps original order. */
+export function sortEntries(files: FileEntry[], direction: SortDirection) {
+  return [...files].sort((a, b) => {
+    if (a.directory !== b.directory) return a.directory ? -1 : 1
+    if (!direction) return 0
+    const cmp = a.name.localeCompare(b.name, 'ko')
+    return direction === 'asc' ? cmp : -cmp
+  })
+}

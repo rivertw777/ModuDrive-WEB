@@ -67,6 +67,7 @@ export function DriveExplorer({ path }: { path: string }) {
                 selectedFileId={selectedFileId}
                 onNavigate={onNavigate}
                 onSelect={onSelect}
+                onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
               />
             </UploadDropzone>
           )}
