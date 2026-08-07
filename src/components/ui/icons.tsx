@@ -49,6 +49,21 @@ export const ImageIcon = createIcon(
   </>,
 )
 
+export const VideoIcon = createIcon(
+  <>
+    <rect x="2" y="6" width="14" height="12" rx="2" />
+    <path d="m16 10.5 5.2-3.48a.5.5 0 0 1 .8.4v9.16a.5.5 0 0 1-.8.4L16 13.5" />
+  </>,
+)
+
+export const MusicIcon = createIcon(
+  <>
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
+  </>,
+)
+
 export const UploadIcon = createIcon(
   <>
     <path d="M12 16V4M7 9l5-5 5 5" />

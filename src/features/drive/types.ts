@@ -1,5 +1,14 @@
 export type FileStatus = 'PENDING' | 'UPLOADED' | 'DELETED'
 export type Permission = 'READ' | 'WRITE'
+export type FileCategory = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO'
+
+/** Sidebar entries for browsing files by category. `slug` is the URL segment under /category. */
+export const FILE_CATEGORIES: { slug: string; type: FileCategory; label: string }[] = [
+  { slug: 'image', type: 'IMAGE', label: '사진' },
+  { slug: 'video', type: 'VIDEO', label: '동영상' },
+  { slug: 'document', type: 'DOCUMENT', label: '문서' },
+  { slug: 'audio', type: 'AUDIO', label: '음악' },
+]
 
 export type FileEntry = {
   fileId: string

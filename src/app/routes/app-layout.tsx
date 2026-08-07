@@ -2,9 +2,20 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { FolderIcon, LogOutIcon, TrashIcon, UsersIcon } from '@/components/ui/icons'
-import { SearchBar } from '@/features/drive'
+import {
+  FileIcon,
+  FolderIcon,
+  ImageIcon,
+  LogOutIcon,
+  MusicIcon,
+  TrashIcon,
+  UsersIcon,
+  VideoIcon,
+} from '@/components/ui/icons'
+import { SearchBar, FILE_CATEGORIES } from '@/features/drive'
 import { cn } from '@/utils/cn'
+
+const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: FileIcon, AUDIO: MusicIcon } as const
 
 const NAV_LINK_CLASS =
   'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors'
@@ -42,6 +53,22 @@ export default function AppLayoutRoute() {
           >
             <FolderIcon size={18} />내 드라이브
           </Link>
+          <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-neutral-800">
+            {FILE_CATEGORIES.map((category) => {
+              const Icon = CATEGORY_ICONS[category.type]
+              const isActive = location.pathname === `/category/${category.slug}`
+              return (
+                <Link
+                  key={category.slug}
+                  to={`/category/${category.slug}`}
+                  className={cn(NAV_LINK_CLASS, isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+                >
+                  <Icon size={18} />
+                  {category.label}
+                </Link>
+              )
+            })}
+          </div>
           <Link
             to="/trash"
             className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
