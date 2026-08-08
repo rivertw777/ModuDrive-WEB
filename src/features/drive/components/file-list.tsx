@@ -14,7 +14,7 @@ import {
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { formatFileSize, isImageFile, joinPath, sortEntries, type FileEntry, type SortDirection } from '../types'
+import { formatDate, formatFileSize, isImageFile, joinPath, sortEntries, type FileEntry, type SortDirection } from '../types'
 import { downloadFile } from '../api/download-file'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { RenameDialog } from './rename-dialog'
@@ -66,7 +66,9 @@ export function FileList({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            <th className="py-2 font-medium">
+            <th className="w-8 py-2 pl-2 font-medium" />
+            <th className="w-14 px-3 py-2 font-medium whitespace-nowrap">종류</th>
+            <th className="px-3 py-2 font-medium">
               <button
                 type="button"
                 onClick={() => setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))}
@@ -81,7 +83,8 @@ export function FileList({
                 )}
               </button>
             </th>
-            <th className="w-28 py-2 text-right font-medium">크기</th>
+            <th className="w-28 px-3 py-2 font-medium">크기</th>
+            <th className="w-44 px-3 py-2 font-medium">수정한 날짜</th>
           </tr>
         </thead>
         <tbody>
@@ -98,18 +101,27 @@ export function FileList({
                 selectedFileId === file.fileId && 'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
               )}
             >
-              <td className="py-2.5">
-                <span className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
-                  <EntryIcon file={file} />
-                  {file.name}
-                  {file.favorite && (
-                    <StarIcon size={14} className="shrink-0 fill-amber-400 text-amber-400" />
-                  )}
-                </span>
+              <td className="py-2.5 pl-2">
+                <button
+                  type="button"
+                  aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+                  }}
+                  className="flex items-center text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
+                >
+                  <StarIcon size={16} className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined} />
+                </button>
               </td>
-              <td className="py-2.5 text-right text-slate-500 dark:text-slate-400">
+              <td className="px-3 py-2.5">
+                <EntryIcon file={file} />
+              </td>
+              <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
+              <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
                 {file.directory ? '-' : formatFileSize(file.fileSize)}
               </td>
+              <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
             </tr>
           ))}
         </tbody>

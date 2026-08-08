@@ -16,6 +16,9 @@ const CHUNK_SIZE = 5 * 1024 * 1024 // 5MB
 // holding the whole file in memory/formdata.
 const RESUMABLE_THRESHOLD = 20 * 1024 * 1024 // 20MB
 
+// Mirrors modudrive.storage.max-file-size-bytes in storage-service's application.yml.
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024 // 5GB
+
 async function simpleUpload(fileId: string, file: File, onProgress?: (percent: number) => void) {
   const formData = new FormData()
   formData.append('file', file)
@@ -33,6 +36,7 @@ async function resumableUpload(fileId: string, file: File, onProgress?: (percent
   const { sessionId } = await apiClient.post<{ sessionId: string }>('/api/v1/storage/upload/resumable', {
     fileId,
     totalChunks,
+    fileSize: file.size,
   })
 
   for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
@@ -47,6 +51,10 @@ async function resumableUpload(fileId: string, file: File, onProgress?: (percent
 }
 
 async function uploadFile({ file, path, onProgress }: UploadFileInput, queryClient: QueryClient) {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error('파일 크기는 5GB를 초과할 수 없습니다.')
+  }
+
   const metadata = await apiClient.post<FileEntry>('/api/v1/files/metadata', {
     name: file.name,
     path,
