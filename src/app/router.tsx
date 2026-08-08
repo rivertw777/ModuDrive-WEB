@@ -9,6 +9,7 @@ import TrashRoute from '@/app/routes/trash'
 import SharedRoute from '@/app/routes/shared'
 import SearchRoute from '@/app/routes/search'
 import CategoryRoute from '@/app/routes/category'
+import StorageRoute from '@/app/routes/storage'
 import NotFoundRoute from '@/app/routes/not-found'
 
 const router = createBrowserRouter([
@@ -36,6 +37,11 @@ const router = createBrowserRouter([
     path: '/favorites',
     element: <AppLayoutRoute />,
     children: [{ index: true, element: <FavoritesRoute /> }],
+  },
+  {
+    path: '/storage',
+    element: <AppLayoutRoute />,
+    children: [{ index: true, element: <StorageRoute /> }],
   },
   {
     path: '/trash',

@@ -70,6 +70,20 @@ export function isImageFile(name: string) {
   return ext ? IMAGE_EXTENSIONS.has(ext) : false
 }
 
+// Mirrors backend FileCategory.java's extension sets.
+const CATEGORY_EXTENSIONS: Record<FileCategory, Set<string>> = {
+  IMAGE: IMAGE_EXTENSIONS,
+  VIDEO: new Set(['mp4', 'mov', 'avi', 'mkv', 'webm']),
+  DOCUMENT: new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'hwp']),
+  AUDIO: new Set(['mp3', 'wav', 'flac', 'aac', 'm4a']),
+}
+
+export function categorizeFile(name: string): FileCategory | null {
+  const ext = name.split('.').pop()?.toLowerCase()
+  if (!ext) return null
+  return (Object.keys(CATEGORY_EXTENSIONS) as FileCategory[]).find((c) => CATEGORY_EXTENSIONS[c].has(ext)) ?? null
+}
+
 export type SortDirection = 'asc' | 'desc' | null
 
 /** Folders always sort above files. Within each group, `direction` orders by name; null keeps original order. */

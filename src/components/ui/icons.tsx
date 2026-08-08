@@ -150,6 +150,12 @@ export const StarIcon = createIcon(
   <path d="m12 3 2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3-4.8-4.3 6.4-.6z" />,
 )
 
+export const CloudIcon = createIcon(
+  <path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A5 5 0 0 0 6.5 19h11z" />,
+)
+
+export const ArrowDownIcon = createIcon(<path d="M12 4v16m0 0-6-6m6 6 6-6" />)
+
 export const SearchIcon = createIcon(
   <>
     <circle cx="11" cy="11" r="7" />
