@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
+  CloudIcon,
   FileIcon,
   FolderIcon,
   ImageIcon,
@@ -32,6 +33,7 @@ export default function AppLayoutRoute() {
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
   const isFavoritesActive = location.pathname.startsWith('/favorites')
+  const isStorageActive = location.pathname.startsWith('/storage')
   const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
   const sidebar = useResizableWidth('modudrive.sidebarWidth', 240, 200, 400, 'right')
@@ -96,6 +98,13 @@ export default function AppLayoutRoute() {
 
           <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
 
+          <Link
+            to="/storage"
+            className={cn(NAV_LINK_CLASS, isStorageActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <CloudIcon size={18} />
+            저장용량
+          </Link>
           <Link
             to="/trash"
             className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}

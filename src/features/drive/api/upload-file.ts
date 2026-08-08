@@ -80,7 +80,8 @@ export function useUploadFile() {
     mutationFn: (input: UploadFileInput) => uploadFile(input, queryClient),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['directory', variables.path] })
-      queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
+      // Prefix match covers 'usage', 'all', and 'category' queries too — same list, one invalidation.
+      queryClient.invalidateQueries({ queryKey: ['files'] })
     },
   })
 }
