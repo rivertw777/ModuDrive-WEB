@@ -32,7 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_CLASSES: Record<string, string> = {
   PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
   UPLOADED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  DELETED: 'bg-slate-200 text-slate-600 dark:bg-neutral-800 dark:text-neutral-400',
+  DELETED: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
 }
 
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
@@ -48,14 +48,14 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
   return (
     <aside
       style={{ width: panel.width }}
-      className="relative shrink-0 border-l border-slate-200 p-4 dark:border-neutral-800"
+      className="relative shrink-0 border-l border-slate-200 p-4 dark:border-slate-700"
     >
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">파일 정보</h2>
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">파일 정보</h2>
         <button
           onClick={onClose}
           aria-label="닫기"
-          className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+          className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
         >
           <XIcon size={16} />
         </button>
@@ -66,21 +66,21 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
 
       {file && (
         <div className="mt-4 space-y-5 text-sm">
-          <div className="flex flex-col items-center gap-2 rounded-lg bg-slate-50 py-6 dark:bg-neutral-900">
+          <div className="flex flex-col items-center gap-2 rounded-lg bg-slate-50 py-6 dark:bg-slate-800">
             {file.directory ? (
               <FolderIcon size={36} className="text-violet-500" />
             ) : (
-              <FileIcon size={36} className="text-slate-400 dark:text-neutral-500" />
+              <FileIcon size={36} className="text-slate-400 dark:text-slate-500" />
             )}
-            <p className="max-w-full truncate px-4 text-center font-medium text-slate-900 dark:text-neutral-100">
+            <p className="max-w-full truncate px-4 text-center font-medium text-slate-900 dark:text-slate-100">
               {file.name}
             </p>
           </div>
 
-          <dl className="space-y-2 text-slate-500 dark:text-neutral-400">
+          <dl className="space-y-2 text-slate-500 dark:text-slate-400">
             <div className="flex justify-between">
               <dt>크기</dt>
-              <dd className="text-slate-700 dark:text-neutral-300">{formatFileSize(file.fileSize)}</dd>
+              <dd className="text-slate-700 dark:text-slate-300">{formatFileSize(file.fileSize)}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt>상태</dt>
@@ -92,7 +92,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             </div>
             <div className="flex justify-between gap-3">
               <dt className="shrink-0">소유자</dt>
-              <dd className="truncate text-slate-700 dark:text-neutral-300" title={file.ownerId}>
+              <dd className="truncate text-slate-700 dark:text-slate-300" title={file.ownerId}>
                 {file.ownerId}
               </dd>
             </div>
@@ -100,8 +100,8 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
 
           {revisions && revisions.length > 0 && (
             <div>
-              <p className="font-medium text-slate-900 dark:text-neutral-100">버전 기록</p>
-              <ul className="mt-2 space-y-1 text-slate-500 dark:text-neutral-400">
+              <p className="font-medium text-slate-900 dark:text-slate-100">버전 기록</p>
+              <ul className="mt-2 space-y-1 text-slate-500 dark:text-slate-400">
                 {revisions.map((revision) => (
                   <li key={revision.versionId} className="flex justify-between">
                     <span>{revision.versionId.slice(0, 8)}</span>

@@ -31,8 +31,8 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   const inputClass =
-    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100'
-  const labelClass = 'block text-sm font-medium text-slate-700 dark:text-neutral-300'
+    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100'
+  const labelClass = 'block text-sm font-medium text-slate-700 dark:text-slate-300'
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>

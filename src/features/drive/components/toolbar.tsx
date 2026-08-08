@@ -21,7 +21,7 @@ export function Toolbar({
       <Breadcrumb path={path} />
       <div className="flex items-center gap-2">
         {uploadingLabel && (
-          <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-neutral-400">
+          <span className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
             <LoaderIcon size={14} className="animate-spin" />
             {uploadingLabel}
           </span>

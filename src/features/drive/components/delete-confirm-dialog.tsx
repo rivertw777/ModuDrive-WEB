@@ -28,8 +28,8 @@ export function DeleteConfirmDialog({
 
   return (
     <Dialog open={open} onClose={onClose} title="파일 삭제">
-      <p className="text-sm text-slate-600 dark:text-neutral-400">
-        <span className="font-medium text-slate-900 dark:text-neutral-100">{fileName}</span>을(를) 삭제할까요? 이
+      <p className="text-sm text-slate-600 dark:text-slate-400">
+        <span className="font-medium text-slate-900 dark:text-slate-100">{fileName}</span>을(를) 삭제할까요? 이
         작업은 되돌릴 수 없습니다.
       </p>
 

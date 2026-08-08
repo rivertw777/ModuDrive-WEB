@@ -25,7 +25,7 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog'
 function EntryIcon({ file }: { file: FileEntry }) {
   if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
   if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-neutral-500" />
+  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-slate-500" />
 }
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; file: FileEntry }
@@ -65,12 +65,12 @@ export function FileList({
     <>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-neutral-800 dark:text-neutral-400">
+          <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
             <th className="py-2 font-medium">
               <button
                 type="button"
                 onClick={() => setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))}
-                className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-neutral-200"
+                className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200"
               >
                 이름
                 {sortDir && (
@@ -94,12 +94,12 @@ export function FileList({
                 setMenu({ file, x: event.clientX, y: event.clientY })
               }}
               className={cn(
-                'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-neutral-900 dark:hover:bg-neutral-900',
+                'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
                 selectedFileId === file.fileId && 'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
               )}
             >
               <td className="py-2.5">
-                <span className="flex items-center gap-2.5 text-slate-800 dark:text-neutral-200">
+                <span className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
                   <EntryIcon file={file} />
                   {file.name}
                   {file.favorite && (
@@ -107,7 +107,7 @@ export function FileList({
                   )}
                 </span>
               </td>
-              <td className="py-2.5 text-right text-slate-500 dark:text-neutral-400">
+              <td className="py-2.5 text-right text-slate-500 dark:text-slate-400">
                 {file.directory ? '-' : formatFileSize(file.fileSize)}
               </td>
             </tr>

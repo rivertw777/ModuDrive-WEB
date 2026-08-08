@@ -26,28 +26,28 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
+        <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           이메일
         </label>
         <input
           id="email"
           type="email"
           autoComplete="email"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
           {...register('email')}
         />
         {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-neutral-300">
+        <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
           비밀번호
         </label>
         <input
           id="password"
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
           {...register('password')}
         />
         {errors.password && (
