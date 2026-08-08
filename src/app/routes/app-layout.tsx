@@ -76,6 +76,9 @@ export default function AppLayoutRoute() {
               )
             })}
           </div>
+
+          <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
+
           <Link
             to="/favorites"
             className={cn(NAV_LINK_CLASS, isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
@@ -90,6 +93,9 @@ export default function AppLayoutRoute() {
             <UsersIcon size={18} />
             공유 문서함
           </Link>
+
+          <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
+
           <Link
             to="/trash"
             className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
