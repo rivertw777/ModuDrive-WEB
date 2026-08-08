@@ -10,11 +10,13 @@ import {
   MoveIcon,
   PencilIcon,
   ShareIcon,
+  StarIcon,
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { formatFileSize, isImageFile, joinPath, sortEntries, type FileEntry, type SortDirection } from '../types'
 import { downloadFile } from '../api/download-file'
+import { useToggleFavorite } from '../api/toggle-favorite'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
 import { ShareDialog } from './share-dialog'
@@ -48,6 +50,7 @@ export function FileList({
   const [sortDir, setSortDir] = useState<SortDirection>('asc')
   const [menu, setMenu] = useState<(ContextMenuPosition & { file: FileEntry }) | null>(null)
   const [dialog, setDialog] = useState<DialogState | null>(null)
+  const toggleFavorite = useToggleFavorite()
 
   const visible = sortEntries(
     files.filter((file) => file.status !== 'DELETED'),
@@ -99,6 +102,9 @@ export function FileList({
                 <span className="flex items-center gap-2.5 text-slate-800 dark:text-neutral-200">
                   <EntryIcon file={file} />
                   {file.name}
+                  {file.favorite && (
+                    <StarIcon size={14} className="shrink-0 fill-amber-400 text-amber-400" />
+                  )}
                 </span>
               </td>
               <td className="py-2.5 text-right text-slate-500 dark:text-neutral-400">
@@ -144,6 +150,14 @@ export function FileList({
             }}
           >
             <ShareIcon size={16} /> 공유
+          </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => {
+              toggleFavorite.mutate({ fileId: menu.file.fileId, favorite: !menu.file.favorite })
+              setMenu(null)
+            }}
+          >
+            <StarIcon size={16} /> {menu.file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           </ContextMenuItem>
           <ContextMenuItem
             danger

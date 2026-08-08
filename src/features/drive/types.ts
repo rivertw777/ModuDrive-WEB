@@ -20,6 +20,7 @@ export type FileEntry = {
   fileSize: number | null
   status: FileStatus
   directory: boolean
+  favorite: boolean
 }
 
 export type FileVersion = {
