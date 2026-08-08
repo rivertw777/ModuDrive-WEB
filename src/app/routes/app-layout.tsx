@@ -12,7 +12,7 @@ import {
   UsersIcon,
   VideoIcon,
 } from '@/components/ui/icons'
-import { SearchBar, FILE_CATEGORIES } from '@/features/drive'
+import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
 import { cn } from '@/utils/cn'
 
 const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: FileIcon, AUDIO: MusicIcon } as const
@@ -85,24 +85,28 @@ export default function AppLayoutRoute() {
           </Link>
         </nav>
 
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-neutral-800">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-neutral-800 dark:text-neutral-300">
-              {member?.name?.slice(0, 1) ?? '?'}
-            </span>
-            {member && (
-              <span className="truncate text-sm text-slate-600 dark:text-neutral-400">{member.name}</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            <button
-              onClick={logout}
-              aria-label="로그아웃"
-              className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
-            >
-              <LogOutIcon size={17} />
-            </button>
+        <div className="mt-auto">
+          <StorageUsage />
+
+          <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-neutral-800">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-neutral-800 dark:text-neutral-300">
+                {member?.name?.slice(0, 1) ?? '?'}
+              </span>
+              {member && (
+                <span className="truncate text-sm text-slate-600 dark:text-neutral-400">{member.name}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1">
+              <ThemeToggle />
+              <button
+                onClick={logout}
+                aria-label="로그아웃"
+                className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+              >
+                <LogOutIcon size={17} />
+              </button>
+            </div>
           </div>
         </div>
       </aside>

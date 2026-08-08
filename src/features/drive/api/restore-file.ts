@@ -11,6 +11,7 @@ export function useRestoreFile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trash'] })
       queryClient.invalidateQueries({ queryKey: ['directory'] })
+      queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
     },
   })
 }

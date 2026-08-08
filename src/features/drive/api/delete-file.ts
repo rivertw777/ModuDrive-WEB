@@ -9,6 +9,7 @@ export function useDeleteFile() {
     mutationFn: deleteFile,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
+      queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
     },
   })
 }

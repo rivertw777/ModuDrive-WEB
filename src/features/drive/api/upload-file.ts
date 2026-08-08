@@ -72,6 +72,7 @@ export function useUploadFile() {
     mutationFn: (input: UploadFileInput) => uploadFile(input, queryClient),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['directory', variables.path] })
+      queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
     },
   })
 }
