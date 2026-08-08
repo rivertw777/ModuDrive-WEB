@@ -8,6 +8,7 @@ import {
   ImageIcon,
   LogOutIcon,
   MusicIcon,
+  StarIcon,
   TrashIcon,
   UsersIcon,
   VideoIcon,
@@ -29,6 +30,7 @@ export default function AppLayoutRoute() {
   const { data: member } = useCurrentMember(accessToken !== null)
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
+  const isFavoritesActive = location.pathname.startsWith('/favorites')
   const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
 
@@ -69,6 +71,13 @@ export default function AppLayoutRoute() {
               )
             })}
           </div>
+          <Link
+            to="/favorites"
+            className={cn(NAV_LINK_CLASS, isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <StarIcon size={18} />
+            즐겨찾기
+          </Link>
           <Link
             to="/trash"
             className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}

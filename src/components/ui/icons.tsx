@@ -146,6 +146,10 @@ export const UsersIcon = createIcon(
   </>,
 )
 
+export const StarIcon = createIcon(
+  <path d="m12 3 2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3-4.8-4.3 6.4-.6z" />,
+)
+
 export const SearchIcon = createIcon(
   <>
     <circle cx="11" cy="11" r="7" />

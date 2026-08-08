@@ -10,6 +10,8 @@ export function useDeleteFile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
       queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
+      queryClient.invalidateQueries({ queryKey: ['trash'] })
+      queryClient.invalidateQueries({ queryKey: ['favorites'] })
     },
   })
 }

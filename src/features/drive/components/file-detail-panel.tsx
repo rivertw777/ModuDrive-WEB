@@ -8,6 +8,7 @@ import {
   MoveIcon,
   PencilIcon,
   ShareIcon,
+  StarIcon,
   TrashIcon,
   XIcon,
 } from '@/components/ui/icons'
@@ -15,6 +16,7 @@ import { formatFileSize } from '../types'
 import { useFile } from '../api/get-file'
 import { useFileRevisions } from '../api/get-file-revisions'
 import { downloadFile } from '../api/download-file'
+import { useToggleFavorite } from '../api/toggle-favorite'
 import { ShareDialog } from './share-dialog'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
@@ -35,6 +37,7 @@ const STATUS_CLASSES: Record<string, string> = {
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
   const { data: file, isLoading, isError } = useFile(fileId)
   const { data: revisions } = useFileRevisions(fileId)
+  const toggleFavorite = useToggleFavorite()
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
@@ -111,6 +114,14 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
                 다운로드
               </Button>
             )}
+            <Button
+              variant="secondary"
+              onClick={() => toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })}
+              disabled={toggleFavorite.isPending}
+            >
+              <StarIcon size={16} className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined} />
+              {file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            </Button>
             <Button variant="secondary" onClick={() => setRenameOpen(true)}>
               <PencilIcon size={16} />
               이름 변경

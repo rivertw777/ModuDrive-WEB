@@ -12,6 +12,7 @@ export function useRestoreFile() {
       queryClient.invalidateQueries({ queryKey: ['trash'] })
       queryClient.invalidateQueries({ queryKey: ['directory'] })
       queryClient.invalidateQueries({ queryKey: ['files', 'usage'] })
+      queryClient.invalidateQueries({ queryKey: ['favorites'] })
     },
   })
 }
