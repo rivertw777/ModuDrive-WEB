@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
 import {
   DownloadIcon,
   FileIcon,
@@ -42,9 +43,13 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const panel = useResizableWidth('modudrive.detailPanelWidth', 320, 240, 480, 'left')
 
   return (
-    <aside className="w-80 shrink-0 border-l border-slate-200 p-4 dark:border-neutral-800">
+    <aside
+      style={{ width: panel.width }}
+      className="relative shrink-0 border-l border-slate-200 p-4 dark:border-neutral-800"
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-900 dark:text-neutral-100">파일 정보</h2>
         <button
@@ -161,6 +166,8 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
           <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} fileId={fileId} currentPath={file.path} />
         </>
       )}
+
+      <ResizeHandle edge="left" onMouseDown={panel.onMouseDown} />
     </aside>
   )
 }

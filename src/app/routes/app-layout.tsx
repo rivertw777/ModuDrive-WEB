@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/icons'
 import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
 import { cn } from '@/utils/cn'
+import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
 
 const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: FileIcon, AUDIO: MusicIcon } as const
 
@@ -33,6 +34,7 @@ export default function AppLayoutRoute() {
   const isFavoritesActive = location.pathname.startsWith('/favorites')
   const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
+  const sidebar = useResizableWidth('modudrive.sidebarWidth', 240, 200, 400, 'right')
 
   if (!accessToken) {
     return <Navigate to="/login" replace />
@@ -40,7 +42,10 @@ export default function AppLayoutRoute() {
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-neutral-950">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 p-4 dark:border-neutral-800">
+      <aside
+        style={{ width: sidebar.width }}
+        className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-neutral-800"
+      >
         <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
             M
@@ -79,18 +84,18 @@ export default function AppLayoutRoute() {
             즐겨찾기
           </Link>
           <Link
-            to="/trash"
-            className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
-          >
-            <TrashIcon size={18} />
-            휴지통
-          </Link>
-          <Link
             to="/shared"
             className={cn(NAV_LINK_CLASS, isSharedActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
           >
             <UsersIcon size={18} />
             공유 문서함
+          </Link>
+          <Link
+            to="/trash"
+            className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <TrashIcon size={18} />
+            휴지통
           </Link>
         </nav>
 
@@ -118,6 +123,8 @@ export default function AppLayoutRoute() {
             </div>
           </div>
         </div>
+
+        <ResizeHandle edge="right" onMouseDown={sidebar.onMouseDown} />
       </aside>
 
       <div className="flex flex-1 flex-col">
