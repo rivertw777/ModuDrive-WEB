@@ -13,6 +13,9 @@ export default defineConfig({
   server: {
     // must match gateway CORS allowed origin (FRONTEND_APP_URL) in ModuDrive-API
     port: 3000,
+    // project lives on /mnt/c (WSL DrvFs) which doesn't emit inotify events,
+    // so HMR needs polling to notice file changes
+    watch: { usePolling: true },
   },
   test: {
     environment: 'jsdom',
