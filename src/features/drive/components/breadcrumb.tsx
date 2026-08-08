@@ -8,7 +8,7 @@ export function Breadcrumb({ path }: { path: string }) {
     <nav className="flex items-center gap-1 text-lg">
       <Link
         to="/drive"
-        className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
       >
         내 드라이브
       </Link>
@@ -17,15 +17,15 @@ export function Breadcrumb({ path }: { path: string }) {
         const isLast = index === segments.length - 1
         return (
           <span key={href} className="flex items-center gap-1">
-            <ChevronRightIcon size={16} className="text-slate-400 dark:text-neutral-600" />
+            <ChevronRightIcon size={16} className="text-slate-400 dark:text-slate-600" />
             {isLast ? (
-              <span className="rounded-md px-1.5 py-0.5 font-medium text-slate-900 dark:text-neutral-100">
+              <span className="rounded-md px-1.5 py-0.5 font-medium text-slate-900 dark:text-slate-100">
                 {segment}
               </span>
             ) : (
               <Link
                 to={href}
-                className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               >
                 {segment}
               </Link>

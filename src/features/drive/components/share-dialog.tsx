@@ -45,10 +45,10 @@ export function ShareDialog({
     <Dialog open={open} onClose={onClose} title="파일 공유">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">대상 회원 UUID</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">대상 회원 UUID</label>
           <input
             placeholder="11111111-1111-1111-1111-111111111111"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             {...register('sharedWithUserId')}
           />
           {errors.sharedWithUserId && (
@@ -57,9 +57,9 @@ export function ShareDialog({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">권한</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">권한</label>
           <select
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             {...register('permission')}
           >
             <option value="READ">읽기</option>

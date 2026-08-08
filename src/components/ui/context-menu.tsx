@@ -33,7 +33,7 @@ export function ContextMenu({
     <div
       ref={ref}
       style={{ top: position.y, left: position.x }}
-      className="fixed z-50 min-w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+      className="fixed z-50 min-w-40 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-700"
     >
       {children}
     </div>
@@ -54,8 +54,8 @@ export function ContextMenuItem({
       type="button"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-neutral-700',
-        danger ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-neutral-200',
+        'flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-600',
+        danger ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200',
       )}
     >
       {children}

@@ -23,7 +23,7 @@ export function SearchExplorer() {
   return (
     <div className="flex h-full">
       <div className="min-w-0 flex-1 p-6">
-        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-neutral-100">
+        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-slate-100">
           &lsquo;{query}&rsquo; 검색 결과
         </h1>
 

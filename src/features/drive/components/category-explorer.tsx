@@ -15,7 +15,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
   return (
     <div className="flex h-full">
       <div className="min-w-0 flex-1 p-6">
-        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-neutral-100">{label}</h1>
+        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-slate-100">{label}</h1>
 
         {isLoading && <LoadingState />}
         {isError && <ErrorState message={`${label} 목록을 불러오지 못했습니다`} />}

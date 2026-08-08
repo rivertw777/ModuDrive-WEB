@@ -23,7 +23,7 @@ const NAV_LINK_CLASS =
   'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors'
 const NAV_LINK_ACTIVE_CLASS = 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
 const NAV_LINK_INACTIVE_CLASS =
-  'text-slate-700 hover:bg-slate-100 dark:text-neutral-300 dark:hover:bg-neutral-800'
+  'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
 
 export default function AppLayoutRoute() {
   const accessToken = useAuthStore((state) => state.accessToken)
@@ -41,16 +41,16 @@ export default function AppLayoutRoute() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-neutral-950">
+    <div className="flex min-h-screen bg-white dark:bg-slate-900">
       <aside
         style={{ width: sidebar.width }}
-        className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-neutral-800"
+        className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-slate-700"
       >
         <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
           <span className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
             M
           </span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-neutral-100">ModuDrive</span>
+          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">ModuDrive</span>
         </Link>
 
         <nav className="mt-6 flex flex-col gap-1 text-sm">
@@ -60,7 +60,7 @@ export default function AppLayoutRoute() {
           >
             <FolderIcon size={18} />내 드라이브
           </Link>
-          <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-neutral-800">
+          <div className="ml-4 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
             {FILE_CATEGORIES.map((category) => {
               const Icon = CATEGORY_ICONS[category.type]
               const isActive = location.pathname === `/category/${category.slug}`
@@ -102,13 +102,13 @@ export default function AppLayoutRoute() {
         <div className="mt-auto">
           <StorageUsage />
 
-          <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-neutral-800">
+          <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-neutral-800 dark:text-neutral-300">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                 {member?.name?.slice(0, 1) ?? '?'}
               </span>
               {member && (
-                <span className="truncate text-sm text-slate-600 dark:text-neutral-400">{member.name}</span>
+                <span className="truncate text-sm text-slate-600 dark:text-slate-400">{member.name}</span>
               )}
             </div>
             <div className="flex items-center gap-1">
@@ -116,7 +116,7 @@ export default function AppLayoutRoute() {
               <button
                 onClick={logout}
                 aria-label="로그아웃"
-                className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
               >
                 <LogOutIcon size={17} />
               </button>
@@ -128,7 +128,7 @@ export default function AppLayoutRoute() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center border-b border-slate-200 px-6 py-3 dark:border-neutral-800">
+        <header className="flex items-center border-b border-slate-200 px-6 py-3 dark:border-slate-700">
           <SearchBar />
         </header>
         <main className="flex-1 overflow-auto">

@@ -46,11 +46,11 @@ export function MoveDialog({
     <Dialog open={open} onClose={onClose} title="이동">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-neutral-300">대상 경로</label>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">대상 경로</label>
           <input
             autoFocus
             placeholder="/문서/사진"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
             {...register('path')}
           />
           {errors.path && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.path.message}</p>}
