@@ -7,6 +7,7 @@ import {
   FileIcon,
   FolderIcon,
   ImageIcon,
+  MoreVerticalIcon,
   MoveIcon,
   PencilIcon,
   ShareIcon,
@@ -84,7 +85,8 @@ export function FileList({
               </button>
             </th>
             <th className="w-28 px-3 py-2 font-medium">크기</th>
-            <th className="w-44 px-3 py-2 font-medium">수정한 날짜</th>
+            <th className="w-44 py-2 pr-4 pl-3 font-medium">수정한 날짜</th>
+            <th className="w-14 py-2" />
           </tr>
         </thead>
         <tbody>
@@ -121,7 +123,20 @@ export function FileList({
               <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
                 {file.directory ? '-' : formatFileSize(file.fileSize)}
               </td>
-              <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
+              <td className="py-2.5 pr-4 pl-3 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
+              <td className="py-2.5 pr-2 text-right">
+                <button
+                  type="button"
+                  aria-label="더보기"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setMenu({ file, x: event.clientX, y: event.clientY })
+                  }}
+                  className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                >
+                  <MoreVerticalIcon size={16} />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

@@ -94,6 +94,13 @@ export const TrashIcon = createIcon(
   </>,
 )
 
+export const RestoreIcon = createIcon(
+  <>
+    <path d="M3 12a9 9 0 1 0 3-6.7" />
+    <path d="M3 4v5h5" />
+  </>,
+)
+
 export const XIcon = createIcon(<path d="M18 6 6 18M6 6l12 12" />)
 
 export const ChevronRightIcon = createIcon(<path d="m9 6 6 6-6 6" />)
@@ -155,6 +162,21 @@ export const CloudIcon = createIcon(
 )
 
 export const ArrowDownIcon = createIcon(<path d="M12 4v16m0 0-6-6m6 6 6-6" />)
+
+export const InfoIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v6M12 8h.01" />
+  </>,
+)
+
+export const MoreVerticalIcon = createIcon(
+  <>
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </>,
+)
 
 export const SearchIcon = createIcon(
   <>
