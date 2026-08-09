@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
-import { FileIcon, FolderIcon, ImageIcon, MoreVerticalIcon } from '@/components/ui/icons'
+import { ContextMenu, ContextMenuItem, type ContextMenuPosition } from '@/components/ui/context-menu'
+import { FileIcon, FolderIcon, ImageIcon, MoreVerticalIcon, RestoreIcon, TrashIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
+import { useRestoreFile } from '../api/restore-file'
 import { formatDate, formatFileSize, isImageFile, type FileEntry } from '../types'
 import { TrashDetailPanel } from './trash-detail-panel'
+import { PurgeConfirmDialog } from './purge-confirm-dialog'
 
 function EntryIcon({ file }: { file: FileEntry }) {
   if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
@@ -15,6 +18,9 @@ function EntryIcon({ file }: { file: FileEntry }) {
 export function TrashExplorer() {
   const { data: files, isLoading, isError } = useTrash()
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  const [menu, setMenu] = useState<(ContextMenuPosition & { file: FileEntry }) | null>(null)
+  const [purgeTarget, setPurgeTarget] = useState<FileEntry | null>(null)
+  const restoreFile = useRestoreFile()
 
   const selectedFile = files?.find((file) => file.fileId === selectedFileId) ?? null
 
@@ -42,6 +48,10 @@ export function TrashExplorer() {
                 <tr
                   key={file.fileId}
                   onClick={() => setSelectedFileId(file.fileId)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    setMenu({ file, x: event.clientX, y: event.clientY })
+                  }}
                   className={cn(
                     'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
                     selectedFileId === file.fileId &&
@@ -63,9 +73,9 @@ export function TrashExplorer() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        setSelectedFileId(file.fileId)
+                        setMenu({ file, x: e.clientX, y: e.clientY })
                       }}
-                      aria-label="파일 정보"
+                      aria-label="더보기"
                       className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                     >
                       <MoreVerticalIcon size={16} />
@@ -79,6 +89,38 @@ export function TrashExplorer() {
       </div>
 
       {selectedFile && <TrashDetailPanel file={selectedFile} onClose={() => setSelectedFileId(null)} />}
+
+      {menu && (
+        <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          <ContextMenuItem
+            onClick={() => {
+              restoreFile.mutate(menu.file.fileId)
+              setMenu(null)
+            }}
+          >
+            <RestoreIcon size={16} /> 복원
+          </ContextMenuItem>
+          <ContextMenuItem
+            danger
+            onClick={() => {
+              setPurgeTarget(menu.file)
+              setMenu(null)
+            }}
+          >
+            <TrashIcon size={16} /> 영구 삭제
+          </ContextMenuItem>
+        </ContextMenu>
+      )}
+
+      {purgeTarget && (
+        <PurgeConfirmDialog
+          open
+          onClose={() => setPurgeTarget(null)}
+          fileId={purgeTarget.fileId}
+          fileName={purgeTarget.name}
+          onPurged={() => setSelectedFileId((cur) => (cur === purgeTarget.fileId ? null : cur))}
+        />
+      )}
     </div>
   )
 }
