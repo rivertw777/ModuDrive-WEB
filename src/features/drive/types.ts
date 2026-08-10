@@ -84,14 +84,22 @@ export function categorizeFile(name: string): FileCategory | null {
   return (Object.keys(CATEGORY_EXTENSIONS) as FileCategory[]).find((c) => CATEGORY_EXTENSIONS[c].has(ext)) ?? null
 }
 
-export type SortDirection = 'asc' | 'desc' | null
+export type SortField = 'name' | 'size' | 'date'
+export type SortDir = 'asc' | 'desc'
 
-/** Folders always sort above files. Within each group, `direction` orders by name; null keeps original order. */
-export function sortEntries(files: FileEntry[], direction: SortDirection) {
+/** Folders always sort above files. Within each group, entries order by `field`/`dir`. */
+export function sortFiles(files: FileEntry[], field: SortField, dir: SortDir) {
+  const sign = dir === 'asc' ? 1 : -1
   return [...files].sort((a, b) => {
     if (a.directory !== b.directory) return a.directory ? -1 : 1
-    if (!direction) return 0
-    const cmp = a.name.localeCompare(b.name, 'ko')
-    return direction === 'asc' ? cmp : -cmp
+    if (field === 'name') return sign * a.name.localeCompare(b.name, 'ko')
+    if (field === 'size') return sign * ((a.fileSize ?? 0) - (b.fileSize ?? 0))
+    return sign * (new Date(a.updatedAt ?? 0).getTime() - new Date(b.updatedAt ?? 0).getTime())
   })
+}
+
+/** Label for a file's parent folder: root shows as "내 드라이브", otherwise its folder name. */
+export function locationLabel(path: string) {
+  if (path === '/') return '내 드라이브'
+  return path.split('/').filter(Boolean).pop() ?? '내 드라이브'
 }

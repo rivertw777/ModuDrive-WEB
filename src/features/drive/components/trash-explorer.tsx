@@ -1,11 +1,22 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { ContextMenu, ContextMenuItem, type ContextMenuPosition } from '@/components/ui/context-menu'
+import { SortHeader } from '@/components/ui/sort-header'
 import { FileIcon, FolderIcon, ImageIcon, MoreVerticalIcon, RestoreIcon, TrashIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
 import { useRestoreFile } from '../api/restore-file'
-import { formatDate, formatFileSize, isImageFile, type FileEntry } from '../types'
+import {
+  formatDate,
+  formatFileSize,
+  isImageFile,
+  locationLabel,
+  sortFiles,
+  type FileEntry,
+  type SortDir,
+  type SortField,
+} from '../types'
 import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
 
@@ -16,13 +27,26 @@ function EntryIcon({ file }: { file: FileEntry }) {
 }
 
 export function TrashExplorer() {
+  const navigate = useNavigate()
   const { data: files, isLoading, isError } = useTrash()
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [menu, setMenu] = useState<(ContextMenuPosition & { file: FileEntry }) | null>(null)
   const [purgeTarget, setPurgeTarget] = useState<FileEntry | null>(null)
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
   const restoreFile = useRestoreFile()
 
+  const toggleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
   const selectedFile = files?.find((file) => file.fileId === selectedFileId) ?? null
+  const sorted = files ? sortFiles(files, sortField, sortDir) : []
 
   return (
     <div className="flex h-full">
@@ -36,15 +60,22 @@ export function TrashExplorer() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                <th className="py-2 font-medium">이름</th>
-                <th className="w-40 py-2 font-medium">원래 위치</th>
-                <th className="w-40 py-2 font-medium">휴지통에 버린 날짜</th>
-                <th className="w-24 py-2 pr-4 text-right font-medium">크기</th>
+                <th className="w-14 py-2 font-medium whitespace-nowrap">종류</th>
+                <th className="py-2 font-medium">
+                  <SortHeader label="이름" active={sortField === 'name'} dir={sortField === 'name' ? sortDir : 'asc'} onClick={() => toggleSort('name')} />
+                </th>
+                <th className="w-24 py-2 font-medium">
+                  <SortHeader label="크기" active={sortField === 'size'} dir={sortField === 'size' ? sortDir : 'asc'} onClick={() => toggleSort('size')} />
+                </th>
+                <th className="w-44 py-2 font-medium">
+                  <SortHeader label="휴지통에 버린 날짜" active={sortField === 'date'} dir={sortField === 'date' ? sortDir : 'asc'} onClick={() => toggleSort('date')} />
+                </th>
+                <th className="w-32 py-2 pr-4 font-medium">원래 위치</th>
                 <th className="w-14 py-2" />
               </tr>
             </thead>
             <tbody>
-              {files.map((file) => (
+              {sorted.map((file) => (
                 <tr
                   key={file.fileId}
                   onClick={() => setSelectedFileId(file.fileId)}
@@ -59,15 +90,23 @@ export function TrashExplorer() {
                   )}
                 >
                   <td className="py-2.5">
-                    <span className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
-                      <EntryIcon file={file} />
-                      {file.name}
-                    </span>
+                    <EntryIcon file={file} />
                   </td>
-                  <td className="py-2.5 text-slate-500 dark:text-slate-400">{file.path}</td>
-                  <td className="py-2.5 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
-                  <td className="py-2.5 pr-4 text-right text-slate-500 dark:text-slate-400">
+                  <td className="py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
+                  <td className="py-2.5 text-slate-500 dark:text-slate-400">
                     {file.directory ? '-' : formatFileSize(file.fileSize)}
+                  </td>
+                  <td className="py-2.5 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
+                  <td className="py-2.5 pr-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/drive${file.path === '/' ? '' : file.path}`)
+                      }}
+                      className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    >
+                      {locationLabel(file.path)}
+                    </button>
                   </td>
                   <td className="py-2.5 pr-2 text-right">
                     <button

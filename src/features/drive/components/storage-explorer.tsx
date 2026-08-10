@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { ArrowDownIcon, FileIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
+import { SortHeader } from '@/components/ui/sort-header'
+import { FileIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
 import { FILE_CATEGORIES, categorizeFile, formatFileSize, isImageFile, type FileCategory, type FileEntry } from '../types'
@@ -30,39 +31,6 @@ function EntryIcon({ file }: { file: FileEntry }) {
 
 type SortField = 'name' | 'size'
 type SortDir = 'asc' | 'desc'
-
-function SortHeader({
-  label,
-  active,
-  dir,
-  onClick,
-  align = 'left',
-}: {
-  label: string
-  active: boolean
-  dir: SortDir
-  onClick: () => void
-  align?: 'left' | 'right'
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-1 font-medium ${align === 'right' ? 'ml-auto' : ''}`}
-    >
-      {label}
-      <span
-        className={`flex size-5 shrink-0 items-center justify-center rounded-full transition-colors ${
-          active
-            ? 'bg-sky-100 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400'
-            : 'text-slate-400 dark:text-slate-500'
-        }`}
-      >
-        <ArrowDownIcon size={13} className={dir === 'asc' ? 'rotate-180' : ''} />
-      </span>
-    </button>
-  )
-}
 
 export function StorageExplorer() {
   const { data: usage, isLoading: usageLoading, isError: usageError } = useStorageUsage()
