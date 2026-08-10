@@ -3,7 +3,6 @@ import { env } from '@/config/env'
 import type { ApiResponse } from '@/types/api'
 
 export const ACCESS_TOKEN_STORAGE_KEY = 'modudrive.accessToken'
-export const REFRESH_TOKEN_STORAGE_KEY = 'modudrive.refreshToken'
 
 // The response interceptor below unwraps `response.data.data`, so every
 // request actually resolves with the payload `T`, not `AxiosResponse<T>`.
@@ -31,6 +30,10 @@ function authRequestInterceptor(config: InternalAxiosRequestConfig) {
 
 export const apiClient = axios.create({
   baseURL: env.API_BASE_URL,
+  // refresh_token now lives in an httpOnly cookie (set by auth-service on
+  // login/reissue) rather than in a request body — this makes every request,
+  // including the plain `fetch` below, actually send it cross-origin.
+  withCredentials: true,
 })
 
 apiClient.interceptors.request.use(authRequestInterceptor)
@@ -38,23 +41,17 @@ apiClient.interceptors.request.use(authRequestInterceptor)
 // Plain `fetch` on purpose: apiClient's interceptors would route a failed
 // reissue call back through the 401 handler below and deadlock on itself.
 async function reissueAccessToken(): Promise<string> {
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY)
-  if (!refreshToken) {
-    throw new Error('No refresh token')
-  }
-
   const res = await fetch(`${env.API_BASE_URL}/api/v1/auth/reissue`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
+    credentials: 'include',
   })
   if (!res.ok) {
     throw new Error('Failed to reissue access token')
   }
 
-  const { data } = (await res.json()) as ApiResponse<{ accessToken: string; refreshToken: string }>
+  const { data } = (await res.json()) as ApiResponse<{ accessToken: string }>
   const { useAuthStore } = await import('@/stores/auth-store')
-  useAuthStore.getState().login(data.accessToken, data.refreshToken)
+  useAuthStore.getState().login(data.accessToken)
   return data.accessToken
 }
 

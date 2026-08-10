@@ -9,7 +9,6 @@ export type LoginInput = {
 
 type LoginResponse = {
   accessToken: string
-  refreshToken: string
   grantType: string
   issuedAt: string
 }
@@ -20,7 +19,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      useAuthStore.getState().login(data.accessToken, data.refreshToken)
+      useAuthStore.getState().login(data.accessToken)
     },
   })
 }

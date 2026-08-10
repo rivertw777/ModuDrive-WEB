@@ -1,6 +1,6 @@
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
-import { useCurrentMember } from '@/features/auth'
+import { useCurrentMember, useLogout } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   CloudIcon,
@@ -28,8 +28,8 @@ const NAV_LINK_INACTIVE_CLASS =
 
 export default function AppLayoutRoute() {
   const accessToken = useAuthStore((state) => state.accessToken)
-  const logout = useAuthStore((state) => state.logout)
   const { data: member } = useCurrentMember(accessToken !== null)
+  const logoutMutation = useLogout()
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
   const isFavoritesActive = location.pathname.startsWith('/favorites')
@@ -129,7 +129,7 @@ export default function AppLayoutRoute() {
             <div className="flex items-center gap-1">
               <ThemeToggle />
               <button
-                onClick={logout}
+                onClick={() => logoutMutation.mutate()}
                 aria-label="로그아웃"
                 className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
               >
