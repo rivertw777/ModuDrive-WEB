@@ -20,7 +20,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: login,
     onSuccess: (data) => {
-      useAuthStore.getState().login(data.accessToken)
+      useAuthStore.getState().login(data.accessToken, data.refreshToken)
     },
   })
 }
