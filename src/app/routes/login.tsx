@@ -1,11 +1,15 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { LoginForm } from '@/features/auth'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export default function LoginRoute() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4 dark:bg-slate-900">
+    <div className="relative flex min-h-screen items-center justify-center bg-white px-4 dark:bg-slate-900">
+      <div className="absolute left-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="flex flex-col items-center">
           <span className="flex size-10 items-center justify-center rounded-xl bg-violet-600 text-lg font-bold text-white">

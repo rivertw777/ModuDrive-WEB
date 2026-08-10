@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export default function LandingRoute() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-slate-900">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-slate-900">
+      <div className="absolute left-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="flex flex-col items-center text-center">
         <span className="flex size-14 items-center justify-center rounded-2xl bg-violet-600 text-2xl font-bold text-white">
           M
