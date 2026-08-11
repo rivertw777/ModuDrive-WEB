@@ -9,7 +9,7 @@ export function StorageUsage() {
   const remainingPercent = Math.max(0, Math.round(100 - percent))
 
   return (
-    <div className="px-2 py-3 text-xs">
+    <div className="px-2 py-4 text-sm">
       <div className="flex items-baseline justify-between">
         <span>
           <span className="font-semibold text-violet-600 dark:text-violet-400">
