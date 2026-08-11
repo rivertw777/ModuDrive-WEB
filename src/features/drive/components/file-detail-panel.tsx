@@ -151,8 +151,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
       <DeleteConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
-        fileId={fileId}
-        fileName={file?.name ?? ''}
+        files={file ? [{ fileId, name: file.name }] : []}
         onDeleted={onClose}
       />
       {file && (
@@ -163,7 +162,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             fileId={fileId}
             currentName={file.name}
           />
-          <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} fileId={fileId} currentPath={file.path} />
+          <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} fileIds={[fileId]} currentPath={file.path} />
         </>
       )}
 

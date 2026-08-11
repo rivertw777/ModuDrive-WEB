@@ -55,7 +55,9 @@ export function DriveExplorer({ path }: { path: string }) {
           uploadingLabel={uploadingLabel}
         />
 
-        {uploadError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
+        {uploadError && (
+          <p className="mt-2 text-sm text-red-600 dark:text-red-400">{uploadError}</p>
+        )}
 
         <div className="mt-4">
           {isLoading && <LoadingState />}
@@ -67,7 +69,10 @@ export function DriveExplorer({ path }: { path: string }) {
                 selectedFileId={selectedFileId}
                 onNavigate={onNavigate}
                 onSelect={onSelect}
-                onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
+                onFileDeleted={(fileId) =>
+                  setSelectedFileId((cur) => (cur === fileId ? null : cur))
+                }
+                onClearSelection={() => setSelectedFileId(null)}
               />
             </UploadDropzone>
           )}

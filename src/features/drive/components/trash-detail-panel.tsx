@@ -78,8 +78,7 @@ export function TrashDetailPanel({ file, onClose }: { file: FileEntry; onClose: 
         open={purgeOpen}
         onClose={() => setPurgeOpen(false)}
         onPurged={onClose}
-        fileId={file.fileId}
-        fileName={file.name}
+        files={[{ fileId: file.fileId, name: file.name }]}
       />
 
       <ResizeHandle edge="left" onMouseDown={panel.onMouseDown} />

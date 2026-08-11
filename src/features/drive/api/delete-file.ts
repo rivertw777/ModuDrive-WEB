@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 
-export const deleteFile = (fileId: string) => apiClient.delete<void>(`/api/v1/files/${fileId}`)
+export const deleteFile = (fileId: string) =>
+  apiClient.delete<void>(`/api/v1/files/${encodeURIComponent(fileId)}`)
 
 export function useDeleteFile() {
   const queryClient = useQueryClient()
