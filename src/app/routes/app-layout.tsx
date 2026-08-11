@@ -2,6 +2,7 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember, useLogout } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { Button } from '@/components/ui/button'
 import {
   CloudIcon,
   FileIcon,
@@ -143,8 +144,15 @@ export default function AppLayoutRoute() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center border-b border-slate-200 px-6 py-3 dark:border-slate-700">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
           <SearchBar />
+          {/* ponytail: no billing flow yet, button is a placeholder until upgrade tiers exist */}
+          <Button
+            variant="primary"
+            className="shrink-0 bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500"
+          >
+            업그레이드
+          </Button>
         </header>
         <main className="flex-1 overflow-auto">
           <Outlet />
