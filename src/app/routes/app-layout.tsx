@@ -2,7 +2,6 @@ import { Navigate, Outlet, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember, useLogout } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { Button } from '@/components/ui/button'
 import {
   CloudIcon,
   FileIcon,
@@ -118,6 +117,11 @@ export default function AppLayoutRoute() {
         <div className="mt-auto">
           <StorageUsage />
 
+          {/* ponytail: no billing flow yet, button is a placeholder until upgrade tiers exist */}
+          <button className="mb-3 w-full rounded-full border border-violet-600 px-4 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50 dark:border-violet-400 dark:text-violet-400 dark:hover:bg-violet-950">
+            드라이브 업그레이드
+          </button>
+
           <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
             <div className="flex min-w-0 items-center gap-2">
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-300">
@@ -144,15 +148,8 @@ export default function AppLayoutRoute() {
       </aside>
 
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
+        <header className="flex items-center gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
           <SearchBar />
-          {/* ponytail: no billing flow yet, button is a placeholder until upgrade tiers exist */}
-          <Button
-            variant="primary"
-            className="shrink-0 bg-slate-700 hover:bg-slate-800 dark:bg-slate-600 dark:hover:bg-slate-500"
-          >
-            업그레이드
-          </Button>
         </header>
         <main className="flex-1 overflow-auto">
           <Outlet />
