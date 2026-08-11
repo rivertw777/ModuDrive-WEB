@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { EmptyState } from '@/components/ui/state'
 import { ContextMenu, ContextMenuItem, type ContextMenuPosition } from '@/components/ui/context-menu'
+import { SortHeader } from '@/components/ui/sort-header'
 import {
-  ChevronRightIcon,
   DownloadIcon,
   FileIcon,
   FolderIcon,
@@ -15,7 +15,17 @@ import {
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { formatDate, formatFileSize, isImageFile, joinPath, sortEntries, type FileEntry, type SortDirection } from '../types'
+import {
+  formatDate,
+  formatFileSize,
+  isImageFile,
+  joinPath,
+  locationLabel,
+  sortFiles,
+  type FileEntry,
+  type SortDir,
+  type SortField,
+} from '../types'
 import { downloadFile } from '../api/download-file'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { RenameDialog } from './rename-dialog'
@@ -38,6 +48,7 @@ export function FileList({
   onSelect,
   onFileDeleted,
   navigable = true,
+  showLocation = false,
   emptyLabel = '이 폴더는 비어 있습니다',
 }: {
   files: FileEntry[]
@@ -46,15 +57,27 @@ export function FileList({
   onSelect: (file: FileEntry) => void
   onFileDeleted?: (fileId: string) => void
   navigable?: boolean
+  showLocation?: boolean
   emptyLabel?: string
 }) {
-  const [sortDir, setSortDir] = useState<SortDirection>('asc')
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [menu, setMenu] = useState<(ContextMenuPosition & { file: FileEntry }) | null>(null)
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const toggleFavorite = useToggleFavorite()
 
-  const visible = sortEntries(
+  const toggleSort = (field: SortField) => {
+    if (field === sortField) {
+      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const visible = sortFiles(
     files.filter((file) => file.status !== 'DELETED'),
+    sortField,
     sortDir,
   )
 
@@ -70,22 +93,15 @@ export function FileList({
             <th className="w-8 py-2 pl-2 font-medium" />
             <th className="w-14 px-3 py-2 font-medium whitespace-nowrap">종류</th>
             <th className="px-3 py-2 font-medium">
-              <button
-                type="button"
-                onClick={() => setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))}
-                className="inline-flex items-center gap-1 hover:text-slate-700 dark:hover:text-slate-200"
-              >
-                이름
-                {sortDir && (
-                  <ChevronRightIcon
-                    size={14}
-                    className={sortDir === 'asc' ? '-rotate-90' : 'rotate-90'}
-                  />
-                )}
-              </button>
+              <SortHeader label="이름" active={sortField === 'name'} dir={sortField === 'name' ? sortDir : 'asc'} onClick={() => toggleSort('name')} />
             </th>
-            <th className="w-28 px-3 py-2 font-medium">크기</th>
-            <th className="w-44 py-2 pr-4 pl-3 font-medium">수정한 날짜</th>
+            <th className="w-28 px-3 py-2 font-medium">
+              <SortHeader label="크기" active={sortField === 'size'} dir={sortField === 'size' ? sortDir : 'asc'} onClick={() => toggleSort('size')} />
+            </th>
+            <th className="w-44 px-3 py-2 font-medium">
+              <SortHeader label="수정한 날짜" active={sortField === 'date'} dir={sortField === 'date' ? sortDir : 'asc'} onClick={() => toggleSort('date')} />
+            </th>
+            {showLocation && <th className="w-32 py-2 pr-4 pl-3 font-medium">위치</th>}
             <th className="w-14 py-2" />
           </tr>
         </thead>
@@ -123,7 +139,21 @@ export function FileList({
               <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
                 {file.directory ? '-' : formatFileSize(file.fileSize)}
               </td>
-              <td className="py-2.5 pr-4 pl-3 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
+              <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">{formatDate(file.updatedAt)}</td>
+              {showLocation && (
+                <td className="py-2.5 pr-4 pl-3">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onNavigate(file.path)
+                    }}
+                    className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  >
+                    {locationLabel(file.path)}
+                  </button>
+                </td>
+              )}
               <td className="py-2.5 pr-2 text-right">
                 <button
                   type="button"
