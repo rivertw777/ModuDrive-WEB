@@ -8,7 +8,7 @@ export type ToggleFavoriteInput = {
 }
 
 export const toggleFavorite = ({ fileId, favorite }: ToggleFavoriteInput) =>
-  apiClient.patch<FileEntry>(`/api/v1/files/${fileId}/favorite`, { favorite })
+  apiClient.patch<FileEntry>(`/api/v1/files/${encodeURIComponent(fileId)}/favorite`, { favorite })
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient()

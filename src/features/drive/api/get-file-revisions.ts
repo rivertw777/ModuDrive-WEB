@@ -3,7 +3,7 @@ import { apiClient } from '@/lib/api-client'
 import type { FileVersion } from '../types'
 
 export const getFileRevisions = (fileId: string) =>
-  apiClient.get<FileVersion[]>(`/api/v1/files/${fileId}/revisions`)
+  apiClient.get<FileVersion[]>(`/api/v1/files/${encodeURIComponent(fileId)}/revisions`)
 
 export function useFileRevisions(fileId: string | null) {
   return useQuery({

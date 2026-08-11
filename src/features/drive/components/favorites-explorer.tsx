@@ -32,6 +32,7 @@ export function FavoritesExplorer() {
             onNavigate={onNavigate}
             onSelect={onSelect}
             onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
+            onClearSelection={() => setSelectedFileId(null)}
             showLocation
             emptyLabel="즐겨찾기한 파일이 없습니다"
           />

@@ -8,7 +8,7 @@ export type MoveFileInput = {
 }
 
 export const moveFile = ({ fileId, path }: MoveFileInput) =>
-  apiClient.patch<FileEntry>(`/api/v1/files/${fileId}/path`, { path })
+  apiClient.patch<FileEntry>(`/api/v1/files/${encodeURIComponent(fileId)}/path`, { path })
 
 export function useMoveFile() {
   const queryClient = useQueryClient()

@@ -25,6 +25,7 @@ export function SharedWithMeExplorer() {
             onNavigate={() => {}}
             onSelect={onSelect}
             onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
+            onClearSelection={() => setSelectedFileId(null)}
             navigable={false}
             emptyLabel="아직 공유받은 파일이 없습니다"
           />

@@ -9,7 +9,7 @@ export type ShareFileInput = {
 }
 
 export const shareFile = ({ fileId, ...body }: ShareFileInput) =>
-  apiClient.post<FileShare>(`/api/v1/files/${fileId}/share`, body)
+  apiClient.post<FileShare>(`/api/v1/files/${encodeURIComponent(fileId)}/share`, body)
 
 export function useShareFile() {
   return useMutation({

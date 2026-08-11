@@ -11,6 +11,7 @@ export function UploadDropzone({
   const [isDragging, setIsDragging] = useState(false)
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!event.dataTransfer.types.includes('Files')) return
     event.preventDefault()
     setIsDragging(false)
     const files = Array.from(event.dataTransfer.files)
@@ -20,6 +21,8 @@ export function UploadDropzone({
   return (
     <div
       onDragOver={(event) => {
+        // Ignore in-list drags (moving files between folders) — only OS file drags upload.
+        if (!event.dataTransfer.types.includes('Files')) return
         event.preventDefault()
         setIsDragging(true)
       }}

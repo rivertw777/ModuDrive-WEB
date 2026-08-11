@@ -9,10 +9,13 @@ import { ACCESS_TOKEN_STORAGE_KEY } from '@/lib/api-client'
 // back to the real runtime shape (AxiosResponse) since no interceptor runs here.
 export async function downloadFile(fileId: string, fileName: string) {
   const token = localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY)
-  const response = (await axios.get(`${env.API_BASE_URL}/api/v1/storage/download/${fileId}`, {
-    responseType: 'blob',
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  })) as unknown as AxiosResponse<Blob>
+  const response = (await axios.get(
+    `${env.API_BASE_URL}/api/v1/storage/download/${encodeURIComponent(fileId)}`,
+    {
+      responseType: 'blob',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  )) as unknown as AxiosResponse<Blob>
 
   const url = URL.createObjectURL(response.data)
   const link = document.createElement('a')

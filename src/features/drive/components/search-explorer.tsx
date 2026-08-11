@@ -36,6 +36,7 @@ export function SearchExplorer() {
             onNavigate={onNavigate}
             onSelect={onSelect}
             onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
+            onClearSelection={() => setSelectedFileId(null)}
             emptyLabel="검색 결과가 없습니다"
           />
         )}

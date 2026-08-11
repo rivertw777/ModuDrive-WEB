@@ -8,7 +8,7 @@ export type RenameFileInput = {
 }
 
 export const renameFile = ({ fileId, name }: RenameFileInput) =>
-  apiClient.patch<FileEntry>(`/api/v1/files/${fileId}/name`, { name })
+  apiClient.patch<FileEntry>(`/api/v1/files/${encodeURIComponent(fileId)}/name`, { name })
 
 export function useRenameFile() {
   const queryClient = useQueryClient()
