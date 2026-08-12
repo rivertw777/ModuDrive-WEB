@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
 import { FileIcon, FolderIcon, RestoreIcon, TrashIcon, XIcon } from '@/components/ui/icons'
-import { formatDate, formatFileSize, type FileEntry } from '../types'
+import { formatDate, formatFileSize, locationLabel, type FileEntry } from '../types'
 import { useRestoreFile } from '../api/restore-file'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
 
@@ -46,7 +46,7 @@ export function TrashDetailPanel({ file, onClose }: { file: FileEntry; onClose: 
           </div>
           <div className="flex justify-between">
             <dt>원래 위치</dt>
-            <dd className="text-slate-700 dark:text-slate-300">{file.path}</dd>
+            <dd className="text-slate-700 dark:text-slate-300">{locationLabel(file.path)}</dd>
           </div>
           <div className="flex justify-between">
             <dt>휴지통에 버린 날짜</dt>

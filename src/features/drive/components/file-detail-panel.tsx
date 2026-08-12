@@ -13,9 +13,8 @@ import {
   TrashIcon,
   XIcon,
 } from '@/components/ui/icons'
-import { formatFileSize } from '../types'
+import { formatDate, formatFileSize } from '../types'
 import { useFile } from '../api/get-file'
-import { useFileRevisions } from '../api/get-file-revisions'
 import { downloadFile } from '../api/download-file'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { ShareDialog } from './share-dialog'
@@ -23,21 +22,8 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: '업로드 중',
-  UPLOADED: '업로드 완료',
-  DELETED: '삭제됨',
-}
-
-const STATUS_CLASSES: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  UPLOADED: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
-  DELETED: 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400',
-}
-
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
   const { data: file, isLoading, isError } = useFile(fileId)
-  const { data: revisions } = useFileRevisions(fileId)
   const toggleFavorite = useToggleFavorite()
   const [shareOpen, setShareOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -82,35 +68,11 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
               <dt>크기</dt>
               <dd className="text-slate-700 dark:text-slate-300">{formatFileSize(file.fileSize)}</dd>
             </div>
-            <div className="flex items-center justify-between">
-              <dt>상태</dt>
-              <dd
-                className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[file.status] ?? ''}`}
-              >
-                {STATUS_LABEL[file.status] ?? file.status}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-3">
-              <dt className="shrink-0">소유자</dt>
-              <dd className="truncate text-slate-700 dark:text-slate-300" title={file.ownerId}>
-                {file.ownerId}
-              </dd>
+            <div className="flex justify-between">
+              <dt>수정 날짜</dt>
+              <dd className="text-slate-700 dark:text-slate-300">{formatDate(file.updatedAt)}</dd>
             </div>
           </dl>
-
-          {revisions && revisions.length > 0 && (
-            <div>
-              <p className="font-medium text-slate-900 dark:text-slate-100">버전 기록</p>
-              <ul className="mt-2 space-y-1 text-slate-500 dark:text-slate-400">
-                {revisions.map((revision) => (
-                  <li key={revision.versionId} className="flex justify-between">
-                    <span>{revision.versionId.slice(0, 8)}</span>
-                    <span>{formatFileSize(revision.fileSize)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           <div className="flex flex-col gap-2 pt-1">
             {file.status === 'UPLOADED' && !file.directory && (
@@ -119,17 +81,9 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
                 다운로드
               </Button>
             )}
-            <Button
-              variant="secondary"
-              onClick={() => toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })}
-              disabled={toggleFavorite.isPending}
-            >
-              <StarIcon size={16} className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined} />
-              {file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-            </Button>
             <Button variant="secondary" onClick={() => setRenameOpen(true)}>
               <PencilIcon size={16} />
-              이름 변경
+              이름 바꾸기
             </Button>
             <Button variant="secondary" onClick={() => setMoveOpen(true)}>
               <MoveIcon size={16} />
@@ -139,9 +93,17 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
               <ShareIcon size={16} />
               공유
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })}
+              disabled={toggleFavorite.isPending}
+            >
+              <StarIcon size={16} className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined} />
+              {file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            </Button>
             <Button variant="danger" onClick={() => setDeleteOpen(true)}>
               <TrashIcon size={16} />
-              삭제
+              휴지통으로 이동
             </Button>
           </div>
         </div>

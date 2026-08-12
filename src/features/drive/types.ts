@@ -24,14 +24,6 @@ export type FileEntry = {
   updatedAt: string | null
 }
 
-export type FileVersion = {
-  versionId: string
-  fileId: string
-  fileSize: number
-  blockCount: number
-  s3Path: string
-}
-
 export type FileShare = {
   shareId: string
   fileId: string
