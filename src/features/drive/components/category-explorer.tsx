@@ -6,6 +6,7 @@ import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '../types'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
 import { UploadButton } from './upload-button'
+import { ViewToggle } from './view-toggle'
 
 export function CategoryExplorer({ category }: { category: FileCategory }) {
   const label = FILE_CATEGORIES.find((c) => c.type === category)?.label ?? category
@@ -43,6 +44,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">{label}</h1>
           <div className="flex items-center gap-2">
             <UploadButton onFilesSelected={onFilesSelected} uploadingLabel={uploadingLabel} />
+            <ViewToggle />
           </div>
         </div>
 

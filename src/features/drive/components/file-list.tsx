@@ -19,6 +19,7 @@ import {
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
+import { useFileViewStore } from '@/stores/file-view-store'
 import {
   formatDate,
   formatFileSize,
@@ -44,10 +45,11 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog'
 // mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
 const DRAG_MIME = 'application/x-modudrive-file-ids'
 
-function EntryIcon({ file }: { file: FileEntry }) {
-  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
-  if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-slate-500" />
+function EntryIcon({ file, size = 20 }: { file: FileEntry; size?: number }) {
+  if (file.directory) return <FolderIcon size={size} className="shrink-0 text-violet-500" />
+  if (isImageFile(file.name))
+    return <ImageIcon size={size} className="shrink-0 text-emerald-500" />
+  return <FileIcon size={size} className="shrink-0 text-slate-400 dark:text-slate-500" />
 }
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
@@ -80,6 +82,7 @@ export function FileList({
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const viewMode = useFileViewStore((state) => state.mode)
   const toggleFavorite = useToggleFavorite()
   const moveFile = useMoveFile()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -152,94 +155,62 @@ export function FileList({
     if (failed.length > 0) setActionError(`${failed.length}개 항목을 이동하지 못했습니다`)
   }
 
-  if (visible.length === 0) {
-    return <EmptyState label={emptyLabel} />
-  }
+  // Shared across the table row and grid card — both are just a `data-row-id` element wired
+  // to the same selection/drag/navigate behavior, so only the layout differs between views.
+  const rowHandlers = (file: FileEntry) => ({
+    'data-row-id': file.fileId,
+    draggable: true,
+    onDragStart: (event: React.DragEvent) => onDragStart(event, file),
+    onMouseDown: (event: React.MouseEvent) => onRowMouseDown(file.fileId, event),
+    onClick: (event: React.MouseEvent) => {
+      if (event.shiftKey || event.metaKey || event.ctrlKey) return
+      if (file.directory && navigable) {
+        setSelected(new Set())
+        onNavigate(joinPath(file.path, file.name))
+      } else {
+        setSelected(new Set([file.fileId]))
+        onSelect(file)
+      }
+    },
+    onContextMenu: (event: React.MouseEvent) => {
+      event.preventDefault()
+      openMenu(file, event.clientX, event.clientY)
+    },
+    onDragOver: file.directory
+      ? (event: React.DragEvent) => {
+          if (!event.dataTransfer.types.includes(DRAG_MIME)) return
+          event.preventDefault()
+          setDragOverId(file.fileId)
+        }
+      : undefined,
+    onDragLeave: file.directory
+      ? () => setDragOverId((cur) => (cur === file.fileId ? null : cur))
+      : undefined,
+    onDrop: file.directory ? (event: React.DragEvent) => onDrop(event, file) : undefined,
+  })
 
   return (
     <>
       {actionError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
 
-      <div ref={containerRef} onMouseDown={onContainerMouseDown} className="relative min-h-[50vh]">
-        <MarqueeOverlay box={box} />
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
-              <th className="w-8 py-2 pl-2 font-medium" />
-              <th className="w-14 px-3 py-2 font-medium whitespace-nowrap">종류</th>
-              <th className="px-3 py-2 font-medium">
-                <SortHeader
-                  label="이름"
-                  active={sortField === 'name'}
-                  dir={sortField === 'name' ? sortDir : 'asc'}
-                  onClick={() => toggleSort('name')}
-                />
-              </th>
-              <th className="w-28 px-3 py-2 font-medium">
-                <SortHeader
-                  label="크기"
-                  active={sortField === 'size'}
-                  dir={sortField === 'size' ? sortDir : 'asc'}
-                  onClick={() => toggleSort('size')}
-                />
-              </th>
-              <th className="w-44 px-3 py-2 font-medium">
-                <SortHeader
-                  label="수정한 날짜"
-                  active={sortField === 'date'}
-                  dir={sortField === 'date' ? sortDir : 'asc'}
-                  onClick={() => toggleSort('date')}
-                />
-              </th>
-              {showLocation && <th className="w-32 py-2 pr-4 pl-3 font-medium">위치</th>}
-              <th className="w-14 py-2" />
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((file) => (
-              <tr
-                key={file.fileId}
-                data-row-id={file.fileId}
-                draggable
-                onDragStart={(event) => onDragStart(event, file)}
-                onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
-                onClick={(event) => {
-                  if (event.shiftKey || event.metaKey || event.ctrlKey) return
-                  if (file.directory && navigable) {
-                    setSelected(new Set())
-                    onNavigate(joinPath(file.path, file.name))
-                  } else {
-                    setSelected(new Set([file.fileId]))
-                    onSelect(file)
-                  }
-                }}
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  openMenu(file, event.clientX, event.clientY)
-                }}
-                onDragOver={
-                  file.directory
-                    ? (event) => {
-                        if (!event.dataTransfer.types.includes(DRAG_MIME)) return
-                        event.preventDefault()
-                        setDragOverId(file.fileId)
-                      }
-                    : undefined
-                }
-                onDragLeave={
-                  file.directory
-                    ? () => setDragOverId((cur) => (cur === file.fileId ? null : cur))
-                    : undefined
-                }
-                onDrop={file.directory ? (event) => onDrop(event, file) : undefined}
-                className={cn(
-                  'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
-                  (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                    'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
-                  dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
-                )}
-              >
-                <td className="py-2.5 pl-2">
+      {visible.length === 0 ? (
+        <EmptyState label={emptyLabel} />
+      ) : (
+        <div ref={containerRef} onMouseDown={onContainerMouseDown} className="relative min-h-[50vh]">
+          <MarqueeOverlay box={box} />
+          {viewMode === 'grid' ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+              {visible.map((file) => (
+                <div
+                  key={file.fileId}
+                  {...rowHandlers(file)}
+                  className={cn(
+                    'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-transparent p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-800',
+                    (selected.has(file.fileId) || selectedFileId === file.fileId) &&
+                      'border-violet-200 bg-violet-50 hover:bg-violet-50 dark:border-violet-900 dark:bg-violet-950 dark:hover:bg-violet-950',
+                    dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
+                  )}
+                >
                   <button
                     type="button"
                     aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
@@ -247,39 +218,16 @@ export function FileList({
                       event.stopPropagation()
                       toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
                     }}
-                    className="flex items-center text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
+                    className={cn(
+                      'absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400',
+                      !file.favorite && 'opacity-0 group-hover:opacity-100',
+                    )}
                   >
                     <StarIcon
-                      size={16}
+                      size={20}
                       className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined}
                     />
                   </button>
-                </td>
-                <td className="px-3 py-2.5">
-                  <EntryIcon file={file} />
-                </td>
-                <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
-                <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                  {file.directory ? '-' : formatFileSize(file.fileSize)}
-                </td>
-                <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                  {formatDate(file.updatedAt)}
-                </td>
-                {showLocation && (
-                  <td className="py-2.5 pr-4 pl-3">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onNavigate(file.path)
-                      }}
-                      className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                    >
-                      {locationLabel(file.path)}
-                    </button>
-                  </td>
-                )}
-                <td className="py-2.5 pr-2 text-right">
                   <button
                     type="button"
                     aria-label="더보기"
@@ -287,16 +235,135 @@ export function FileList({
                       event.stopPropagation()
                       openMenu(file, event.clientX, event.clientY)
                     }}
-                    className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    className="absolute top-1.5 left-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 opacity-0 hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                   >
-                    <MoreVerticalIcon size={16} />
+                    <MoreVerticalIcon size={20} />
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  <EntryIcon file={file} size={56} />
+                  <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
+                    {file.name}
+                  </span>
+                  {showLocation && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onNavigate(file.path)
+                      }}
+                      className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
+                    >
+                      {locationLabel(file.path)}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                  <th className="w-8 py-2 pl-2 font-medium" />
+                  <th className="w-14 px-3 py-2 font-medium whitespace-nowrap">종류</th>
+                  <th className="px-3 py-2 font-medium">
+                    <SortHeader
+                      label="이름"
+                      active={sortField === 'name'}
+                      dir={sortField === 'name' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('name')}
+                    />
+                  </th>
+                  <th className="w-28 px-3 py-2 font-medium">
+                    <SortHeader
+                      label="크기"
+                      active={sortField === 'size'}
+                      dir={sortField === 'size' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('size')}
+                    />
+                  </th>
+                  <th className="w-44 px-3 py-2 font-medium">
+                    <SortHeader
+                      label="수정한 날짜"
+                      active={sortField === 'date'}
+                      dir={sortField === 'date' ? sortDir : 'asc'}
+                      onClick={() => toggleSort('date')}
+                    />
+                  </th>
+                  {showLocation && <th className="w-32 py-2 pr-4 pl-3 font-medium">위치</th>}
+                  <th className="w-14 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((file) => (
+                  <tr
+                    key={file.fileId}
+                    {...rowHandlers(file)}
+                    className={cn(
+                      'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
+                      (selected.has(file.fileId) || selectedFileId === file.fileId) &&
+                        'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
+                      dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
+                    )}
+                  >
+                    <td className="py-2.5 pl-2">
+                      <button
+                        type="button"
+                        aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+                        }}
+                        className="flex items-center text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
+                      >
+                        <StarIcon
+                          size={16}
+                          className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined}
+                        />
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <EntryIcon file={file} />
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
+                    <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                      {file.directory ? '-' : formatFileSize(file.fileSize)}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                      {formatDate(file.updatedAt)}
+                    </td>
+                    {showLocation && (
+                      <td className="py-2.5 pr-4 pl-3">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onNavigate(file.path)
+                          }}
+                          className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        >
+                          {locationLabel(file.path)}
+                        </button>
+                      </td>
+                    )}
+                    <td className="py-2.5 pr-2 text-right">
+                      <button
+                        type="button"
+                        aria-label="더보기"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          openMenu(file, event.clientX, event.clientY)
+                        }}
+                        className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                      >
+                        <MoreVerticalIcon size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {menu && !menu.batch && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
