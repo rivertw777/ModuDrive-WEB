@@ -1,7 +1,4 @@
 {
-  "permissions": {
-    "deny": ["Read(./.env.local)", "Read(./.env.*.local)"]
-  },
   "hooks": {
     "PreToolUse": [
       {
