@@ -184,3 +184,19 @@ export const SearchIcon = createIcon(
     <path d="m21 21-4.3-4.3" />
   </>,
 )
+
+export const ListIcon = createIcon(
+  <>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+  </>,
+)
+
+export const GridIcon = createIcon(
+  <>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </>,
+)

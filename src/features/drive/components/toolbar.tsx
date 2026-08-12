@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { FolderPlusIcon } from '@/components/ui/icons'
 import { Breadcrumb } from './breadcrumb'
 import { UploadButton } from './upload-button'
+import { ViewToggle } from './view-toggle'
 
 export function Toolbar({
   path,
@@ -23,6 +24,7 @@ export function Toolbar({
           새 폴더
         </Button>
         <UploadButton onFilesSelected={onFilesSelected} uploadingLabel={uploadingLabel} />
+        <ViewToggle />
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { useSearchFiles } from '../api/search-files'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
+import { ViewToggle } from './view-toggle'
 
 export function SearchExplorer() {
   const navigate = useNavigate()
@@ -23,9 +24,12 @@ export function SearchExplorer() {
   return (
     <div className="flex h-full">
       <div className="min-w-0 flex-1 p-6">
-        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-slate-100">
-          &lsquo;{query}&rsquo; 검색 결과
-        </h1>
+        <div className="flex items-center justify-between pb-4">
+          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+            &lsquo;{query}&rsquo; 검색 결과
+          </h1>
+          <ViewToggle />
+        </div>
 
         {isLoading && <LoadingState />}
         {isError && <ErrorState message="검색에 실패했습니다" />}
