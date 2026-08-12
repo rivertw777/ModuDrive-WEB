@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember, useLogout } from '@/features/auth'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
+  ClockIcon,
   CloudIcon,
   FileIcon,
   FolderIcon,
@@ -33,6 +34,7 @@ export default function AppLayoutRoute() {
   const location = useLocation()
   const isDriveActive = location.pathname.startsWith('/drive')
   const isFavoritesActive = location.pathname.startsWith('/favorites')
+  const isRecentActive = location.pathname.startsWith('/recent')
   const isStorageActive = location.pathname.startsWith('/storage')
   const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
@@ -82,18 +84,25 @@ export default function AppLayoutRoute() {
           <div className="my-2 border-t border-slate-200 dark:border-slate-700" />
 
           <Link
-            to="/favorites"
-            className={cn(NAV_LINK_CLASS, isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
-          >
-            <StarIcon size={18} />
-            즐겨찾기
-          </Link>
-          <Link
             to="/shared"
             className={cn(NAV_LINK_CLASS, isSharedActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
           >
             <UsersIcon size={18} />
             공유 문서함
+          </Link>
+          <Link
+            to="/recent"
+            className={cn(NAV_LINK_CLASS, isRecentActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <ClockIcon size={18} />
+            최근 문서함
+          </Link>
+          <Link
+            to="/favorites"
+            className={cn(NAV_LINK_CLASS, isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+          >
+            <StarIcon size={18} />
+            즐겨찾기
           </Link>
 
           <div className="my-2 border-t border-slate-200 dark:border-slate-700" />

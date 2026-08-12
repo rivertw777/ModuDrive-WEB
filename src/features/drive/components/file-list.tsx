@@ -65,6 +65,7 @@ export function FileList({
   navigable = true,
   showLocation = false,
   emptyLabel = '이 폴더는 비어 있습니다',
+  preserveOrder = false,
 }: {
   files: FileEntry[]
   selectedFileId: string | null
@@ -75,6 +76,7 @@ export function FileList({
   navigable?: boolean
   showLocation?: boolean
   emptyLabel?: string
+  preserveOrder?: boolean
 }) {
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -96,11 +98,8 @@ export function FileList({
     }
   }
 
-  const visible = sortFiles(
-    files.filter((file) => file.status !== 'DELETED'),
-    sortField,
-    sortDir,
-  )
+  const nonDeleted = files.filter((file) => file.status !== 'DELETED')
+  const visible = preserveOrder ? nonDeleted : sortFiles(nonDeleted, sortField, sortDir)
   const { selected, setSelected, box, onRowMouseDown, onContainerMouseDown } = useRowSelection(
     containerRef,
     visible.map((file) => file.fileId),
