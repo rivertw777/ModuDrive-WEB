@@ -137,7 +137,7 @@ export function FileList({
     const ids = parsed.filter((id): id is string => {
       if (typeof id !== 'string' || id === target.fileId) return false
       const source = byId.get(id)
-      if (!source || source.path === target.path) return false
+      if (!source || source.path === targetFullPath) return false
       if (!source.directory) return true
       const sourceFullPath = joinPath(source.path, source.name)
       return targetFullPath !== sourceFullPath && !targetFullPath.startsWith(`${sourceFullPath}/`)
@@ -376,34 +376,38 @@ export function FileList({
           >
             <MoveIcon size={16} /> 이동 ({selectedFiles.length}개)
           </ContextMenuItem>
-          <ContextMenuItem
-            onClick={async () => {
-              setMenu(null)
-              setActionError(null)
-              const targets = selectedFiles.filter((file) => !file.favorite)
-              const failed = await runBatch(targets, (file) =>
-                toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: true }),
-              )
-              if (failed.length > 0)
-                setActionError(`${failed.length}개 항목의 즐겨찾기 추가에 실패했습니다`)
-            }}
-          >
-            <StarIcon size={16} /> 즐겨찾기 추가
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={async () => {
-              setMenu(null)
-              setActionError(null)
-              const targets = selectedFiles.filter((file) => file.favorite)
-              const failed = await runBatch(targets, (file) =>
-                toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: false }),
-              )
-              if (failed.length > 0)
-                setActionError(`${failed.length}개 항목의 즐겨찾기 해제에 실패했습니다`)
-            }}
-          >
-            <StarIcon size={16} /> 즐겨찾기 해제
-          </ContextMenuItem>
+          {selectedFiles.some((file) => !file.favorite) && (
+            <ContextMenuItem
+              onClick={async () => {
+                setMenu(null)
+                setActionError(null)
+                const targets = selectedFiles.filter((file) => !file.favorite)
+                const failed = await runBatch(targets, (file) =>
+                  toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: true }),
+                )
+                if (failed.length > 0)
+                  setActionError(`${failed.length}개 항목의 즐겨찾기 추가에 실패했습니다`)
+              }}
+            >
+              <StarIcon size={16} /> 즐겨찾기 추가
+            </ContextMenuItem>
+          )}
+          {selectedFiles.some((file) => file.favorite) && (
+            <ContextMenuItem
+              onClick={async () => {
+                setMenu(null)
+                setActionError(null)
+                const targets = selectedFiles.filter((file) => file.favorite)
+                const failed = await runBatch(targets, (file) =>
+                  toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: false }),
+                )
+                if (failed.length > 0)
+                  setActionError(`${failed.length}개 항목의 즐겨찾기 해제에 실패했습니다`)
+              }}
+            >
+              <StarIcon size={16} /> 즐겨찾기 해제
+            </ContextMenuItem>
+          )}
           <ContextMenuItem
             danger
             onClick={() => {
