@@ -1,5 +1,6 @@
 export { DriveExplorer } from './components/drive-explorer'
 export { FavoritesExplorer } from './components/favorites-explorer'
+export { RecentExplorer } from './components/recent-explorer'
 export { TrashExplorer } from './components/trash-explorer'
 export { SharedWithMeExplorer } from './components/shared-with-me-explorer'
 export { SearchExplorer } from './components/search-explorer'

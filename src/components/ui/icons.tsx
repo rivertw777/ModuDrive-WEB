@@ -157,6 +157,13 @@ export const StarIcon = createIcon(
   <path d="m12 3 2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.9 6.4 20l1.4-6.3-4.8-4.3 6.4-.6z" />,
 )
 
+export const ClockIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v6l4 2" />
+  </>,
+)
+
 export const CloudIcon = createIcon(
   <path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A5 5 0 0 0 6.5 19h11z" />,
 )
