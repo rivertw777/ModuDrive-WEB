@@ -12,7 +12,7 @@ import shlex
 import subprocess
 import sys
 
-PROTECTED_BRANCHES = {"dev"}
+PROTECTED_BRANCHES = {"dev", "prod"}
 
 
 def strip_ref_prefix(ref):
