@@ -17,7 +17,7 @@ import { formatDate, formatFileSize } from '../types'
 import { useFile } from '../api/get-file'
 import { downloadFile } from '../api/download-file'
 import { useToggleFavorite } from '../api/toggle-favorite'
-import { ShareDialog } from './share-dialog'
+import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
@@ -109,7 +109,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
         </div>
       )}
 
-      <ShareDialog open={shareOpen} onClose={() => setShareOpen(false)} fileId={fileId} />
+      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} fileId={fileId} />
       <DeleteConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
