@@ -2,19 +2,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import type { FileShare, Role } from '../types'
 
-export type ShareFileInput = {
+export type UpdateFileShareRoleInput = {
   fileId: string
-  email: string
+  shareId: string
   role: Role
 }
 
-export const shareFile = ({ fileId, ...body }: ShareFileInput) =>
-  apiClient.post<FileShare>(`/api/v1/files/${encodeURIComponent(fileId)}/shares`, body)
+export const updateFileShareRole = ({ fileId, shareId, role }: UpdateFileShareRoleInput) =>
+  apiClient.patch<FileShare>(`/api/v1/files/${encodeURIComponent(fileId)}/shares/${encodeURIComponent(shareId)}`, {
+    role,
+  })
 
-export function useShareFile() {
+export function useUpdateFileShareRole() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: shareFile,
+    mutationFn: updateFileShareRole,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['file-shares', variables.fileId] })
     },

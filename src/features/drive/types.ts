@@ -1,5 +1,7 @@
 export type FileStatus = 'PENDING' | 'UPLOADED' | 'DELETED'
-export type Permission = 'READ' | 'WRITE'
+/** Nested — EDITOR includes everything VIEWER can do. */
+export type Role = 'VIEWER' | 'EDITOR'
+export type ShareScope = 'RESTRICTED' | 'LINK'
 export type FileCategory = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO'
 
 /** Sidebar entries for browsing files by category. `slug` is the URL segment under /category. */
@@ -29,7 +31,24 @@ export type FileShare = {
   fileId: string
   ownerId: string
   sharedWithUserId: string
-  permission: Permission
+  role: Role
+}
+
+export type FileAccessList = {
+  fileId: string
+  ownerId: string
+  scope: ShareScope
+  linkToken: string | null
+  shares: FileShare[]
+}
+
+/** Deliberately narrow — an anonymous link visitor gets no path/owner/version info. */
+export type PublicFile = {
+  fileId: string
+  name: string
+  fileSize: number | null
+  directory: boolean
+  updatedAt: string | null
 }
 
 export function joinPath(path: string, name: string) {

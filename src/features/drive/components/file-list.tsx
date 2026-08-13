@@ -38,7 +38,7 @@ import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-ro
 import { runBatch } from '@/utils/run-batch'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
-import { ShareDialog } from './share-dialog'
+import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 
 // Private MIME type for in-list drags (moving files between folders) — keeps them from being
@@ -503,7 +503,7 @@ export function FileList({
         />
       )}
       {dialog?.type === 'share' && (
-        <ShareDialog open onClose={() => setDialog(null)} fileId={dialog.files[0].fileId} />
+        <ShareModal open onClose={() => setDialog(null)} fileId={dialog.files[0].fileId} />
       )}
       {dialog?.type === 'delete' && (
         <DeleteConfirmDialog

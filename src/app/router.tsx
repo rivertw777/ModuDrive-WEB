@@ -11,6 +11,7 @@ import SharedRoute from '@/app/routes/shared'
 import SearchRoute from '@/app/routes/search'
 import CategoryRoute from '@/app/routes/category'
 import StorageRoute from '@/app/routes/storage'
+import PublicFileRoute from '@/app/routes/public-file'
 import NotFoundRoute from '@/app/routes/not-found'
 
 const router = createBrowserRouter([
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupRoute />,
+  },
+  {
+    path: '/public/:token',
+    element: <PublicFileRoute />,
   },
   {
     path: '/drive',
