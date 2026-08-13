@@ -32,6 +32,10 @@ export type FileShare = {
   ownerId: string
   sharedWithUserId: string
   role: Role
+  /** Populated on the shares list response; null on create/update-role responses
+   * (the caller already knows who they just acted on). */
+  sharedWithEmail: string | null
+  sharedWithName: string | null
 }
 
 export type FileAccessList = {

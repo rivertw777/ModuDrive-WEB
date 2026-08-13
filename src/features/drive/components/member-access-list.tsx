@@ -4,8 +4,8 @@ import { useRevokeFileShare } from '../api/revoke-file-share'
 import type { FileShare, Role } from '../types'
 import { RoleSelect } from './role-select'
 
-/** No id→member lookup endpoint exists yet, so accessors are identified by a
- * shortened UUID rather than email/name. */
+/** Falls back to a shortened UUID when a share row has no enrichment (should not
+ * happen for the list endpoint, but keeps rendering safe either way). */
 function shortId(id: string) {
   return id.slice(0, 8)
 }
@@ -34,7 +34,10 @@ export function MemberAccessList({
           return (
             <li key={share.shareId} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm">
               <span className="min-w-0 truncate text-slate-700 dark:text-slate-300">
-                {shortId(share.sharedWithUserId)}
+                {share.sharedWithEmail ?? shortId(share.sharedWithUserId)}
+                {share.sharedWithName && (
+                  <span className="ml-1 text-slate-400 dark:text-slate-500">({share.sharedWithName})</span>
+                )}
               </span>
               <div className="flex shrink-0 items-center gap-2">
                 <RoleSelect
