@@ -503,7 +503,12 @@ export function FileList({
         />
       )}
       {dialog?.type === 'share' && (
-        <ShareModal open onClose={() => setDialog(null)} fileId={dialog.files[0].fileId} />
+        <ShareModal
+          open
+          onClose={() => setDialog(null)}
+          fileId={dialog.files[0].fileId}
+          fileName={dialog.files[0].name}
+        />
       )}
       {dialog?.type === 'delete' && (
         <DeleteConfirmDialog

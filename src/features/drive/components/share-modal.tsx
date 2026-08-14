@@ -1,68 +1,262 @@
+import { useEffect, useState } from 'react'
 import { Dialog } from '@/components/ui/dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { GlobeIcon, LockIcon, UserPlusIcon } from '@/components/ui/icons'
+import { useCurrentMember } from '@/features/auth'
 import { useFileShares } from '../api/list-file-shares'
 import { useUpdateFileScope } from '../api/update-file-scope'
+import { useUpdateFileShareRole } from '../api/update-file-share-role'
+import { useRevokeFileShare } from '../api/revoke-file-share'
 import type { ShareScope } from '../types'
-import { MemberAccessList } from './member-access-list'
+import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
 import { AddMemberForm } from './add-member-form'
-import { LinkPanel } from './link-panel'
+import { CopyLinkButton } from './link-panel'
 
 const SCOPE_LABELS: Record<ShareScope, string> = {
-  RESTRICTED: '권한이 있는 사용자만',
-  LINK: '링크가 있는 모든 사용자 (뷰어)',
+  RESTRICTED: '권한이 부여된 사용자',
+  LINK: '링크가 있는 모든 사용자',
 }
+
+const HELP_CONTENT = (
+  <ul className="space-y-2">
+    <li>
+      <span className="font-medium text-slate-800 dark:text-slate-100">소유자</span>는 공유 및
+      액세스 권한을 수정할 수 있습니다.
+    </li>
+    <li>
+      <span className="font-medium text-slate-800 dark:text-slate-100">뷰어</span>는 공유받은 파일의
+      조회만 가능합니다.
+    </li>
+    <li>
+      <span className="font-medium text-slate-800 dark:text-slate-100">편집자</span>는 공유받은
+      파일의 다운로드 및 이름 수정이 가능합니다.
+    </li>
+  </ul>
+)
 
 export function ShareModal({
   open,
   onClose,
   fileId,
+  fileName,
 }: {
   open: boolean
   onClose: () => void
   fileId: string
+  fileName: string
 }) {
   const { data: access, isLoading, isError } = useFileShares(fileId, open)
+  const { data: member } = useCurrentMember(open)
   const updateScope = useUpdateFileScope()
+  const updateRole = useUpdateFileShareRole()
+  const revoke = useRevokeFileShare()
+  const [view, setView] = useState<'list' | 'invite'>('list')
+
+  // Scope/role/revoke edits are staged here and only sent to the server on 완료.
+  const [pendingScope, setPendingScope] = useState<ShareScope | null>(null)
+  const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
+  const [commitError, setCommitError] = useState<string | null>(null)
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
+
+  // Land back on the list view, with no staged edits, each time the modal is (re)opened for a file.
+  useEffect(() => {
+    if (open) {
+      setView('list')
+      setPendingScope(null)
+      setPendingRoleChanges({})
+      setCommitError(null)
+      setConfirmCloseOpen(false)
+    }
+  }, [open, fileId])
+
+  const isOwner = access !== undefined && member !== undefined && member.id === access.ownerId
+  const effectiveScope = pendingScope ?? access?.scope
+  const isCommitting = updateScope.isPending || updateRole.isPending || revoke.isPending
+
+  // RESTRICTED shares have no link token — point invited members at the
+  // login-gated deep link instead of the anonymous /public/:token route.
+  // Deliberately reflects the server's current scope, not a staged pending one:
+  // an uncommitted scope has no valid link yet.
+  const shareLink = access
+    ? access.scope === 'LINK'
+      ? access.linkToken
+        ? `${window.location.origin}/public/${encodeURIComponent(access.linkToken)}`
+        : null
+      : `${window.location.origin}/files/${encodeURIComponent(fileId)}`
+    : null
+
+  const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
+  const hasPendingChanges = pendingScope !== null || Object.keys(pendingRoleChanges).length > 0
+
+  const onComplete = async () => {
+    const roleEntries = Object.entries(pendingRoleChanges)
+    if (!hasPendingChanges) {
+      onClose()
+      return
+    }
+    setCommitError(null)
+    // Keys run parallel to tasks so a partial failure can narrow the staged edits back to
+    // just what failed — revoke isn't idempotent server-side (a retried revoke of an
+    // already-revoked share 404s), so resending a succeeded edit on retry would deadlock 완료.
+    const keys: ('scope' | string)[] = []
+    const tasks: Promise<unknown>[] = []
+    if (pendingScope !== null && pendingScope !== access?.scope) {
+      keys.push('scope')
+      tasks.push(updateScope.mutateAsync({ fileId, scope: pendingScope }))
+    }
+    for (const [shareId, change] of roleEntries) {
+      keys.push(shareId)
+      tasks.push(
+        change === REMOVE_ACCESS
+          ? revoke.mutateAsync({ fileId, shareId })
+          : updateRole.mutateAsync({ fileId, shareId, role: change }),
+      )
+    }
+    const results = await Promise.allSettled(tasks)
+    const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
+    if (failedKeys.size > 0) {
+      setPendingScope(failedKeys.has('scope') ? pendingScope : null)
+      setPendingRoleChanges((prev) =>
+        Object.fromEntries(Object.entries(prev).filter(([shareId]) => failedKeys.has(shareId))),
+      )
+      setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해주세요.')
+      return
+    }
+    setPendingScope(null)
+    setPendingRoleChanges({})
+    onClose()
+  }
+
+  // Backdrop click / ESC / any other non-완료 close attempt goes through here —
+  // ask once before silently dropping a scope or role/remove edit on the floor.
+  // 저장 saves the pending edits then closes (same as 완료); 취소 discards them and
+  // closes anyway — either choice closes the modal, it never just cancels back to it.
+  const requestClose = () => {
+    if (!hasPendingChanges) {
+      onClose()
+      return
+    }
+    setConfirmCloseOpen(true)
+  }
 
   return (
-    <Dialog open={open} onClose={onClose} title="파일 공유">
-      {isLoading && <LoadingState />}
-      {isError && <ErrorState message="공유 정보를 불러오지 못했습니다" />}
+    <>
+      <Dialog
+        open={open}
+        onClose={requestClose}
+        title={`"${fileName}" 공유`}
+        size="lg"
+        onBack={view === 'invite' ? () => setView('list') : undefined}
+        closeButton="help"
+        helpContent={HELP_CONTENT}
+      >
+        {isLoading && <LoadingState />}
+        {isError && <ErrorState message="공유 정보를 불러오지 못했습니다" />}
 
-      {access && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">공유 범위</label>
-            <select
-              value={access.scope}
-              disabled={updateScope.isPending}
-              onChange={(e) => updateScope.mutate({ fileId, scope: e.target.value as ShareScope })}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-            >
-              {(Object.keys(SCOPE_LABELS) as ShareScope[]).map((scope) => (
-                <option key={scope} value={scope}>
-                  {SCOPE_LABELS[scope]}
-                </option>
-              ))}
-            </select>
-            {updateScope.isError && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{updateScope.error.message}</p>
-            )}
-            {access.scope === 'LINK' &&
-              (access.linkToken ? (
-                <LinkPanel linkToken={access.linkToken} />
-              ) : (
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">링크를 발급하지 못했습니다</p>
-              ))}
-          </div>
+        {access && view === 'invite' && (
+          <AddMemberForm
+            fileId={fileId}
+            onCancel={() => setView('list')}
+            onDone={() => setView('list')}
+          />
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">액세스 권한</label>
-            <MemberAccessList fileId={fileId} ownerId={access.ownerId} shares={access.shares} />
-            <AddMemberForm fileId={fileId} />
+        {access && view === 'list' && (
+          <div className="space-y-8">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                액세스 범위
+              </label>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                  <ScopeIcon size={18} />
+                </span>
+                {isOwner ? (
+                  <select
+                    value={effectiveScope}
+                    disabled={isCommitting}
+                    onChange={(e) => setPendingScope(e.target.value as ShareScope)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  >
+                    {(Object.keys(SCOPE_LABELS) as ShareScope[]).map((scope) => (
+                      <option key={scope} value={scope}>
+                        {SCOPE_LABELS[scope]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {SCOPE_LABELS[access.scope]}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  액세스 권한이 있는 사용자
+                </label>
+                {isOwner && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="px-2 py-1"
+                    onClick={() => setView('invite')}
+                  >
+                    <UserPlusIcon size={15} />
+                    사용자 추가
+                  </Button>
+                )}
+              </div>
+              <MemberAccessList
+                ownerId={access.ownerId}
+                ownerName={isOwner ? (member?.name ?? null) : null}
+                ownerEmail={isOwner ? (member?.email ?? null) : null}
+                shares={access.shares}
+                isOwner={isOwner}
+                pendingChanges={pendingRoleChanges}
+                onChange={(shareId, change) =>
+                  setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
+                }
+                disabled={isCommitting}
+              />
+            </div>
+
+            <div className="border-t border-slate-200 pt-6 dark:border-slate-700">
+              {commitError && (
+                <p className="mb-3 text-sm text-red-600 dark:text-red-400">{commitError}</p>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <CopyLinkButton link={shareLink} />
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={onComplete}
+                  disabled={isCommitting}
+                >
+                  {isCommitting ? '저장 중...' : '완료'}
+                </Button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
-    </Dialog>
+        )}
+      </Dialog>
+      <ConfirmDialog
+        open={confirmCloseOpen}
+        message="변경사항을 저장하시겠습니까?"
+        confirmLabel="저장"
+        onConfirm={() => {
+          setConfirmCloseOpen(false)
+          onComplete()
+        }}
+        onCancel={() => {
+          setConfirmCloseOpen(false)
+          onClose()
+        }}
+      />
+    </>
   )
 }

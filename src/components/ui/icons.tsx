@@ -199,6 +199,46 @@ export const ListIcon = createIcon(
   </>,
 )
 
+export const ArrowLeftIcon = createIcon(<path d="M19 12H5m0 0 6 6m-6-6 6-6" />)
+
+export const HelpCircleIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9a2.5 2.5 0 0 1 4.9.75c0 1.5-2.4 2-2.4 3.5" />
+    <path d="M12 17h.01" />
+  </>,
+)
+
+export const UserPlusIcon = createIcon(
+  <>
+    <circle cx="9" cy="8" r="4" />
+    <path d="M2 20c0-3.9 3.1-7 7-7s7 3.1 7 7" />
+    <path d="M19 8v6M22 11h-6" />
+  </>,
+)
+
+export const LinkIcon = createIcon(
+  <>
+    <path d="M9 15 15 9" />
+    <path d="M10.5 6.5 12 5a3.5 3.5 0 0 1 5 5l-1.5 1.5" />
+    <path d="M13.5 17.5 12 19a3.5 3.5 0 0 1-5-5l1.5-1.5" />
+  </>,
+)
+
+export const LockIcon = createIcon(
+  <>
+    <rect x="4" y="11" width="16" height="9" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </>,
+)
+
+export const GlobeIcon = createIcon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z" />
+  </>,
+)
+
 export const GridIcon = createIcon(
   <>
     <rect x="3" y="3" width="7" height="7" rx="1" />
