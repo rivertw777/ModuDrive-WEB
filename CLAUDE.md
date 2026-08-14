@@ -60,7 +60,7 @@ Path alias `@/` → `src/` is configured in both `tsconfig.app.json` and `vite.c
 
 This is the frontend for a separate `ModuDrive-API` backend (microservices: gateway, auth, member, file, storage, notification).
 
-- All API calls go through the gateway service. `VITE_API_BASE_URL` (in `.env.development`) points at the gateway, currently `http://localhost:10001`.
+- All API calls go through the gateway service. `VITE_API_BASE_URL` (in `.env`) points at the gateway, currently `http://localhost:10001`.
 - The gateway's CORS config expects the frontend origin at `http://localhost:3000`, which is why `vite.config.ts` hardcodes `server.port = 3000` — do not change this without also updating the gateway's allowed origin.
 - `src/types/api.ts` (`ApiResponse<T>`) mirrors `com.moduDrive.common.core.web.ApiResponse<T>` in the backend's `common:core` module exactly — keep them in sync if the backend shape changes.
 - `src/lib/api-client.ts` is the single axios instance for all requests:
