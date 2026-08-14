@@ -109,7 +109,9 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
         </div>
       )}
 
-      <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} fileId={fileId} />
+      {file && (
+        <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} fileId={fileId} fileName={file.name} />
+      )}
       <DeleteConfirmDialog
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}

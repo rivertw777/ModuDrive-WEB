@@ -41,7 +41,9 @@ export default function AppLayoutRoute() {
   const sidebar = useResizableWidth('modudrive.sidebarWidth', 240, 200, 400, 'right')
 
   if (!accessToken) {
-    return <Navigate to="/login" replace />
+    // Preserve where the user was headed (e.g. a shared-file deep link) so login can
+    // send them back instead of always landing on /drive.
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
   }
 
   return (

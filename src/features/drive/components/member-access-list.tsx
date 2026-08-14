@@ -1,66 +1,95 @@
-import { TrashIcon } from '@/components/ui/icons'
-import { useUpdateFileShareRole } from '../api/update-file-share-role'
-import { useRevokeFileShare } from '../api/revoke-file-share'
+import { cn } from '@/utils/cn'
 import type { FileShare, Role } from '../types'
-import { RoleSelect } from './role-select'
+import { ROLE_LABELS } from './role-select'
 
-/** Falls back to a shortened UUID when a share row has no enrichment (should not
- * happen for the list endpoint, but keeps rendering safe either way). */
+export const REMOVE_ACCESS = 'REMOVE_ACCESS'
+export type PendingChange = Role | typeof REMOVE_ACCESS
+
+/** Falls back to a shortened UUID when a row has no name enrichment. */
 function shortId(id: string) {
   return id.slice(0, 8)
 }
 
+/** Pure/controlled list — role edits and revokes are staged into `pendingChanges`
+ * by the caller and only sent to the server when the share modal's 완료 is clicked. */
 export function MemberAccessList({
-  fileId,
   ownerId,
+  ownerName,
+  ownerEmail,
   shares,
+  isOwner,
+  pendingChanges,
+  onChange,
+  disabled,
 }: {
-  fileId: string
   ownerId: string
+  /** Only known when the caller viewing this list is the owner. */
+  ownerName?: string | null
+  ownerEmail?: string | null
   shares: FileShare[]
+  /** Role edit / revoke are owner-only actions (also enforced server-side). */
+  isOwner: boolean
+  pendingChanges: Record<string, PendingChange>
+  onChange: (shareId: string, change: PendingChange) => void
+  disabled?: boolean
 }) {
-  const updateRole = useUpdateFileShareRole()
-  const revoke = useRevokeFileShare()
-
   return (
-    <>
-      <ul className="mt-2 space-y-1.5">
-        <li className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm">
-          <span className="text-slate-700 dark:text-slate-300">{shortId(ownerId)} (소유자)</span>
-        </li>
-        {shares.map((share) => {
-          const isUpdatingThisRow = updateRole.isPending && updateRole.variables?.shareId === share.shareId
-          const isRevokingThisRow = revoke.isPending && revoke.variables?.shareId === share.shareId
-          return (
-            <li key={share.shareId} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm">
-              <span className="min-w-0 truncate text-slate-700 dark:text-slate-300">
-                {share.sharedWithEmail ?? shortId(share.sharedWithUserId)}
-                {share.sharedWithName && (
-                  <span className="ml-1 text-slate-400 dark:text-slate-500">({share.sharedWithName})</span>
+    <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-violet-100 bg-violet-50/50 dark:border-violet-900/40 dark:bg-violet-950/20">
+      <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? shortId(ownerId)}</p>
+          {ownerEmail && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>}
+        </div>
+        <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">소유자</span>
+      </li>
+      {shares.map((share) => {
+        const pending = pendingChanges[share.shareId]
+        const removing = pending === REMOVE_ACCESS
+        const selectValue = removing ? REMOVE_ACCESS : (pending ?? share.role)
+        return (
+          <li key={share.shareId} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  'truncate font-medium text-slate-800 dark:text-slate-200',
+                  removing && 'text-slate-400 line-through dark:text-slate-500',
                 )}
-              </span>
-              <div className="flex shrink-0 items-center gap-2">
-                <RoleSelect
-                  value={share.role}
-                  disabled={isUpdatingThisRow}
-                  onChange={(role: Role) => updateRole.mutate({ fileId, shareId: share.shareId, role })}
-                />
-                <button
-                  type="button"
-                  aria-label="공유 제거"
-                  disabled={isRevokingThisRow}
-                  onClick={() => revoke.mutate({ fileId, shareId: share.shareId })}
-                  className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:text-slate-500 dark:hover:bg-red-950 dark:hover:text-red-400"
+              >
+                {share.sharedWithName ?? shortId(share.sharedWithUserId)}
+              </p>
+              {share.sharedWithEmail && (
+                <p
+                  className={cn(
+                    'truncate text-xs text-slate-500 dark:text-slate-400',
+                    removing && 'line-through',
+                  )}
                 >
-                  <TrashIcon size={14} />
-                </button>
-              </div>
-            </li>
-          )
-        })}
-      </ul>
-      {updateRole.isError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{updateRole.error.message}</p>}
-      {revoke.isError && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{revoke.error.message}</p>}
-    </>
+                  {share.sharedWithEmail}
+                </p>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {isOwner ? (
+                <select
+                  value={selectValue}
+                  disabled={disabled}
+                  onChange={(e) => onChange(share.shareId, e.target.value as PendingChange)}
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                >
+                  {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
+                  <option value={REMOVE_ACCESS}>삭제</option>
+                </select>
+              ) : (
+                <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
+              )}
+            </div>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
