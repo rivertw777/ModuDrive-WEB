@@ -105,6 +105,8 @@ export const XIcon = createIcon(<path d="M18 6 6 18M6 6l12 12" />)
 
 export const ChevronRightIcon = createIcon(<path d="m9 6 6 6-6 6" />)
 
+export const CheckIcon = createIcon(<path d="m5 13 4 4L19 7" />)
+
 export const LogOutIcon = createIcon(
   <>
     <path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4" />
