@@ -69,10 +69,12 @@ export function AddMemberForm({
     const results = await Promise.allSettled(
       finalEmails.map((email) => shareFile.mutateAsync({ fileId, email, role })),
     )
-    const failedEmails = finalEmails.filter((_, i) => results[i].status === 'rejected')
-    if (failedEmails.length > 0) {
-      setEmails(failedEmails)
-      setError(`${failedEmails.length}명 초대에 실패했습니다`)
+    const failures = finalEmails
+      .map((email, i) => ({ email, result: results[i] }))
+      .filter((f): f is { email: string; result: PromiseRejectedResult } => f.result.status === 'rejected')
+    if (failures.length > 0) {
+      setEmails(failures.map((f) => f.email))
+      setError(failures.map((f) => `${f.email}: ${(f.result.reason as Error)?.message}`).join('\n'))
       return
     }
     onDone()
@@ -110,7 +112,7 @@ export function AddMemberForm({
         </div>
         <RoleSelect value={role} onChange={setRole} />
       </div>
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && <p className="whitespace-pre-line text-sm text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="flex items-center justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={shareFile.isPending}>
