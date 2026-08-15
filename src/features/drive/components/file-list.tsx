@@ -45,11 +45,25 @@ import { DeleteConfirmDialog } from './delete-confirm-dialog'
 // mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
 const DRAG_MIME = 'application/x-modudrive-file-ids'
 
-function EntryIcon({ file, size = 20 }: { file: FileEntry; size?: number }) {
-  if (file.directory) return <FolderIcon size={size} className="shrink-0 text-violet-500" />
+function EntryIcon({
+  file,
+  size = 20,
+  className,
+}: {
+  file: FileEntry
+  size?: number
+  className?: string
+}) {
+  if (file.directory)
+    return <FolderIcon size={size} className={cn('shrink-0 text-violet-500', className)} />
   if (isImageFile(file.name))
-    return <ImageIcon size={size} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={size} className="shrink-0 text-slate-400 dark:text-slate-500" />
+    return <ImageIcon size={size} className={cn('shrink-0 text-emerald-500', className)} />
+  return (
+    <FileIcon
+      size={size}
+      className={cn('shrink-0 text-slate-400 dark:text-slate-500', className)}
+    />
+  )
 }
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
@@ -204,7 +218,7 @@ export function FileList({
                   key={file.fileId}
                   {...rowHandlers(file)}
                   className={cn(
-                    'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-transparent p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-800',
+                    'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
                     (selected.has(file.fileId) || selectedFileId === file.fileId) &&
                       'border-violet-200 bg-violet-50 hover:bg-violet-50 dark:border-violet-900 dark:bg-violet-950 dark:hover:bg-violet-950',
                     dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
@@ -217,10 +231,7 @@ export function FileList({
                       event.stopPropagation()
                       toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
                     }}
-                    className={cn(
-                      'absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400',
-                      !file.favorite && 'opacity-0 group-hover:opacity-100',
-                    )}
+                    className="absolute top-1.5 left-1.5 flex size-9 items-center justify-center rounded-full text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
                   >
                     <StarIcon
                       size={20}
@@ -234,11 +245,11 @@ export function FileList({
                       event.stopPropagation()
                       openMenu(file, event.clientX, event.clientY)
                     }}
-                    className="absolute top-1.5 left-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 opacity-0 hover:bg-slate-200 hover:text-slate-700 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    className="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                   >
                     <MoreVerticalIcon size={20} />
                   </button>
-                  <EntryIcon file={file} size={56} />
+                  <EntryIcon file={file} size={72} className="mt-8" />
                   <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
                     {file.name}
                   </span>
