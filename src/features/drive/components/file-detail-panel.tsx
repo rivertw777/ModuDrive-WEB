@@ -21,6 +21,7 @@ import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
+import { FilePreview } from './file-preview'
 
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
   const { data: file, isLoading, isError } = useFile(fileId)
@@ -63,10 +64,20 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             </p>
           </div>
 
+          {!file.directory && file.status === 'UPLOADED' && (
+            <FilePreview
+              fileName={file.name}
+              fileSize={file.fileSize}
+              source={{ type: 'auth', fileId: file.fileId }}
+            />
+          )}
+
           <dl className="space-y-2 text-slate-500 dark:text-slate-400">
             <div className="flex justify-between">
               <dt>크기</dt>
-              <dd className="text-slate-700 dark:text-slate-300">{formatFileSize(file.fileSize)}</dd>
+              <dd className="text-slate-700 dark:text-slate-300">
+                {formatFileSize(file.fileSize)}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt>수정 날짜</dt>
@@ -95,10 +106,15 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             </Button>
             <Button
               variant="secondary"
-              onClick={() => toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })}
+              onClick={() =>
+                toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+              }
               disabled={toggleFavorite.isPending}
             >
-              <StarIcon size={16} className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined} />
+              <StarIcon
+                size={16}
+                className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined}
+              />
               {file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
             </Button>
             <Button variant="danger" onClick={() => setDeleteOpen(true)}>
@@ -110,7 +126,12 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
       )}
 
       {file && (
-        <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} fileId={fileId} fileName={file.name} />
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          fileId={fileId}
+          fileName={file.name}
+        />
       )}
       <DeleteConfirmDialog
         open={deleteOpen}
