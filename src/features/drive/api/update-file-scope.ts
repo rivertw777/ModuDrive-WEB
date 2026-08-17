@@ -1,16 +1,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileAccessList, ShareScope } from '../types'
+import type { FileAccessList, Role, ShareScope } from '../types'
 
 export type UpdateFileScopeInput = {
   fileId: string
   scope: ShareScope
+  /** Only meaningful when scope is LINK — the role given to link visitors. */
+  role?: Role
 }
 
-export const updateFileScope = ({ fileId, scope }: UpdateFileScopeInput) =>
-  apiClient.put<Pick<FileAccessList, 'fileId' | 'scope' | 'linkToken'>>(
+export const updateFileScope = ({ fileId, scope, role }: UpdateFileScopeInput) =>
+  apiClient.put<Pick<FileAccessList, 'fileId' | 'scope' | 'role' | 'linkToken'>>(
     `/api/v1/files/${encodeURIComponent(fileId)}/scope`,
-    { scope },
+    { scope, role },
   )
 
 export function useUpdateFileScope() {

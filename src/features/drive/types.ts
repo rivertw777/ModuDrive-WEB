@@ -42,6 +42,8 @@ export type FileAccessList = {
   fileId: string
   ownerId: string
   scope: ShareScope
+  /** Role applied to anonymous link visitors. Null when scope is RESTRICTED. */
+  role: Role | null
   linkToken: string | null
   shares: FileShare[]
 }

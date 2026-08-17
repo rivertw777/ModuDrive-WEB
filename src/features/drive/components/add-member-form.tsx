@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { XIcon } from '@/components/ui/icons'
+import { memberExistsByEmail } from '../api/check-member-email'
 import { useShareFile } from '../api/share-file'
 import type { Role } from '../types'
 import { RoleSelect } from './role-select'
@@ -29,6 +31,11 @@ export function AddMemberForm({
   const [input, setInput] = useState('')
   const [role, setRole] = useState<Role>('VIEWER')
   const [error, setError] = useState<string | null>(null)
+  // Set when commitInput's emails include one or more addresses with no ModuDrive account —
+  // holds the submit until the user acknowledges they'll be invited as a no-login guest link.
+  const [guestWarning, setGuestWarning] = useState<string[] | null>(null)
+  const [pendingEmails, setPendingEmails] = useState<string[]>([])
+  const [checkingEmails, setCheckingEmails] = useState(false)
 
   // Commits any text still sitting in the input as chips. Returns the resulting
   // list, or null if the text doesn't parse as email(s) (leaves it uncommitted).
@@ -58,18 +65,12 @@ export function AddMemberForm({
     }
   }
 
-  const onSubmit = async () => {
-    const finalEmails = commitInput()
-    if (finalEmails === null) return
-    if (finalEmails.length === 0) {
-      setError('초대할 이메일을 입력하세요')
-      return
-    }
+  const doShare = async (targetEmails: string[]) => {
     setError(null)
     const results = await Promise.allSettled(
-      finalEmails.map((email) => shareFile.mutateAsync({ fileId, email, role })),
+      targetEmails.map((email) => shareFile.mutateAsync({ fileId, email, role })),
     )
-    const failures = finalEmails
+    const failures = targetEmails
       .map((email, i) => ({ email, result: results[i] }))
       .filter((f): f is { email: string; result: PromiseRejectedResult } => f.result.status === 'rejected')
     if (failures.length > 0) {
@@ -78,6 +79,33 @@ export function AddMemberForm({
       return
     }
     onDone()
+  }
+
+  const onSubmit = async () => {
+    const finalEmails = commitInput()
+    if (finalEmails === null) return
+    if (finalEmails.length === 0) {
+      setError('초대할 이메일을 입력하세요')
+      return
+    }
+    setError(null)
+    setCheckingEmails(true)
+    try {
+      const checks = await Promise.all(
+        finalEmails.map(async (email) => ({ email, isMember: await memberExistsByEmail(email) })),
+      )
+      const unregistered = checks.filter((c) => !c.isMember).map((c) => c.email)
+      if (unregistered.length > 0) {
+        setPendingEmails(finalEmails)
+        setGuestWarning(unregistered)
+        return
+      }
+      await doShare(finalEmails)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '가입 여부를 확인하지 못했습니다')
+    } finally {
+      setCheckingEmails(false)
+    }
   }
 
   return (
@@ -118,10 +146,27 @@ export function AddMemberForm({
         <Button type="button" variant="ghost" onClick={onCancel} disabled={shareFile.isPending}>
           취소
         </Button>
-        <Button type="button" variant="primary" onClick={onSubmit} disabled={shareFile.isPending}>
-          전송
+        <Button
+          type="button"
+          variant="primary"
+          onClick={onSubmit}
+          disabled={shareFile.isPending || checkingEmails}
+        >
+          {checkingEmails ? '확인 중...' : '전송'}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={guestWarning !== null}
+        message={`${guestWarning?.join(', ')}\n위 이메일은 ModuDrive에 가입하지 않았습니다. 초대 링크를 가진 사람은 누구나 로그인 없이 파일에 접근할 수 있습니다. 그래도 공유하시겠습니까?`}
+        confirmLabel="무시하고 공유"
+        cancelLabel="취소"
+        onConfirm={() => {
+          setGuestWarning(null)
+          doShare(pendingEmails)
+        }}
+        onCancel={() => setGuestWarning(null)}
+      />
     </div>
   )
 }

@@ -90,6 +90,8 @@ apiClient.interceptors.response.use(
     }
 
     const message = error.response?.data?.message ?? error.message
-    return Promise.reject(new Error(message))
+    // status carried through so callers can branch on "not found" vs. other failures
+    // without re-parsing the (locale-specific) message text — see check-member-email.ts.
+    return Promise.reject(Object.assign(new Error(message), { status: error.response?.status }))
   },
 )

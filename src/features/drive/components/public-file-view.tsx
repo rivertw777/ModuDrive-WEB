@@ -1,6 +1,8 @@
+import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { FileIcon, FolderIcon } from '@/components/ui/icons'
+import { DownloadIcon, FileIcon, FolderIcon } from '@/components/ui/icons'
 import { usePublicFile } from '../api/get-public-file'
+import { downloadPublicFile } from '../api/download-public-file'
 import { formatDate, formatFileSize } from '../types'
 
 // Deliberately its own tree, not reused with ShareModal's authenticated
@@ -33,6 +35,17 @@ export function PublicFileView({ token }: { token: string }) {
                 <dd className="text-slate-700 dark:text-slate-300">{formatDate(file.updatedAt)}</dd>
               </div>
             </dl>
+            {/* Anonymous visitors get read + download only, never rename — so this is the one action here. */}
+            {!file.directory && (
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => downloadPublicFile(token, file.name)}
+              >
+                <DownloadIcon size={16} />
+                다운로드
+              </Button>
+            )}
           </div>
         )}
       </div>
