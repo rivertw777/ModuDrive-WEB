@@ -5,7 +5,8 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   ClockIcon,
   CloudIcon,
-  FileIcon,
+  DocumentIcon,
+  FilesIcon,
   FolderIcon,
   ImageIcon,
   LogOutIcon,
@@ -19,7 +20,13 @@ import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
 import { cn } from '@/utils/cn'
 import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
 
-const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: FileIcon, AUDIO: MusicIcon } as const
+const CATEGORY_ICONS = {
+  IMAGE: ImageIcon,
+  VIDEO: VideoIcon,
+  DOCUMENT: DocumentIcon,
+  AUDIO: MusicIcon,
+  OTHER: FilesIcon,
+} as const
 
 const NAV_LINK_CLASS =
   'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors'
