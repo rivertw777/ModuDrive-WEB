@@ -126,7 +126,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             fileId={fileId}
             currentName={file.name}
           />
-          <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} fileIds={[fileId]} currentPath={file.path} />
+          <MoveDialog open={moveOpen} onClose={() => setMoveOpen(false)} files={[file]} />
         </>
       )}
 
