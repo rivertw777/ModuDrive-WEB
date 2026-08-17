@@ -506,12 +506,7 @@ export function FileList({
         />
       )}
       {dialog?.type === 'move' && (
-        <MoveDialog
-          open
-          onClose={() => setDialog(null)}
-          fileIds={dialog.files.map((file) => file.fileId)}
-          currentPath={dialog.files[0].path}
-        />
+        <MoveDialog open onClose={() => setDialog(null)} files={dialog.files} />
       )}
       {dialog?.type === 'share' && (
         <ShareModal

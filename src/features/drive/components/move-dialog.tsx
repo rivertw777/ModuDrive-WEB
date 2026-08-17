@@ -1,44 +1,61 @@
-import { useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
+import { useMemo, useState } from 'react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { ChevronRightIcon, FolderIcon, FolderPlusIcon } from '@/components/ui/icons'
+import { LoadingState, ErrorState, EmptyState } from '@/components/ui/state'
 import { runBatch } from '@/utils/run-batch'
 import { useMoveFile } from '../api/move-file'
+import { useDirectoryListing } from '../api/list-directory'
+import { useCreateDirectory } from '../api/create-directory'
+import { formatDate, joinPath, type FileEntry } from '../types'
 
-const schema = z.object({
-  path: z.string().regex(/^\//, "경로는 '/'로 시작해야 합니다"),
-})
-
-type FormValues = z.infer<typeof schema>
+type MovableEntry = Pick<FileEntry, 'fileId' | 'name' | 'path' | 'directory'>
 
 export function MoveDialog({
   open,
   onClose,
-  fileIds,
-  currentPath,
+  files,
 }: {
   open: boolean
   onClose: () => void
-  fileIds: string[]
-  currentPath: string
+  files: MovableEntry[]
 }) {
   const moveFile = useMoveFile()
+  const createDirectory = useCreateDirectory()
+  const [browsePath, setBrowsePath] = useState(files[0]?.path ?? '/')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema), values: { path: currentPath } })
+  const [newFolderName, setNewFolderName] = useState<string | null>(null)
 
-  const onSubmit = async (values: FormValues) => {
+  const { data: entries, isLoading, isError } = useDirectoryListing(browsePath)
+
+  // Folders being moved (and anything under them) can't be a valid destination —
+  // filtering them out of each level's listing blocks drilling into that subtree at all.
+  const sourceFolderPaths = useMemo(
+    () =>
+      files.filter((file) => file.directory).map((file) => joinPath(file.path, file.name)),
+    [files],
+  )
+  const folders = (entries ?? []).filter(
+    (entry) => entry.directory && !sourceFolderPaths.includes(joinPath(entry.path, entry.name)),
+  )
+
+  const reset = () => {
+    setBrowsePath(files[0]?.path ?? '/')
+    setError(null)
+    setNewFolderName(null)
+  }
+
+  const close = () => {
+    reset()
+    onClose()
+  }
+
+  const onMove = async () => {
     setError(null)
     setIsSubmitting(true)
-    const failed = await runBatch(fileIds, (fileId) =>
-      moveFile.mutateAsync({ fileId, path: values.path }),
+    const failed = await runBatch(files, (file) =>
+      moveFile.mutateAsync({ fileId: file.fileId, path: browsePath }),
     )
     setIsSubmitting(false)
 
@@ -46,44 +63,112 @@ export function MoveDialog({
       setError(`${failed.length}개 항목을 이동하지 못했습니다`)
       return
     }
-    reset()
-    onClose()
+    close()
   }
 
+  const onCreateFolder = async () => {
+    const name = newFolderName?.trim()
+    if (!name) {
+      setNewFolderName(null)
+      return
+    }
+    setError(null)
+    try {
+      await createDirectory.mutateAsync({ name, path: browsePath })
+      setNewFolderName(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '폴더를 만들지 못했습니다')
+    }
+  }
+
+  const segments = browsePath.split('/').filter(Boolean)
+
   return (
-    <Dialog open={open} onClose={onClose} title="이동">
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        {fileIds.length > 1 && (
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            선택한 {fileIds.length}개 항목을 이동합니다.
-          </p>
-        )}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-            대상 경로
-          </label>
-          <input
-            autoFocus
-            placeholder="/문서/사진"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-            {...register('path')}
-          />
-          {errors.path && (
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.path.message}</p>
-          )}
+    <Dialog
+      open={open}
+      onClose={close}
+      title={files.length === 1 ? files[0].name : `${files.length}개 항목 이동`}
+      size="lg"
+    >
+      <div className="space-y-4">
+        <nav className="flex flex-wrap items-center gap-1 text-sm">
+          <button
+            type="button"
+            onClick={() => setBrowsePath('/')}
+            className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+          >
+            내 드라이브
+          </button>
+          {segments.map((segment, index) => (
+            <span key={index} className="flex items-center gap-1">
+              <ChevronRightIcon size={14} className="text-slate-400 dark:text-slate-600" />
+              <button
+                type="button"
+                onClick={() => setBrowsePath(`/${segments.slice(0, index + 1).join('/')}`)}
+                className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                {segment}
+              </button>
+            </span>
+          ))}
+        </nav>
+
+        <div className="h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          {isLoading && <LoadingState />}
+          {isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
+          {!isLoading && !isError && folders.length === 0 && <EmptyState label="하위 폴더가 없습니다" />}
+          {folders.map((folder) => (
+            <button
+              key={folder.fileId}
+              type="button"
+              onDoubleClick={() => setBrowsePath(joinPath(folder.path, folder.name))}
+              onClick={() => setBrowsePath(joinPath(folder.path, folder.name))}
+              className="flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
+            >
+              <FolderIcon size={18} className="shrink-0 text-violet-500" />
+              <span className="flex-1 truncate">{folder.name}</span>
+              <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
+                {formatDate(folder.updatedAt)}
+              </span>
+            </button>
+          ))}
         </div>
+
+        {newFolderName !== null ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              onCreateFolder()
+            }}
+            className="flex items-center gap-2"
+          >
+            <input
+              autoFocus
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onBlur={() => setNewFolderName(null)}
+              disabled={createDirectory.isPending}
+              placeholder="폴더 이름"
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+            />
+          </form>
+        ) : (
+          <Button type="button" variant="ghost" onClick={() => setNewFolderName('')}>
+            <FolderPlusIcon size={16} /> 새 폴더
+          </Button>
+        )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={close}>
             취소
           </Button>
-          <Button type="submit" variant="primary" disabled={isSubmitting}>
+          <Button type="button" variant="primary" onClick={onMove} disabled={isSubmitting}>
             {isSubmitting ? '이동 중...' : '이동'}
           </Button>
         </div>
-      </form>
+      </div>
     </Dialog>
   )
 }
