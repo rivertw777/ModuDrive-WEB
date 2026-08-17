@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
-import { FileIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
+import { DocumentIcon, FileIcon, FilesIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
 import { FILE_CATEGORIES, categorizeFile, formatFileSize, isImageFile, type FileCategory, type FileEntry } from '../types'
@@ -12,9 +12,9 @@ const CATEGORY_COLORS: Record<FileCategory, { light: string; dark: string }> = {
   VIDEO: { light: '#eb6834', dark: '#d95926' },
   DOCUMENT: { light: '#1baf7a', dark: '#199e70' },
   AUDIO: { light: '#eda100', dark: '#c98500' },
+  OTHER: { light: '#e87ba4', dark: '#d55181' },
 }
-const OTHER_COLOR = { light: '#e87ba4', dark: '#d55181' }
-const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: FileIcon, AUDIO: MusicIcon } as const
+const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: DocumentIcon, AUDIO: MusicIcon, OTHER: FilesIcon } as const
 
 const RADIUS = 110
 const STROKE = 32
@@ -58,24 +58,18 @@ export function StorageExplorer() {
     sortField === 'name' ? dirSign * a.name.localeCompare(b.name) : dirSign * ((a.fileSize ?? 0) - (b.fileSize ?? 0)),
   )
 
-  const categoryBytes: Record<FileCategory, number> = { IMAGE: 0, VIDEO: 0, DOCUMENT: 0, AUDIO: 0 }
-  let otherBytes = 0
+  const categoryBytes: Record<FileCategory, number> = { IMAGE: 0, VIDEO: 0, DOCUMENT: 0, AUDIO: 0, OTHER: 0 }
   for (const file of files) {
-    const category = categorizeFile(file.name)
-    if (category) categoryBytes[category] += file.fileSize ?? 0
-    else otherBytes += file.fileSize ?? 0
+    categoryBytes[categorizeFile(file.name)] += file.fileSize ?? 0
   }
 
-  const legend = [
-    ...FILE_CATEGORIES.map((c) => ({
-      type: c.type,
-      label: c.label,
-      icon: CATEGORY_ICONS[c.type],
-      color: CATEGORY_COLORS[c.type],
-      bytes: categoryBytes[c.type],
-    })),
-    { type: 'OTHER' as const, label: '기타', icon: FileIcon, color: OTHER_COLOR, bytes: otherBytes },
-  ].filter((s) => s.bytes > 0)
+  const legend = FILE_CATEGORIES.map((c) => ({
+    type: c.type,
+    label: c.label,
+    icon: CATEGORY_ICONS[c.type],
+    color: CATEGORY_COLORS[c.type],
+    bytes: categoryBytes[c.type],
+  })).filter((s) => s.bytes > 0)
 
   let offset = 0
   const arcs = legend.map((s) => {

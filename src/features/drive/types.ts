@@ -2,7 +2,7 @@ export type FileStatus = 'PENDING' | 'UPLOADED' | 'DELETED'
 /** Nested — EDITOR includes everything VIEWER can do. */
 export type Role = 'VIEWER' | 'EDITOR'
 export type ShareScope = 'RESTRICTED' | 'LINK'
-export type FileCategory = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO'
+export type FileCategory = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' | 'OTHER'
 
 /** Sidebar entries for browsing files by category. `slug` is the URL segment under /category. */
 export const FILE_CATEGORIES: { slug: string; type: FileCategory; label: string }[] = [
@@ -10,6 +10,7 @@ export const FILE_CATEGORIES: { slug: string; type: FileCategory; label: string 
   { slug: 'image', type: 'IMAGE', label: '사진' },
   { slug: 'video', type: 'VIDEO', label: '동영상' },
   { slug: 'audio', type: 'AUDIO', label: '음악' },
+  { slug: 'other', type: 'OTHER', label: '기타' },
 ]
 
 export type FileEntry = {
@@ -87,18 +88,19 @@ export function isImageFile(name: string) {
   return ext ? IMAGE_EXTENSIONS.has(ext) : false
 }
 
-// Mirrors backend FileCategory.java's extension sets.
-const CATEGORY_EXTENSIONS: Record<FileCategory, Set<string>> = {
+// Mirrors backend FileCategory.java's extension sets (OTHER is the catch-all, same as FileCategory.of()).
+const CATEGORY_EXTENSIONS: Record<Exclude<FileCategory, 'OTHER'>, Set<string>> = {
   IMAGE: IMAGE_EXTENSIONS,
   VIDEO: new Set(['mp4', 'mov', 'avi', 'mkv', 'webm']),
   DOCUMENT: new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'hwp']),
   AUDIO: new Set(['mp3', 'wav', 'flac', 'aac', 'm4a']),
 }
 
-export function categorizeFile(name: string): FileCategory | null {
+export function categorizeFile(name: string): FileCategory {
   const ext = name.split('.').pop()?.toLowerCase()
-  if (!ext) return null
-  return (Object.keys(CATEGORY_EXTENSIONS) as FileCategory[]).find((c) => CATEGORY_EXTENSIONS[c].has(ext)) ?? null
+  if (!ext) return 'OTHER'
+  const known = Object.keys(CATEGORY_EXTENSIONS) as Exclude<FileCategory, 'OTHER'>[]
+  return known.find((c) => CATEGORY_EXTENSIONS[c].has(ext)) ?? 'OTHER'
 }
 
 export type SortField = 'name' | 'size' | 'date'

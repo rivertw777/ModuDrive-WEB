@@ -41,6 +41,14 @@ export const FileIcon = createIcon(
   </>,
 )
 
+export const DocumentIcon = createIcon(
+  <>
+    <path d="M18 3h-8l-4 4v13a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1z" />
+    <path d="M10 3v4h-4" />
+    <path d="M9 10h6M9 13h6M9 16h6M9 19h3" />
+  </>,
+)
+
 export const ImageIcon = createIcon(
   <>
     <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -61,6 +69,14 @@ export const MusicIcon = createIcon(
     <path d="M9 18V5l12-2v13" />
     <circle cx="6" cy="18" r="3" />
     <circle cx="18" cy="16" r="3" />
+  </>,
+)
+
+export const FilesIcon = createIcon(
+  <>
+    <path d="M9 2h6l4 4v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1z" />
+    <path d="M15 2v4h4" />
+    <path d="M5 7v13a1 1 0 0 0 1 1h9" />
   </>,
 )
 
