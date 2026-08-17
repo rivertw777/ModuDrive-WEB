@@ -21,6 +21,7 @@ import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
+import { FilePreview } from './file-preview'
 
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
   const { data: file, isLoading, isError } = useFile(fileId)
@@ -62,6 +63,10 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
               {file.name}
             </p>
           </div>
+
+          {!file.directory && file.status === 'UPLOADED' && (
+            <FilePreview fileName={file.name} source={{ type: 'auth', fileId: file.fileId }} />
+          )}
 
           <dl className="space-y-2 text-slate-500 dark:text-slate-400">
             <div className="flex justify-between">

@@ -4,6 +4,7 @@ import { DownloadIcon, FileIcon, FolderIcon } from '@/components/ui/icons'
 import { usePublicFile } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
 import { formatDate, formatFileSize } from '../types'
+import { FilePreview } from './file-preview'
 
 // Deliberately its own tree, not reused with ShareModal's authenticated
 // components — different auth boundary, so no accidental leak of admin UI
@@ -25,6 +26,11 @@ export function PublicFileView({ token }: { token: string }) {
               <FileIcon size={40} className="text-slate-400 dark:text-slate-500" />
             )}
             <p className="max-w-full truncate text-lg font-medium text-slate-900 dark:text-slate-100">{file.name}</p>
+            {!file.directory && (
+              <div className="w-full">
+                <FilePreview fileName={file.name} source={{ type: 'public', token }} />
+              </div>
+            )}
             <dl className="w-full space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <div className="flex justify-between">
                 <dt>크기</dt>

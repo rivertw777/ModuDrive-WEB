@@ -103,6 +103,21 @@ export function categorizeFile(name: string): FileCategory {
   return known.find((c) => CATEGORY_EXTENSIONS[c].has(ext)) ?? 'OTHER'
 }
 
+export type PreviewKind = 'text' | 'image' | 'audio' | 'video'
+
+/** Which inline preview (if any) a file can render as — the only kinds a browser can show via
+ * plain text/<img>/<audio>/<video>. Everything else (other DOCUMENT extensions, OTHER) has no
+ * preview and falls back to a download-only detail view. */
+export function previewKind(name: string): PreviewKind | null {
+  const ext = name.split('.').pop()?.toLowerCase()
+  if (ext === 'txt') return 'text'
+  const category = categorizeFile(name)
+  if (category === 'IMAGE') return 'image'
+  if (category === 'AUDIO') return 'audio'
+  if (category === 'VIDEO') return 'video'
+  return null
+}
+
 export type SortField = 'name' | 'size' | 'date'
 export type SortDir = 'asc' | 'desc'
 
