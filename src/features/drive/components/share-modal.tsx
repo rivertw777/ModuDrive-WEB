@@ -9,8 +9,9 @@ import { useFileShares } from '../api/list-file-shares'
 import { useUpdateFileScope } from '../api/update-file-scope'
 import { useUpdateFileShareRole } from '../api/update-file-share-role'
 import { useRevokeFileShare } from '../api/revoke-file-share'
-import type { ShareScope } from '../types'
+import type { Role, ShareScope } from '../types'
 import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
+import { RoleSelect } from './role-select'
 import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
 
@@ -27,11 +28,11 @@ const HELP_CONTENT = (
     </li>
     <li>
       <span className="font-medium text-slate-800 dark:text-slate-100">뷰어</span>는 공유받은 파일의
-      조회만 가능합니다.
+      조회 및 다운로드가 가능합니다.
     </li>
     <li>
       <span className="font-medium text-slate-800 dark:text-slate-100">편집자</span>는 공유받은
-      파일의 다운로드 및 이름 수정이 가능합니다.
+      파일의 조회, 다운로드 및 이름 수정이 가능합니다.
     </li>
   </ul>
 )
@@ -56,6 +57,7 @@ export function ShareModal({
 
   // Scope/role/revoke edits are staged here and only sent to the server on 완료.
   const [pendingScope, setPendingScope] = useState<ShareScope | null>(null)
+  const [pendingLinkRole, setPendingLinkRole] = useState<Role | null>(null)
   const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
@@ -65,6 +67,7 @@ export function ShareModal({
     if (open) {
       setView('list')
       setPendingScope(null)
+      setPendingLinkRole(null)
       setPendingRoleChanges({})
       setCommitError(null)
       setConfirmCloseOpen(false)
@@ -88,7 +91,12 @@ export function ShareModal({
     : null
 
   const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
-  const hasPendingChanges = pendingScope !== null || Object.keys(pendingRoleChanges).length > 0
+  // Only staged while the (effective) scope is LINK — a link role has no meaning under RESTRICTED.
+  const effectiveLinkRole = pendingLinkRole ?? access?.role ?? 'VIEWER'
+  const linkRoleChanged =
+    effectiveScope === 'LINK' && pendingLinkRole !== null && pendingLinkRole !== access?.role
+  const hasPendingChanges =
+    pendingScope !== null || linkRoleChanged || Object.keys(pendingRoleChanges).length > 0
 
   const onComplete = async () => {
     const roleEntries = Object.entries(pendingRoleChanges)
@@ -102,9 +110,16 @@ export function ShareModal({
     // already-revoked share 404s), so resending a succeeded edit on retry would deadlock 완료.
     const keys: ('scope' | string)[] = []
     const tasks: Promise<unknown>[] = []
-    if (pendingScope !== null && pendingScope !== access?.scope) {
+    if (access && ((pendingScope !== null && pendingScope !== access.scope) || linkRoleChanged)) {
+      const scope = pendingScope ?? access.scope
       keys.push('scope')
-      tasks.push(updateScope.mutateAsync({ fileId, scope: pendingScope }))
+      tasks.push(
+        updateScope.mutateAsync({
+          fileId,
+          scope,
+          role: scope === 'LINK' ? effectiveLinkRole : undefined,
+        }),
+      )
     }
     for (const [shareId, change] of roleEntries) {
       keys.push(shareId)
@@ -118,6 +133,7 @@ export function ShareModal({
     const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
     if (failedKeys.size > 0) {
       setPendingScope(failedKeys.has('scope') ? pendingScope : null)
+      setPendingLinkRole(failedKeys.has('scope') ? pendingLinkRole : null)
       setPendingRoleChanges((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([shareId]) => failedKeys.has(shareId))),
       )
@@ -125,6 +141,7 @@ export function ShareModal({
       return
     }
     setPendingScope(null)
+    setPendingLinkRole(null)
     setPendingRoleChanges({})
     onClose()
   }
@@ -192,6 +209,16 @@ export function ShareModal({
                   </p>
                 )}
               </div>
+              {isOwner && effectiveScope === 'LINK' && (
+                <div className="mt-2 flex items-center justify-end gap-2">
+                  <span className="text-sm text-slate-500 dark:text-slate-400">링크 권한</span>
+                  <RoleSelect
+                    value={effectiveLinkRole}
+                    onChange={setPendingLinkRole}
+                    disabled={isCommitting}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
