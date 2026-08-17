@@ -111,6 +111,9 @@ export type PreviewKind = 'text' | 'image' | 'audio' | 'video'
 export function previewKind(name: string): PreviewKind | null {
   const ext = name.split('.').pop()?.toLowerCase()
   if (ext === 'txt') return 'text'
+  // SVG can embed <script> and browsers execute it when rendered inline — no safe preview
+  // without sanitization, so it stays IMAGE for categorization but download-only for preview.
+  if (ext === 'svg') return null
   const category = categorizeFile(name)
   if (category === 'IMAGE') return 'image'
   if (category === 'AUDIO') return 'audio'

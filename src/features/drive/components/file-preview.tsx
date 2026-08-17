@@ -6,12 +6,26 @@ import { viewPublicFile } from '../api/view-public-file'
 
 type Source = { type: 'auth'; fileId: string } | { type: 'public'; token: string }
 
+// ponytail: flat cap across all preview kinds (video included); per-kind caps if that UX suffers
+const PREVIEW_MAX_BYTES = 10 * 1024 * 1024
+
 /** Renders an inline text/image/audio/video preview, or nothing when the file isn't a
- * previewable kind (see `previewKind`). Shared by FileDetailPanel (auth) and PublicFileView
- * (link visitor) via `source` — same rendering, different fetch. Fetches the blob once per
- * file and revokes its object URL on unmount/file change so repeated opens don't leak memory. */
-export function FilePreview({ fileName, source }: { fileName: string; source: Source }) {
-  const kind = previewKind(fileName)
+ * previewable kind (see `previewKind`) or is larger than PREVIEW_MAX_BYTES — preview fires
+ * automatically on open, unlike the explicit download button, so a large file must not be
+ * fetched in full just because the panel was opened. Shared by FileDetailPanel (auth) and
+ * PublicFileView (link visitor) via `source` — same rendering, different fetch. Fetches the
+ * blob once per file and revokes its object URL on unmount/file change so repeated opens don't
+ * leak memory. */
+export function FilePreview({
+  fileName,
+  fileSize,
+  source,
+}: {
+  fileName: string
+  fileSize: number | null
+  source: Source
+}) {
+  const kind = fileSize !== null && fileSize > PREVIEW_MAX_BYTES ? null : previewKind(fileName)
   const sourceType = source.type
   const sourceId = source.type === 'auth' ? source.fileId : source.token
   const [text, setText] = useState<string | null>(null)
@@ -34,7 +48,8 @@ export function FilePreview({ fileName, source }: { fileName: string; source: So
         }
         objectUrl = blobUrl
         if (kind === 'text') {
-          setText(await (await fetch(blobUrl)).text())
+          const content = await (await fetch(blobUrl)).text()
+          if (!cancelled) setText(content)
         } else {
           setUrl(blobUrl)
         }
@@ -63,7 +78,8 @@ export function FilePreview({ fileName, source }: { fileName: string; source: So
   }
 
   if (url === null) return <LoadingState />
-  if (kind === 'image') return <img src={url} alt={fileName} className="max-h-64 w-full rounded-lg object-contain" />
+  if (kind === 'image')
+    return <img src={url} alt={fileName} className="max-h-64 w-full rounded-lg object-contain" />
   if (kind === 'audio') return <audio src={url} controls className="w-full" />
   return <video src={url} controls className="max-h-64 w-full rounded-lg" />
 }

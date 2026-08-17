@@ -25,16 +25,24 @@ export function PublicFileView({ token }: { token: string }) {
             ) : (
               <FileIcon size={40} className="text-slate-400 dark:text-slate-500" />
             )}
-            <p className="max-w-full truncate text-lg font-medium text-slate-900 dark:text-slate-100">{file.name}</p>
+            <p className="max-w-full truncate text-lg font-medium text-slate-900 dark:text-slate-100">
+              {file.name}
+            </p>
             {!file.directory && (
               <div className="w-full">
-                <FilePreview fileName={file.name} source={{ type: 'public', token }} />
+                <FilePreview
+                  fileName={file.name}
+                  fileSize={file.fileSize}
+                  source={{ type: 'public', token }}
+                />
               </div>
             )}
             <dl className="w-full space-y-2 text-sm text-slate-500 dark:text-slate-400">
               <div className="flex justify-between">
                 <dt>크기</dt>
-                <dd className="text-slate-700 dark:text-slate-300">{formatFileSize(file.fileSize)}</dd>
+                <dd className="text-slate-700 dark:text-slate-300">
+                  {formatFileSize(file.fileSize)}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt>수정 날짜</dt>
