@@ -6,8 +6,8 @@ import { LoadingState, ErrorState, EmptyState } from '@/components/ui/state'
 import { runBatch } from '@/utils/run-batch'
 import { useMoveFile } from '../api/move-file'
 import { useDirectoryListing } from '../api/list-directory'
-import { useCreateDirectory } from '../api/create-directory'
 import { formatDate, joinPath, type FileEntry } from '../types'
+import { NewFolderDialog } from './new-folder-dialog'
 
 type MovableEntry = Pick<FileEntry, 'fileId' | 'name' | 'path' | 'directory'>
 
@@ -21,11 +21,10 @@ export function MoveDialog({
   files: MovableEntry[]
 }) {
   const moveFile = useMoveFile()
-  const createDirectory = useCreateDirectory()
   const [browsePath, setBrowsePath] = useState(files[0]?.path ?? '/')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [newFolderName, setNewFolderName] = useState<string | null>(null)
+  const [newFolderOpen, setNewFolderOpen] = useState(false)
 
   const { data: entries, isLoading, isError } = useDirectoryListing(browsePath)
 
@@ -43,7 +42,7 @@ export function MoveDialog({
   const reset = () => {
     setBrowsePath(files[0]?.path ?? '/')
     setError(null)
-    setNewFolderName(null)
+    setNewFolderOpen(false)
   }
 
   const close = () => {
@@ -64,21 +63,6 @@ export function MoveDialog({
       return
     }
     close()
-  }
-
-  const onCreateFolder = async () => {
-    const name = newFolderName?.trim()
-    if (!name) {
-      setNewFolderName(null)
-      return
-    }
-    setError(null)
-    try {
-      await createDirectory.mutateAsync({ name, path: browsePath })
-      setNewFolderName(null)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '폴더를 만들지 못했습니다')
-    }
   }
 
   const segments = browsePath.split('/').filter(Boolean)
@@ -134,29 +118,11 @@ export function MoveDialog({
           ))}
         </div>
 
-        {newFolderName !== null ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              onCreateFolder()
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              autoFocus
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onBlur={() => setNewFolderName(null)}
-              disabled={createDirectory.isPending}
-              placeholder="폴더 이름"
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-            />
-          </form>
-        ) : (
-          <Button type="button" variant="ghost" onClick={() => setNewFolderName('')}>
-            <FolderPlusIcon size={16} /> 새 폴더
-          </Button>
-        )}
+        <Button type="button" variant="ghost" onClick={() => setNewFolderOpen(true)}>
+          <FolderPlusIcon size={16} /> 새 폴더
+        </Button>
+
+        <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={browsePath} />
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
