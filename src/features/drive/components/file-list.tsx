@@ -40,6 +40,7 @@ import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
 import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
+import { FileViewerModal } from './file-viewer-modal'
 
 // Private MIME type for in-list drags (moving files between folders) — keeps them from being
 // mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
@@ -96,6 +97,7 @@ export function FileList({
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dialog, setDialog] = useState<DialogState | null>(null)
+  const [viewerFile, setViewerFile] = useState<FileEntry | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const viewMode = useFileViewStore((state) => state.mode)
@@ -184,6 +186,12 @@ export function FileList({
         setSelected(new Set([file.fileId]))
         onSelect(file)
       }
+    },
+    onDoubleClick: (event: React.MouseEvent) => {
+      // Row buttons (star, more, location) stop propagation on click, not dblclick — the
+      // second click of a double-click on one of them would otherwise still bubble up here.
+      if ((event.target as HTMLElement).closest('button')) return
+      if (!file.directory && file.status === 'UPLOADED') setViewerFile(file)
     },
     onContextMenu: (event: React.MouseEvent) => {
       event.preventDefault()
@@ -525,6 +533,16 @@ export function FileList({
             dialog.files.forEach((file) => onFileDeleted?.(file.fileId))
             setSelected(new Set())
           }}
+        />
+      )}
+
+      {viewerFile && (
+        <FileViewerModal
+          open
+          onClose={() => setViewerFile(null)}
+          fileId={viewerFile.fileId}
+          fileName={viewerFile.name}
+          fileSize={viewerFile.fileSize}
         />
       )}
     </>

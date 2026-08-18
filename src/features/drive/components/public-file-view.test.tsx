@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { PublicFileView } from './public-file-view'
 import type { PublicFile } from '../types'
@@ -26,7 +27,11 @@ function renderView(data: PublicFile = file) {
   vi.mocked(usePublicFile).mockReturnValue({ data, isLoading: false, isError: false } as ReturnType<
     typeof usePublicFile
   >)
-  render(<PublicFileView token="tok-1" />)
+  render(
+    <MemoryRouter>
+      <PublicFileView token="tok-1" />
+    </MemoryRouter>,
+  )
 }
 
 describe('PublicFileView', () => {
