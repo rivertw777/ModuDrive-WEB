@@ -71,7 +71,7 @@ export function MoveDialog({
     <Dialog
       open={open}
       onClose={close}
-      title={files.length === 1 ? files[0].name : `${files.length}개 항목 이동`}
+      title={files.length === 1 ? `"${files[0].name}" 이동` : `${files.length}개 항목 이동`}
       size="lg"
     >
       <div className="space-y-4">
@@ -118,7 +118,12 @@ export function MoveDialog({
           ))}
         </div>
 
-        <Button type="button" variant="ghost" onClick={() => setNewFolderOpen(true)}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="border border-white/20"
+          onClick={() => setNewFolderOpen(true)}
+        >
           <FolderPlusIcon size={16} /> 새 폴더
         </Button>
 
