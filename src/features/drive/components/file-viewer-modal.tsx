@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { DownloadIcon, FileIcon, ImageIcon, ShareIcon, XIcon } from '@/components/ui/icons'
-import { isImageFile, previewKind } from '../types'
+import { canPreviewFile, isImageFile } from '../types'
 import { downloadFile } from '../api/download-file'
-import { FilePreview, PREVIEW_MAX_BYTES } from './file-preview'
+import { FilePreview } from './file-preview'
 import { ShareModal } from './share-modal'
 
 /** Google-Drive-style full-screen viewer, opened by double-clicking a file row (single click
@@ -25,8 +25,7 @@ export function FileViewerModal({
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
-  const canPreview =
-    previewKind(fileName) !== null && (fileSize === null || fileSize <= PREVIEW_MAX_BYTES)
+  const canPreview = canPreviewFile(fileName, fileSize)
 
   useEffect(() => {
     const dialog = ref.current

@@ -121,6 +121,22 @@ export function previewKind(name: string): PreviewKind | null {
   return null
 }
 
+/** text/image still fully blob-fetch into browser memory before rendering (see FilePreview), so
+ * the cap stops a huge one from being pulled in full just because a panel was opened. audio/video
+ * instead point <audio>/<video> straight at the streaming view endpoint (Range/206-backed) — the
+ * element only ever pulls the bytes it plays, so there's no size cap to apply. */
+const PREVIEW_MAX_BYTES: Partial<Record<PreviewKind, number>> = {
+  text: 10 * 1024 * 1024,
+  image: 10 * 1024 * 1024,
+}
+
+export function canPreviewFile(name: string, fileSize: number | null): boolean {
+  const kind = previewKind(name)
+  if (!kind) return false
+  const cap = PREVIEW_MAX_BYTES[kind]
+  return cap === undefined || fileSize === null || fileSize <= cap
+}
+
 export type SortField = 'name' | 'size' | 'date'
 export type SortDir = 'asc' | 'desc'
 

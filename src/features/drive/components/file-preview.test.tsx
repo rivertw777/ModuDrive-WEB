@@ -4,13 +4,16 @@ import { FilePreview } from './file-preview'
 
 vi.mock('../api/view-file', () => ({ viewFile: vi.fn() }))
 vi.mock('../api/view-public-file', () => ({ viewPublicFile: vi.fn() }))
+vi.mock('../api/issue-stream-token', () => ({ issueStreamToken: vi.fn() }))
 
 const { viewFile } = await import('../api/view-file')
 const { viewPublicFile } = await import('../api/view-public-file')
+const { issueStreamToken } = await import('../api/issue-stream-token')
 
 beforeEach(() => {
   vi.mocked(viewFile).mockReset()
   vi.mocked(viewPublicFile).mockReset()
+  vi.mocked(issueStreamToken).mockReset()
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 })
 
@@ -71,9 +74,22 @@ describe('FilePreview', () => {
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-image')
   })
 
-  it('renders a video via the public link source', async () => {
-    vi.mocked(viewPublicFile).mockResolvedValue('blob:mock-video')
+  it('previews an audio file with no size cap (streamed, not blob-fetched)', async () => {
+    vi.mocked(issueStreamToken).mockResolvedValue('tok-stream')
 
+    const { container } = render(
+      <FilePreview
+        fileName="song.mp3"
+        fileSize={500 * 1024 * 1024}
+        source={{ type: 'auth', fileId: 'f-1' }}
+      />,
+    )
+
+    await waitFor(() => expect(container.querySelector('audio')).toBeInTheDocument())
+    expect(viewFile).not.toHaveBeenCalled()
+  })
+
+  it('points a video at the public view URL directly, without fetching a blob', async () => {
     const { container } = render(
       <FilePreview
         fileName="clip.mp4"
@@ -83,21 +99,29 @@ describe('FilePreview', () => {
     )
 
     await waitFor(() =>
-      expect(container.querySelector('video')).toHaveAttribute('src', 'blob:mock-video'),
+      expect(container.querySelector('video')).toHaveAttribute(
+        'src',
+        'http://localhost:10001/api/v1/storage/public/tok-1/view?fileName=clip.mp4',
+      ),
     )
-    expect(viewPublicFile).toHaveBeenCalledWith('tok-1', 'clip.mp4')
+    expect(viewPublicFile).not.toHaveBeenCalled()
   })
 
-  it('renders audio controls', async () => {
-    vi.mocked(viewFile).mockResolvedValue('blob:mock-audio')
+  it('issues a stream token and points audio at the authenticated view URL', async () => {
+    vi.mocked(issueStreamToken).mockResolvedValue('tok-stream')
 
     const { container } = render(
       <FilePreview fileName="song.mp3" fileSize={1024} source={{ type: 'auth', fileId: 'f-1' }} />,
     )
 
     await waitFor(() =>
-      expect(container.querySelector('audio')).toHaveAttribute('src', 'blob:mock-audio'),
+      expect(container.querySelector('audio')).toHaveAttribute(
+        'src',
+        'http://localhost:10001/api/v1/storage/view/f-1?fileName=song.mp3&streamToken=tok-stream',
+      ),
     )
+    expect(issueStreamToken).toHaveBeenCalledWith('f-1')
+    expect(viewFile).not.toHaveBeenCalled()
   })
 
   it('renders fetched text content for a .txt file', async () => {
