@@ -1,21 +1,43 @@
 import { useEffect, useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { previewKind } from '../types'
+import { env } from '@/config/env'
+import { canPreviewFile, previewKind, type PreviewKind } from '../types'
 import { viewFile } from '../api/view-file'
 import { viewPublicFile } from '../api/view-public-file'
+import { issueStreamToken } from '../api/issue-stream-token'
 
 type Source = { type: 'auth'; fileId: string } | { type: 'public'; token: string }
 
-// ponytail: flat cap across all preview kinds (video included); per-kind caps if that UX suffers
-export const PREVIEW_MAX_BYTES = 10 * 1024 * 1024
+function isStreamed(kind: PreviewKind | null) {
+  return kind === 'audio' || kind === 'video'
+}
+
+function streamUrl(
+  sourceType: Source['type'],
+  sourceId: string,
+  fileName: string,
+  streamToken?: string,
+) {
+  const params = new URLSearchParams({ fileName })
+  if (sourceType === 'public') {
+    return `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}/view?${params}`
+  }
+  if (streamToken) params.set('streamToken', streamToken)
+  return `${env.API_BASE_URL}/api/v1/storage/view/${encodeURIComponent(sourceId)}?${params}`
+}
 
 /** Renders an inline text/image/audio/video preview, or nothing when the file isn't a
- * previewable kind (see `previewKind`) or is larger than PREVIEW_MAX_BYTES — preview fires
+ * previewable kind or is larger than its kind's cap (see `canPreviewFile`) — preview fires
  * automatically on open, unlike the explicit download button, so a large file must not be
  * fetched in full just because the panel was opened. Shared by PublicFileView (link visitor)
  * and FileViewerModal (double-click full-screen view) via `source` — same rendering, different
- * fetch. `fullscreen` swaps the sidebar-sized caps for viewer-sized ones. Fetches the blob once
- * per file and revokes its object URL on unmount/file change so repeated opens don't leak memory. */
+ * fetch. `fullscreen` swaps the sidebar-sized caps for viewer-sized ones.
+ *
+ * text/image are small enough to just blob-fetch (revoked on unmount/file change so repeated
+ * opens don't leak memory). audio/video instead point straight at the Range/206-backed view
+ * endpoint — the element pulls its own bytes and seeks natively; a public link's token already
+ * is the credential, an authenticated view needs a short-lived stream token first (see
+ * issueStreamToken) since the element can't attach an Authorization header. */
 export function FilePreview({
   fileName,
   fileSize,
@@ -27,7 +49,7 @@ export function FilePreview({
   source: Source
   fullscreen?: boolean
 }) {
-  const kind = fileSize !== null && fileSize > PREVIEW_MAX_BYTES ? null : previewKind(fileName)
+  const kind = canPreviewFile(fileName, fileSize) ? previewKind(fileName) : null
   const sourceType = source.type
   const sourceId = source.type === 'auth' ? source.fileId : source.token
   const [text, setText] = useState<string | null>(null)
@@ -36,11 +58,30 @@ export function FilePreview({
 
   useEffect(() => {
     if (!kind) return
-    let cancelled = false
-    let objectUrl: string | null = null
     setError(false)
     setText(null)
     setUrl(null)
+
+    if (isStreamed(kind)) {
+      if (sourceType === 'public') {
+        setUrl(streamUrl(sourceType, sourceId, fileName))
+        return
+      }
+      let cancelled = false
+      issueStreamToken(sourceId)
+        .then((streamToken) => {
+          if (!cancelled) setUrl(streamUrl(sourceType, sourceId, fileName, streamToken))
+        })
+        .catch(() => {
+          if (!cancelled) setError(true)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+
+    let cancelled = false
+    let objectUrl: string | null = null
 
     ;(sourceType === 'auth' ? viewFile(sourceId, fileName) : viewPublicFile(sourceId, fileName))
       .then(async (blobUrl) => {
@@ -90,12 +131,16 @@ export function FilePreview({
   const mediaWidth = fullscreen ? 'w-auto max-w-full' : 'w-full'
   if (kind === 'image')
     return (
-      <img
-        src={url}
-        alt={fileName}
-        className={`${maxH} ${mediaWidth} rounded-lg object-contain`}
-      />
+      <img src={url} alt={fileName} className={`${maxH} ${mediaWidth} rounded-lg object-contain`} />
     )
-  if (kind === 'audio') return <audio src={url} controls className="w-full" />
-  return <video src={url} controls className={`${maxH} ${mediaWidth} rounded-lg`} />
+  if (kind === 'audio')
+    return <audio src={url} controls className="w-full" onError={() => setError(true)} />
+  return (
+    <video
+      src={url}
+      controls
+      className={`${maxH} ${mediaWidth} rounded-lg`}
+      onError={() => setError(true)}
+    />
+  )
 }

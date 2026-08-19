@@ -3,8 +3,8 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { DownloadIcon, FileIcon, FolderIcon, ImageIcon } from '@/components/ui/icons'
 import { usePublicFile } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
-import { isImageFile, previewKind } from '../types'
-import { FilePreview, PREVIEW_MAX_BYTES } from './file-preview'
+import { canPreviewFile, isImageFile } from '../types'
+import { FilePreview } from './file-preview'
 
 // Deliberately its own tree, not reused with ShareModal's authenticated
 // components — different auth boundary, so no accidental leak of admin UI
@@ -16,11 +16,7 @@ import { FilePreview, PREVIEW_MAX_BYTES } from './file-preview'
 // underneath to return to, this page *is* the destination.
 export function PublicFileView({ token }: { token: string }) {
   const { data: file, isLoading, isError } = usePublicFile(token)
-  const canPreview =
-    !!file &&
-    !file.directory &&
-    previewKind(file.name) !== null &&
-    (file.fileSize === null || file.fileSize <= PREVIEW_MAX_BYTES)
+  const canPreview = !!file && !file.directory && canPreviewFile(file.name, file.fileSize)
 
   return (
     <div className="flex h-dvh flex-col bg-black/90">
