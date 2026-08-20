@@ -62,6 +62,13 @@ describe('MemberAccessList', () => {
     expect(screen.getByText('member-1'.slice(0, 8))).toBeInTheDocument()
   })
 
+  it('labels a pending guest share instead of crashing on a null accessor id', () => {
+    renderList({ sharesToRender: [{ ...shares[0], sharedWithUserId: null, sharedWithName: null }] })
+
+    expect(screen.getByText('초대됨')).toBeInTheDocument()
+    expect(screen.getByText('river@modudrive.com')).toBeInTheDocument()
+  })
+
   it('hides the role/remove select and shows a read-only role label for non-owners', () => {
     renderList({ isOwner: false })
 

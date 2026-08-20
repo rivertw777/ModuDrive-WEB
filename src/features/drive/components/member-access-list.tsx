@@ -5,9 +5,10 @@ import { ROLE_LABELS } from './role-select'
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'
 export type PendingChange = Role | typeof REMOVE_ACCESS
 
-/** Falls back to a shortened UUID when a row has no name enrichment. */
-function shortId(id: string) {
-  return id.slice(0, 8)
+/** Display label for an access row with no name enrichment: a shortened UUID, or
+ * 초대됨 when `id` is null (pending guest share — invited by email, not yet a member). */
+function accessorLabel(id: string | null) {
+  return id?.slice(0, 8) ?? '초대됨'
 }
 
 /** Pure/controlled list — role edits and revokes are staged into `pendingChanges`
@@ -37,7 +38,7 @@ export function MemberAccessList({
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-violet-100 bg-violet-50/50 dark:border-violet-900/40 dark:bg-violet-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
         <div className="min-w-0">
-          <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? shortId(ownerId)}</p>
+          <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? accessorLabel(ownerId)}</p>
           {ownerEmail && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>}
         </div>
         <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">소유자</span>
@@ -55,7 +56,7 @@ export function MemberAccessList({
                   removing && 'text-slate-400 line-through dark:text-slate-500',
                 )}
               >
-                {share.sharedWithName ?? shortId(share.sharedWithUserId)}
+                {share.sharedWithName ?? accessorLabel(share.sharedWithUserId)}
               </p>
               {share.sharedWithEmail && (
                 <p
