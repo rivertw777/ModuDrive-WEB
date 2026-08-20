@@ -31,7 +31,8 @@ export type FileShare = {
   shareId: string
   fileId: string
   ownerId: string
-  sharedWithUserId: string
+  /** Null for a pending guest share (invited by email, not yet a member). */
+  sharedWithUserId: string | null
   role: Role
   /** Populated on the shares list response; null on create/update-role responses
    * (the caller already knows who they just acted on). */
