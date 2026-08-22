@@ -7,23 +7,26 @@ import {
 } from '@/components/ui/context-menu'
 import { SortHeader } from '@/components/ui/sort-header'
 import {
+  DocumentIcon,
   DownloadIcon,
   FileIcon,
   FolderIcon,
   ImageIcon,
   MoreVerticalIcon,
   MoveIcon,
+  MusicIcon,
   PencilIcon,
   ShareIcon,
   StarIcon,
   TrashIcon,
+  VideoIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useFileViewStore } from '@/stores/file-view-store'
 import {
+  categorizeFile,
   formatDate,
   formatFileSize,
-  isImageFile,
   joinPath,
   locationLabel,
   sortFiles,
@@ -57,8 +60,15 @@ function EntryIcon({
 }) {
   if (file.directory)
     return <FolderIcon size={size} className={cn('shrink-0 text-violet-500', className)} />
-  if (isImageFile(file.name))
+  const category = categorizeFile(file.name)
+  if (category === 'IMAGE')
     return <ImageIcon size={size} className={cn('shrink-0 text-emerald-500', className)} />
+  if (category === 'VIDEO')
+    return <VideoIcon size={size} className={cn('shrink-0 text-sky-500', className)} />
+  if (category === 'AUDIO')
+    return <MusicIcon size={size} className={cn('shrink-0 text-rose-500', className)} />
+  if (category === 'DOCUMENT')
+    return <DocumentIcon size={size} className={cn('shrink-0 text-blue-500', className)} />
   return (
     <FileIcon
       size={size}
@@ -217,7 +227,11 @@ export function FileList({
       {visible.length === 0 ? (
         <EmptyState label={emptyLabel} />
       ) : (
-        <div ref={containerRef} onMouseDown={onContainerMouseDown} className="relative min-h-[50vh]">
+        <div
+          ref={containerRef}
+          onMouseDown={onContainerMouseDown}
+          className="relative min-h-[50vh]"
+        >
           <MarqueeOverlay box={box} />
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
