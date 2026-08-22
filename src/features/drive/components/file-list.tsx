@@ -11,6 +11,7 @@ import {
   FileIcon,
   FolderIcon,
   ImageIcon,
+  InfoIcon,
   MoreVerticalIcon,
   MoveIcon,
   PencilIcon,
@@ -184,7 +185,6 @@ export function FileList({
         onNavigate(joinPath(file.path, file.name))
       } else {
         setSelected(new Set([file.fileId]))
-        onSelect(file)
       }
     },
     onDoubleClick: (event: React.MouseEvent) => {
@@ -217,7 +217,11 @@ export function FileList({
       {visible.length === 0 ? (
         <EmptyState label={emptyLabel} />
       ) : (
-        <div ref={containerRef} onMouseDown={onContainerMouseDown} className="relative min-h-[50vh]">
+        <div
+          ref={containerRef}
+          onMouseDown={onContainerMouseDown}
+          className="relative min-h-[50vh]"
+        >
           <MarqueeOverlay box={box} />
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -385,6 +389,14 @@ export function FileList({
 
       {menu && !menu.batch && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          <ContextMenuItem
+            onClick={() => {
+              onSelect(menu.file)
+              setMenu(null)
+            }}
+          >
+            <InfoIcon size={16} /> 상세보기
+          </ContextMenuItem>
           {!menu.file.directory && menu.file.status === 'UPLOADED' && (
             <ContextMenuItem
               onClick={() => {
