@@ -2,23 +2,23 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { useDirectoryListing } from '../api/list-directory'
-import { useUploadFile } from '../api/upload-file'
+import { useFileUpload } from '../hooks/use-file-upload'
 import type { FileEntry } from '../types'
 import { Toolbar } from './toolbar'
 import { FileList } from './file-list'
 import { UploadDropzone } from './upload-dropzone'
 import { NewFolderDialog } from './new-folder-dialog'
 import { FileDetailPanel } from './file-detail-panel'
+import { UploadConflictDialog } from './upload-conflict-dialog'
 
 export function DriveExplorer({ path }: { path: string }) {
   const navigate = useNavigate()
   const { data: files, isLoading, isError } = useDirectoryListing(path)
-  const uploadFile = useUploadFile()
+  const { onFilesSelected, uploadingLabel, uploadError, conflictName, resolveConflict } =
+    useFileUpload(path)
 
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
-  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null)
-  const [uploadError, setUploadError] = useState<string | null>(null)
 
   const onNavigate = (nextPath: string) => {
     setSelectedFileId(null)
@@ -26,24 +26,6 @@ export function DriveExplorer({ path }: { path: string }) {
   }
 
   const onSelect = (file: FileEntry) => setSelectedFileId(file.fileId)
-
-  const onFilesSelected = async (selected: File[]) => {
-    setUploadError(null)
-    try {
-      for (const file of selected) {
-        setUploadingLabel(`${file.name} 0%`)
-        await uploadFile.mutateAsync({
-          file,
-          path,
-          onProgress: (percent) => setUploadingLabel(`${file.name} ${percent}%`),
-        })
-      }
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : '업로드에 실패했습니다')
-    } finally {
-      setUploadingLabel(null)
-    }
-  }
 
   return (
     <div className="flex h-full">
@@ -84,6 +66,8 @@ export function DriveExplorer({ path }: { path: string }) {
       )}
 
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={path} />
+
+      <UploadConflictDialog name={conflictName} onResolve={resolveConflict} />
     </div>
   )
 }
