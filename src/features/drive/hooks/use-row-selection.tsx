@@ -9,6 +9,39 @@ import {
 
 export type MarqueeBox = { left: number; top: number; width: number; height: number }
 
+type Rect = { left: number; top: number; right: number; bottom: number }
+
+function intersect(a: Rect, b: Rect): Rect {
+  return {
+    left: Math.max(a.left, b.left),
+    top: Math.max(a.top, b.top),
+    right: Math.min(a.right, b.right),
+    bottom: Math.min(a.bottom, b.bottom),
+  }
+}
+
+// The container's own box can extend above/below the fold once its scrollable ancestor (e.g.
+// <main overflow-auto>) is scrolled — the container itself doesn't clip, its ancestor does.
+// MarqueeOverlay is `fixed`, so it isn't clipped by that ancestor's overflow the way the rows
+// are, so the visible bound the marquee has to respect is the intersection of the two.
+function visibleBounds(el: HTMLElement): Rect {
+  let bounds: Rect = el.getBoundingClientRect()
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    if (/(auto|scroll)/.test(style.overflowX) || /(auto|scroll)/.test(style.overflowY)) {
+      bounds = intersect(bounds, node.getBoundingClientRect())
+    }
+  }
+  return bounds
+}
+
+export function clampPoint(x: number, y: number, bounds: Rect) {
+  return {
+    x: Math.min(Math.max(x, bounds.left), bounds.right),
+    y: Math.min(Math.max(y, bounds.top), bounds.bottom),
+  }
+}
+
 /**
  * Multi-select over an ordered list of row ids: click / Ctrl+click / Shift+click, a drag
  * marquee box for rows tagged `data-row-id` (only starts from blank space — rows themselves
@@ -72,14 +105,20 @@ export function useRowSelection(
       if (target.closest('[data-row-id]')) return
       event.preventDefault()
       setSelected(new Set())
-      const startX = event.clientX
-      const startY = event.clientY
+      // Resolved once per drag (not per move) — cheap, and stable for the drag's duration.
+      const bounds = containerRef.current ? visibleBounds(containerRef.current) : null
+      const start = bounds ? clampPoint(event.clientX, event.clientY, bounds) : null
+      const startX = start?.x ?? event.clientX
+      const startY = start?.y ?? event.clientY
 
       const onMove = (moveEvent: MouseEvent) => {
-        const left = Math.min(startX, moveEvent.clientX)
-        const top = Math.min(startY, moveEvent.clientY)
-        const right = Math.max(startX, moveEvent.clientX)
-        const bottom = Math.max(startY, moveEvent.clientY)
+        const point = bounds
+          ? clampPoint(moveEvent.clientX, moveEvent.clientY, bounds)
+          : { x: moveEvent.clientX, y: moveEvent.clientY }
+        const left = Math.min(startX, point.x)
+        const top = Math.min(startY, point.y)
+        const right = Math.max(startX, point.x)
+        const bottom = Math.max(startY, point.y)
         setBox({ left, top, width: right - left, height: bottom - top })
 
         const rows = containerRef.current?.querySelectorAll<HTMLElement>('[data-row-id]') ?? []
