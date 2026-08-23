@@ -6,7 +6,7 @@ import {
   ClockIcon,
   CloudIcon,
   DocumentIcon,
-  FilesIcon,
+  FileIcon,
   FolderIcon,
   ImageIcon,
   LogOutIcon,
@@ -25,7 +25,7 @@ const CATEGORY_ICONS = {
   VIDEO: VideoIcon,
   DOCUMENT: DocumentIcon,
   AUDIO: MusicIcon,
-  OTHER: FilesIcon,
+  OTHER: FileIcon,
 } as const
 
 const NAV_LINK_CLASS =
@@ -63,13 +63,18 @@ export default function AppLayoutRoute() {
           <span className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
             M
           </span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">ModuDrive</span>
+          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            ModuDrive
+          </span>
         </Link>
 
         <nav className="mt-6 flex flex-col gap-1 text-sm">
           <Link
             to="/drive"
-            className={cn(NAV_LINK_CLASS, isDriveActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isDriveActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <FolderIcon size={18} />내 드라이브
           </Link>
@@ -81,7 +86,10 @@ export default function AppLayoutRoute() {
                 <Link
                   key={category.slug}
                   to={`/category/${category.slug}`}
-                  className={cn(NAV_LINK_CLASS, isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+                  className={cn(
+                    NAV_LINK_CLASS,
+                    isActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+                  )}
                 >
                   <Icon size={18} />
                   {category.label}
@@ -94,21 +102,30 @@ export default function AppLayoutRoute() {
 
           <Link
             to="/shared"
-            className={cn(NAV_LINK_CLASS, isSharedActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isSharedActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <UsersIcon size={18} />
             공유 문서함
           </Link>
           <Link
             to="/recent"
-            className={cn(NAV_LINK_CLASS, isRecentActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isRecentActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <ClockIcon size={18} />
             최근 문서함
           </Link>
           <Link
             to="/favorites"
-            className={cn(NAV_LINK_CLASS, isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isFavoritesActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <StarIcon size={18} />
             즐겨찾기
@@ -118,14 +135,20 @@ export default function AppLayoutRoute() {
 
           <Link
             to="/storage"
-            className={cn(NAV_LINK_CLASS, isStorageActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isStorageActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <CloudIcon size={18} />
             저장용량
           </Link>
           <Link
             to="/trash"
-            className={cn(NAV_LINK_CLASS, isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS)}
+            className={cn(
+              NAV_LINK_CLASS,
+              isTrashActive ? NAV_LINK_ACTIVE_CLASS : NAV_LINK_INACTIVE_CLASS,
+            )}
           >
             <TrashIcon size={18} />
             휴지통
@@ -146,7 +169,9 @@ export default function AppLayoutRoute() {
                 {member?.name?.slice(0, 1) ?? '?'}
               </span>
               {member && (
-                <span className="truncate text-sm text-slate-600 dark:text-slate-400">{member.name}</span>
+                <span className="truncate text-sm text-slate-600 dark:text-slate-400">
+                  {member.name}
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1">

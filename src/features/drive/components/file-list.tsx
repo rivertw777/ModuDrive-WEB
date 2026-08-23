@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/context-menu'
 import { SortHeader } from '@/components/ui/sort-header'
 import {
+  DocumentIcon,
   DownloadIcon,
   FileIcon,
   FolderIcon,
@@ -14,17 +15,19 @@ import {
   InfoIcon,
   MoreVerticalIcon,
   MoveIcon,
+  MusicIcon,
   PencilIcon,
   ShareIcon,
   StarIcon,
   TrashIcon,
+  VideoIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useFileViewStore } from '@/stores/file-view-store'
 import {
+  categorizeFile,
   formatDate,
   formatFileSize,
-  isImageFile,
   joinPath,
   locationLabel,
   sortFiles,
@@ -58,8 +61,15 @@ function EntryIcon({
 }) {
   if (file.directory)
     return <FolderIcon size={size} className={cn('shrink-0 text-violet-500', className)} />
-  if (isImageFile(file.name))
+  const category = categorizeFile(file.name)
+  if (category === 'IMAGE')
     return <ImageIcon size={size} className={cn('shrink-0 text-emerald-500', className)} />
+  if (category === 'VIDEO')
+    return <VideoIcon size={size} className={cn('shrink-0 text-sky-500', className)} />
+  if (category === 'AUDIO')
+    return <MusicIcon size={size} className={cn('shrink-0 text-rose-500', className)} />
+  if (category === 'DOCUMENT')
+    return <DocumentIcon size={size} className={cn('shrink-0 text-blue-500', className)} />
   return (
     <FileIcon
       size={size}
