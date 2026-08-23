@@ -1,41 +1,23 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { useFilesByCategory } from '../api/list-files-by-category'
-import { useUploadFile } from '../api/upload-file'
+import { useFileUpload } from '../hooks/use-file-upload'
 import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '../types'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
 import { UploadButton } from './upload-button'
+import { UploadConflictDialog } from './upload-conflict-dialog'
 import { ViewToggle } from './view-toggle'
 
 export function CategoryExplorer({ category }: { category: FileCategory }) {
   const label = FILE_CATEGORIES.find((c) => c.type === category)?.label ?? category
   const { data: files, isLoading, isError } = useFilesByCategory(category)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
-  const uploadFile = useUploadFile()
-  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null)
-  const [uploadError, setUploadError] = useState<string | null>(null)
+  // Category views span every folder, so uploads here land in the drive root.
+  const { onFilesSelected, uploadingLabel, uploadError, conflictName, resolveConflict } =
+    useFileUpload('/')
 
   const onSelect = (file: FileEntry) => setSelectedFileId(file.fileId)
-
-  const onFilesSelected = async (selected: File[]) => {
-    setUploadError(null)
-    try {
-      for (const file of selected) {
-        setUploadingLabel(`${file.name} 0%`)
-        // Category views span every folder, so uploads here land in the drive root.
-        await uploadFile.mutateAsync({
-          file,
-          path: '/',
-          onProgress: (percent) => setUploadingLabel(`${file.name} ${percent}%`),
-        })
-      }
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : '업로드에 실패했습니다')
-    } finally {
-      setUploadingLabel(null)
-    }
-  }
 
   return (
     <div className="flex h-full">
@@ -67,6 +49,8 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
       {selectedFileId && (
         <FileDetailPanel fileId={selectedFileId} onClose={() => setSelectedFileId(null)} />
       )}
+
+      <UploadConflictDialog name={conflictName} onResolve={resolveConflict} />
     </div>
   )
 }

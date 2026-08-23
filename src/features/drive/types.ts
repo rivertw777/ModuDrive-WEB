@@ -152,6 +152,13 @@ export function sortFiles(files: FileEntry[], field: SortField, dir: SortDir) {
   })
 }
 
+/** "report.pdf" + 1 -> "report (1).pdf" — the name used to keep both copies on a name conflict. */
+export function numberedName(name: string, n: number) {
+  const dot = name.lastIndexOf('.')
+  // dot === 0 is a dotfile (".env"), which has no extension to keep the number in front of.
+  return dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`
+}
+
 /** Label for a file's parent folder: root shows as "내 드라이브", otherwise its folder name. */
 export function locationLabel(path: string) {
   if (path === '/') return '내 드라이브'

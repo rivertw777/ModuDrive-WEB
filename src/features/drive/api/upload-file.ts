@@ -5,7 +5,18 @@ import type { FileEntry } from '../types'
 export type UploadFileInput = {
   file: File
   path: string
+  /** Overrides the stored name; used to keep both copies when the original name is taken. */
+  name?: string
+  /** Overwrites the existing same-name file as a new version instead of failing with a conflict. */
+  replaceExisting?: boolean
   onProgress?: (percent: number) => void
+}
+
+/** file-service answers a same-name *active* file at the same path with 400. Tagged only on the
+ * metadata call below — storage-service's 400s (bad session state, etc.) are unrelated failures
+ * that must not be mistaken for a name conflict. */
+export function isNameConflictError(error: unknown) {
+  return (error as { nameConflict?: boolean } | null)?.nameConflict === true
 }
 
 // storage-service marks the file UPLOADED via its own server-to-server callback
@@ -50,16 +61,25 @@ async function resumableUpload(fileId: string, file: File, onProgress?: (percent
   await apiClient.post(`/api/v1/storage/upload/resumable/${sessionId}/complete`)
 }
 
-async function uploadFile({ file, path, onProgress }: UploadFileInput, queryClient: QueryClient) {
+async function uploadFile(
+  { file, path, name, replaceExisting, onProgress }: UploadFileInput,
+  queryClient: QueryClient,
+) {
   if (file.size > MAX_FILE_SIZE) {
     throw new Error('파일 크기는 5GB를 초과할 수 없습니다.')
   }
 
-  const metadata = await apiClient.post<FileEntry>('/api/v1/files/metadata', {
-    name: file.name,
-    path,
-    directory: false,
-  })
+  const metadata = await apiClient
+    .post<FileEntry>('/api/v1/files/metadata', {
+      name: name ?? file.name,
+      path,
+      directory: false,
+      replaceExisting,
+    })
+    .catch((error: { status?: number }) => {
+      if (error?.status === 400) Object.assign(error, { nameConflict: true })
+      throw error
+    })
   // Reflect the file in the list as soon as its record exists, instead of
   // waiting for the (potentially slow) byte transfer below to finish —
   // this is what makes an upload appear immediately, the same as a folder.
