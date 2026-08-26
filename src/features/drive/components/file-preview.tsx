@@ -134,7 +134,14 @@ export function FilePreview({
       <img src={url} alt={fileName} className={`${maxH} ${mediaWidth} rounded-lg object-contain`} />
     )
   if (kind === 'audio')
-    return <audio src={url} controls className="w-full" onError={() => setError(true)} />
+    return (
+      <audio
+        src={url}
+        controls
+        className="w-full max-w-4xl rounded-lg"
+        onError={() => setError(true)}
+      />
+    )
   return (
     <video
       src={url}

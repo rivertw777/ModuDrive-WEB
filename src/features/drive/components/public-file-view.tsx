@@ -5,6 +5,7 @@ import { usePublicFile } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
 import { canPreviewFile, isImageFile } from '../types'
 import { FilePreview } from './file-preview'
+import { VIEWER_BACKDROP } from './file-viewer-modal'
 
 // Deliberately its own tree, not reused with ShareModal's authenticated
 // components — different auth boundary, so no accidental leak of admin UI
@@ -19,7 +20,7 @@ export function PublicFileView({ token }: { token: string }) {
   const canPreview = !!file && !file.directory && canPreviewFile(file.name, file.fileSize)
 
   return (
-    <div className="flex h-dvh flex-col bg-black/90">
+    <div className={`flex h-dvh flex-col ${VIEWER_BACKDROP}`}>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-8 py-3 text-slate-100 shadow-sm backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-2">
           {file?.directory ? (
