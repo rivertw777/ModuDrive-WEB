@@ -204,10 +204,12 @@ export function ShareModal({
               {isOwner && effectiveScope === 'LINK' && (
                 <div className="mt-2 flex items-center justify-end gap-2">
                   <span className="text-sm text-slate-500 dark:text-slate-400">링크 권한</span>
-                  {/* Link access is always read-only — anyone holding the link is anonymous, so
-                      it can't carry an editable grant the way a named RESTRICTED share does. */}
+                  {/* New link shares are always VIEWER (server only accepts VIEWER on
+                      scope updates now), but a link created before that restriction can
+                      still hold a stored EDITOR role — read it from access.role rather
+                      than assuming VIEWER, so a stale editable link isn't mislabeled. */}
                   <span className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300">
-                    {ROLE_LABELS.VIEWER}
+                    {ROLE_LABELS[access.role ?? 'VIEWER']}
                   </span>
                 </div>
               )}
