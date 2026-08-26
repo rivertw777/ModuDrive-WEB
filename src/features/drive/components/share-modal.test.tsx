@@ -63,48 +63,31 @@ describe('ShareModal', () => {
     expect(screen.queryByText('링크 권한')).not.toBeInTheDocument()
   })
 
-  it('shows the link role select once LINK is staged, defaulting to 뷰어', async () => {
+  it('shows the link role as a fixed 뷰어 label once LINK is staged', async () => {
     renderModal()
     const user = userEvent.setup()
 
     await user.selectOptions(screen.getByRole('combobox'), 'LINK')
 
     expect(screen.getByText('링크 권한')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('뷰어')).toBeInTheDocument()
+    expect(screen.getByText('뷰어')).toBeInTheDocument()
   })
 
-  it('seeds the link role select from the saved role', () => {
-    renderModal({ scope: 'LINK', role: 'EDITOR', linkToken: 'tok-1' })
-
-    expect(screen.getByDisplayValue('편집자')).toBeInTheDocument()
-  })
-
-  it('sends the staged scope and link role together on 완료', async () => {
+  it('sends the staged scope with a VIEWER link role on 완료', async () => {
     renderModal()
     const user = userEvent.setup()
 
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'LINK')
-    await user.selectOptions(screen.getByDisplayValue('뷰어'), 'EDITOR')
+    await user.selectOptions(screen.getByRole('combobox'), 'LINK')
     await user.click(screen.getByRole('button', { name: '완료' }))
 
-    expect(scopeMutate).toHaveBeenCalledWith({ fileId: 'file-1', scope: 'LINK', role: 'EDITOR' })
-  })
-
-  it('sends a link role change alone, without a scope change', async () => {
-    renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
-    const user = userEvent.setup()
-
-    await user.selectOptions(screen.getByDisplayValue('뷰어'), 'EDITOR')
-    await user.click(screen.getByRole('button', { name: '완료' }))
-
-    expect(scopeMutate).toHaveBeenCalledWith({ fileId: 'file-1', scope: 'LINK', role: 'EDITOR' })
+    expect(scopeMutate).toHaveBeenCalledWith({ fileId: 'file-1', scope: 'LINK', role: 'VIEWER' })
   })
 
   it('omits the role when the scope goes back to RESTRICTED', async () => {
-    renderModal({ scope: 'LINK', role: 'EDITOR', linkToken: 'tok-1' })
+    renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
     const user = userEvent.setup()
 
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'RESTRICTED')
+    await user.selectOptions(screen.getByRole('combobox'), 'RESTRICTED')
     await user.click(screen.getByRole('button', { name: '완료' }))
 
     expect(scopeMutate).toHaveBeenCalledWith({
