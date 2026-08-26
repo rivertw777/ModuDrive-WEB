@@ -30,13 +30,15 @@ import {
 } from '../types'
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
 import { runBatch } from '@/utils/run-batch'
+import { useFileViewStore } from '@/stores/file-view-store'
 import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
+import { ViewToggle } from './view-toggle'
 
-function EntryIcon({ file }: { file: FileEntry }) {
-  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
-  if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-slate-500" />
+function EntryIcon({ file, size = 20 }: { file: FileEntry; size?: number }) {
+  if (file.directory) return <FolderIcon size={size} className="shrink-0 text-violet-500" />
+  if (isImageFile(file.name)) return <ImageIcon size={size} className="shrink-0 text-emerald-500" />
+  return <FileIcon size={size} className="shrink-0 text-slate-400 dark:text-slate-500" />
 }
 
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
@@ -52,6 +54,7 @@ export function TrashExplorer() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const restoreFile = useRestoreFile()
   const containerRef = useRef<HTMLDivElement>(null)
+  const viewMode = useFileViewStore((state) => state.mode)
 
   const toggleSort = (field: SortField) => {
     if (field === sortField) {
@@ -80,7 +83,10 @@ export function TrashExplorer() {
   return (
     <div className="flex h-full">
       <div className="min-w-0 flex-1 p-6">
-        <h1 className="pb-4 text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
+        <div className="flex items-center justify-between pb-4">
+          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
+          <ViewToggle />
+        </div>
 
         {actionError && (
           <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
@@ -88,7 +94,9 @@ export function TrashExplorer() {
 
         {isLoading && <LoadingState />}
         {isError && <ErrorState message="휴지통을 불러오지 못했습니다" />}
-        {files && files.length === 0 && <EmptyState label="휴지통이 비어 있습니다" />}
+        {files && files.length === 0 && (
+          <EmptyState label="휴지통이 비어 있습니다" icon={TrashIcon} />
+        )}
         {files && files.length > 0 && (
           <div
             ref={containerRef}
@@ -96,6 +104,55 @@ export function TrashExplorer() {
             className="relative min-h-[50vh]"
           >
             <MarqueeOverlay box={box} />
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                {sorted.map((file) => (
+                  <div
+                    key={file.fileId}
+                    data-row-id={file.fileId}
+                    onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
+                    onClick={(event) => {
+                      if (event.shiftKey || event.metaKey || event.ctrlKey) return
+                      setSelected(new Set([file.fileId]))
+                      setSelectedFileId(file.fileId)
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault()
+                      openMenu(file, event.clientX, event.clientY)
+                    }}
+                    className={cn(
+                      'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
+                      (selected.has(file.fileId) || selectedFileId === file.fileId) &&
+                        'border-violet-200 bg-violet-50 hover:bg-violet-50 dark:border-violet-900 dark:bg-violet-950 dark:hover:bg-violet-950',
+                    )}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openMenu(file, e.clientX, e.clientY)
+                      }}
+                      aria-label="더보기"
+                      className="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    >
+                      <MoreVerticalIcon size={20} />
+                    </button>
+                    <EntryIcon file={file} size={72} />
+                    <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
+                      {file.name}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/drive${file.path === '/' ? '' : file.path}`)
+                      }}
+                      className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
+                    >
+                      {locationLabel(file.path)}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -186,6 +243,7 @@ export function TrashExplorer() {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         )}
       </div>

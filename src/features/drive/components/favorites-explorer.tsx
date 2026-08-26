@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { StarIcon } from '@/components/ui/icons'
 import { useFavorites } from '../api/list-favorites'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
@@ -39,6 +40,7 @@ export function FavoritesExplorer() {
             onClearSelection={() => setSelectedFileId(null)}
             showLocation
             emptyLabel="즐겨찾기한 파일이 없습니다"
+            emptyIcon={StarIcon}
           />
         )}
       </div>

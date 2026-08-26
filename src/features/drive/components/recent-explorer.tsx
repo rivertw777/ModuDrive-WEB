@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { ClockIcon } from '@/components/ui/icons'
 import { useRecentFiles } from '../api/list-recent-files'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
@@ -40,6 +41,7 @@ export function RecentExplorer() {
             showLocation
             preserveOrder
             emptyLabel="최근에 연 파일이 없습니다"
+            emptyIcon={ClockIcon}
           />
         )}
       </div>
