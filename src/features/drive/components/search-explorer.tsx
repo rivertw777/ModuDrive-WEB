@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { SearchIcon } from '@/components/ui/icons'
 import { useSearchFiles } from '../api/search-files'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
@@ -42,6 +43,7 @@ export function SearchExplorer() {
             onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
             onClearSelection={() => setSelectedFileId(null)}
             emptyLabel="검색 결과가 없습니다"
+            emptyIcon={SearchIcon}
           />
         )}
       </div>

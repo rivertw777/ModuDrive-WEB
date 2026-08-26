@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { UsersIcon } from '@/components/ui/icons'
 import { useSharedWithMe } from '../api/list-shared-with-me'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
@@ -32,6 +33,7 @@ export function SharedWithMeExplorer() {
             onClearSelection={() => setSelectedFileId(null)}
             navigable={false}
             emptyLabel="아직 공유받은 파일이 없습니다"
+            emptyIcon={UsersIcon}
           />
         )}
       </div>

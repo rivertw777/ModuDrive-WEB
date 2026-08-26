@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { EmptyState } from '@/components/ui/state'
+import { EmptyState, type EmptyStateIcon } from '@/components/ui/state'
 import {
   ContextMenu,
   ContextMenuItem,
@@ -91,6 +91,7 @@ export function FileList({
   navigable = true,
   showLocation = false,
   emptyLabel = '이 폴더는 비어 있습니다',
+  emptyIcon,
   preserveOrder = false,
 }: {
   files: FileEntry[]
@@ -102,6 +103,7 @@ export function FileList({
   navigable?: boolean
   showLocation?: boolean
   emptyLabel?: string
+  emptyIcon?: EmptyStateIcon
   preserveOrder?: boolean
 }) {
   const [sortField, setSortField] = useState<SortField>('name')
@@ -225,7 +227,7 @@ export function FileList({
       {actionError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
 
       {visible.length === 0 ? (
-        <EmptyState label={emptyLabel} />
+        <EmptyState label={emptyLabel} icon={emptyIcon} />
       ) : (
         <div
           ref={containerRef}

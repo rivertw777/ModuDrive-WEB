@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
+import { DocumentIcon, FileIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
 import { useFilesByCategory } from '../api/list-files-by-category'
 import { useFileUpload } from '../hooks/use-file-upload'
 import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '../types'
@@ -8,6 +9,15 @@ import { FileDetailPanel } from './file-detail-panel'
 import { UploadButton } from './upload-button'
 import { UploadConflictDialog } from './upload-conflict-dialog'
 import { ViewToggle } from './view-toggle'
+
+// Mirrors app-layout.tsx's sidebar CATEGORY_ICONS so the empty state matches the nav icon clicked.
+const CATEGORY_ICONS = {
+  IMAGE: ImageIcon,
+  VIDEO: VideoIcon,
+  DOCUMENT: DocumentIcon,
+  AUDIO: MusicIcon,
+  OTHER: FileIcon,
+} as const
 
 export function CategoryExplorer({ category }: { category: FileCategory }) {
   const label = FILE_CATEGORIES.find((c) => c.type === category)?.label ?? category
@@ -42,6 +52,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
             onSelect={onSelect}
             navigable={false}
             emptyLabel={`${label} 파일이 없습니다`}
+            emptyIcon={CATEGORY_ICONS[category]}
           />
         )}
       </div>
