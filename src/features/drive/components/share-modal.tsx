@@ -9,9 +9,9 @@ import { useFileShares } from '../api/list-file-shares'
 import { useUpdateFileScope } from '../api/update-file-scope'
 import { useUpdateFileShareRole } from '../api/update-file-share-role'
 import { useRevokeFileShare } from '../api/revoke-file-share'
-import type { Role, ShareScope } from '../types'
+import type { ShareScope } from '../types'
 import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
-import { RoleSelect } from './role-select'
+import { ROLE_LABELS } from './role-select'
 import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
 
@@ -57,7 +57,6 @@ export function ShareModal({
 
   // Scope/role/revoke edits are staged here and only sent to the server on 완료.
   const [pendingScope, setPendingScope] = useState<ShareScope | null>(null)
-  const [pendingLinkRole, setPendingLinkRole] = useState<Role | null>(null)
   const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
@@ -67,7 +66,6 @@ export function ShareModal({
     if (open) {
       setView('list')
       setPendingScope(null)
-      setPendingLinkRole(null)
       setPendingRoleChanges({})
       setCommitError(null)
       setConfirmCloseOpen(false)
@@ -91,12 +89,9 @@ export function ShareModal({
     : null
 
   const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
-  // Only staged while the (effective) scope is LINK — a link role has no meaning under RESTRICTED.
-  const effectiveLinkRole = pendingLinkRole ?? access?.role ?? 'VIEWER'
-  const linkRoleChanged =
-    effectiveScope === 'LINK' && pendingLinkRole !== null && pendingLinkRole !== access?.role
-  const hasPendingChanges =
-    pendingScope !== null || linkRoleChanged || Object.keys(pendingRoleChanges).length > 0
+  // A link is a bearer credential anyone who obtains it can use, so it only ever grants
+  // read-only access — VIEWER isn't a default here, it's the only value the server accepts.
+  const hasPendingChanges = pendingScope !== null || Object.keys(pendingRoleChanges).length > 0
 
   const onComplete = async () => {
     const roleEntries = Object.entries(pendingRoleChanges)
@@ -110,14 +105,13 @@ export function ShareModal({
     // already-revoked share 404s), so resending a succeeded edit on retry would deadlock 완료.
     const keys: ('scope' | string)[] = []
     const tasks: Promise<unknown>[] = []
-    if (access && ((pendingScope !== null && pendingScope !== access.scope) || linkRoleChanged)) {
-      const scope = pendingScope ?? access.scope
+    if (access && pendingScope !== null && pendingScope !== access.scope) {
       keys.push('scope')
       tasks.push(
         updateScope.mutateAsync({
           fileId,
-          scope,
-          role: scope === 'LINK' ? effectiveLinkRole : undefined,
+          scope: pendingScope,
+          role: pendingScope === 'LINK' ? 'VIEWER' : undefined,
         }),
       )
     }
@@ -133,7 +127,6 @@ export function ShareModal({
     const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
     if (failedKeys.size > 0) {
       setPendingScope(failedKeys.has('scope') ? pendingScope : null)
-      setPendingLinkRole(failedKeys.has('scope') ? pendingLinkRole : null)
       setPendingRoleChanges((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([shareId]) => failedKeys.has(shareId))),
       )
@@ -141,7 +134,6 @@ export function ShareModal({
       return
     }
     setPendingScope(null)
-    setPendingLinkRole(null)
     setPendingRoleChanges({})
     onClose()
   }
@@ -212,11 +204,11 @@ export function ShareModal({
               {isOwner && effectiveScope === 'LINK' && (
                 <div className="mt-2 flex items-center justify-end gap-2">
                   <span className="text-sm text-slate-500 dark:text-slate-400">링크 권한</span>
-                  <RoleSelect
-                    value={effectiveLinkRole}
-                    onChange={setPendingLinkRole}
-                    disabled={isCommitting}
-                  />
+                  {/* Link access is always read-only — anyone holding the link is anonymous, so
+                      it can't carry an editable grant the way a named RESTRICTED share does. */}
+                  <span className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300">
+                    {ROLE_LABELS.VIEWER}
+                  </span>
                 </div>
               )}
             </div>
