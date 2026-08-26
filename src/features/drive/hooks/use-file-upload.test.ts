@@ -2,11 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useFileUpload } from './use-file-upload'
 import type { UploadFileInput } from '../api/upload-file'
+import type * as UploadFileModule from '../api/upload-file'
 
 // Only the mutation hook is faked — isNameConflictError stays real, since the whole point
 // of these tests is that a 400 (and nothing else) opens the conflict dialog.
 vi.mock('../api/upload-file', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../api/upload-file')>()),
+  ...(await importOriginal<typeof UploadFileModule>()),
   useUploadFile: vi.fn(),
 }))
 

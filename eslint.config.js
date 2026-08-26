@@ -23,6 +23,11 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // strict/noImplicitAny only blocks *implicit* any — these three close
+      // the remaining gaps in type-safety discipline (see .claude/skills/ts-conventions).
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
       // bulletproof-react boundary: reach into a feature only through its
       // public barrel (@/features/<name>), never its internal files.
       'no-restricted-imports': [
