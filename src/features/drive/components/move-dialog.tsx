@@ -100,7 +100,9 @@ export function MoveDialog({
         <div className="h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
           {isLoading && <LoadingState />}
           {isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
-          {!isLoading && !isError && folders.length === 0 && <EmptyState label="하위 폴더가 없습니다" />}
+          {!isLoading && !isError && folders.length === 0 && (
+            <EmptyState label="하위 폴더가 없습니다" compact />
+          )}
           {folders.map((folder) => (
             <button
               key={folder.fileId}
