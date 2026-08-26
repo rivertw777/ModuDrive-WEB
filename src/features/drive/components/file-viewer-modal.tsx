@@ -5,6 +5,9 @@ import { downloadFile } from '../api/download-file'
 import { FilePreview } from './file-preview'
 import { ShareModal } from './share-modal'
 
+/** Shared with PublicFileView so both full-screen viewer chromes stay visually in sync. */
+export const VIEWER_BACKDROP = 'bg-slate-900/90'
+
 /** Google-Drive-style full-screen viewer, opened by double-clicking a file row (single click
  * still just selects). Dark overlay over the whole viewport, a header bar (file icon + name on
  * the left, share/download/close on the right) with file content centered below. Reuses
@@ -44,7 +47,7 @@ export function FileViewerModal({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
-      className="m-0 h-dvh max-h-none w-dvw max-w-none overflow-visible bg-black/90 p-0 backdrop:bg-black/50"
+      className={`m-0 h-dvh max-h-none w-dvw max-w-none overflow-visible ${VIEWER_BACKDROP} p-0 backdrop:bg-black/50`}
     >
       <div className="flex h-full flex-col">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-8 py-3 text-slate-100 shadow-sm backdrop-blur-xl">
