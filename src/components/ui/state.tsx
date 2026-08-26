@@ -1,3 +1,4 @@
+import { cn } from '@/utils/cn'
 import { AlertCircleIcon, FolderOpenIcon, LoaderIcon } from './icons'
 
 export function LoadingState({ label = '불러오는 중...' }: { label?: string }) {
@@ -14,13 +15,24 @@ export type EmptyStateIcon = typeof FolderOpenIcon
 export function EmptyState({
   label,
   icon: Icon = FolderOpenIcon,
+  // Full explorer pages have no defined height to center within, so they get a viewport-relative
+  // min-height. Dialogs like move-dialog already sit in a fixed-height (h-72) scroll box —
+  // min-h-[60vh] there would blow past it and force a pointless scrollbar, so they pass
+  // compact to just fill that box (h-full) instead.
+  compact = false,
 }: {
   label: string
   icon?: EmptyStateIcon
+  compact?: boolean
 }) {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-base text-slate-500 dark:text-slate-400">
-      <Icon size={56} className="text-slate-300 dark:text-slate-600" />
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400',
+        compact ? 'h-full gap-2 text-sm' : 'min-h-[60vh] text-base',
+      )}
+    >
+      <Icon size={compact ? 32 : 56} className="text-slate-300 dark:text-slate-600" />
       {label}
     </div>
   )
