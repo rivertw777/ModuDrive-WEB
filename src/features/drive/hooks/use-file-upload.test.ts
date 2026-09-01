@@ -120,4 +120,18 @@ describe('useFileUpload', () => {
     expect(result.current.conflictName).toBeNull()
     expect(result.current.uploadError).toBe('업로드 서버 오류')
   })
+
+  it('marks the rest of the batch as error instead of leaving it stuck uploading', async () => {
+    mockUpload((input) => (input.file === fileA ? Promise.reject(new Error('서버 오류')) : Promise.resolve(null)))
+    const { result } = renderHook(() => useFileUpload('/docs'))
+
+    await act(async () => {
+      await result.current.onFilesSelected([fileA, fileB])
+    })
+
+    expect(result.current.uploads.map((u) => ({ name: u.name, status: u.status }))).toEqual([
+      { name: 'a.txt', status: 'error' },
+      { name: 'b.txt', status: 'error' },
+    ])
+  })
 })

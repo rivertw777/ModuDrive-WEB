@@ -23,6 +23,7 @@ const folder: FileEntry = {
   status: 'UPLOADED',
   directory: true,
   favorite: false,
+  category: 'OTHER',
   updatedAt: null,
 }
 

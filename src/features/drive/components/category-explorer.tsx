@@ -8,6 +8,7 @@ import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
 import { UploadButton } from './upload-button'
 import { UploadConflictDialog } from './upload-conflict-dialog'
+import { UploadStatusPanel } from './upload-status-panel'
 import { ViewToggle } from './view-toggle'
 
 // Mirrors app-layout.tsx's sidebar CATEGORY_ICONS so the empty state matches the nav icon clicked.
@@ -24,7 +25,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
   const { data: files, isLoading, isError } = useFilesByCategory(category)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   // Category views span every folder, so uploads here land in the drive root.
-  const { onFilesSelected, uploadingLabel, uploadError, conflictName, resolveConflict } =
+  const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
     useFileUpload('/')
 
   const onSelect = (file: FileEntry) => setSelectedFileId(file.fileId)
@@ -35,7 +36,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
         <div className="flex items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">{label}</h1>
           <div className="flex items-center gap-2">
-            <UploadButton onFilesSelected={onFilesSelected} uploadingLabel={uploadingLabel} />
+            <UploadButton onFilesSelected={onFilesSelected} />
             <ViewToggle />
           </div>
         </div>
@@ -62,6 +63,8 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
       )}
 
       <UploadConflictDialog name={conflictName} onResolve={resolveConflict} />
+
+      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} />
     </div>
   )
 }

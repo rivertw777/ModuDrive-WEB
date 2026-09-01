@@ -8,12 +8,10 @@ export function Toolbar({
   path,
   onNewFolder,
   onFilesSelected,
-  uploadingLabel,
 }: {
   path: string
   onNewFolder: () => void
   onFilesSelected: (files: File[]) => void
-  uploadingLabel: string | null
 }) {
   return (
     <div className="flex items-center justify-between pb-4">
@@ -23,7 +21,7 @@ export function Toolbar({
           <FolderPlusIcon size={16} />
           새 폴더
         </Button>
-        <UploadButton onFilesSelected={onFilesSelected} uploadingLabel={uploadingLabel} />
+        <UploadButton onFilesSelected={onFilesSelected} />
         <ViewToggle />
       </div>
     </div>

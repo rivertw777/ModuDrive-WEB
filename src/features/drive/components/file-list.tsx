@@ -7,25 +7,18 @@ import {
 } from '@/components/ui/context-menu'
 import { SortHeader } from '@/components/ui/sort-header'
 import {
-  DocumentIcon,
   DownloadIcon,
-  FileIcon,
-  FolderIcon,
-  ImageIcon,
   InfoIcon,
   MoreVerticalIcon,
   MoveIcon,
-  MusicIcon,
   PencilIcon,
   ShareIcon,
   StarIcon,
   TrashIcon,
-  VideoIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useFileViewStore } from '@/stores/file-view-store'
 import {
-  categorizeFile,
   formatDate,
   formatFileSize,
   joinPath,
@@ -40,6 +33,7 @@ import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
 import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
 import { runBatch } from '@/utils/run-batch'
+import { EntryIcon } from './entry-icon'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
 import { ShareModal } from './share-modal'
@@ -49,34 +43,6 @@ import { FileViewerModal } from './file-viewer-modal'
 // Private MIME type for in-list drags (moving files between folders) — keeps them from being
 // mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
 const DRAG_MIME = 'application/x-modudrive-file-ids'
-
-function EntryIcon({
-  file,
-  size = 20,
-  className,
-}: {
-  file: FileEntry
-  size?: number
-  className?: string
-}) {
-  if (file.directory)
-    return <FolderIcon size={size} className={cn('shrink-0 text-violet-500', className)} />
-  const category = categorizeFile(file.name)
-  if (category === 'IMAGE')
-    return <ImageIcon size={size} className={cn('shrink-0 text-emerald-500', className)} />
-  if (category === 'VIDEO')
-    return <VideoIcon size={size} className={cn('shrink-0 text-sky-500', className)} />
-  if (category === 'AUDIO')
-    return <MusicIcon size={size} className={cn('shrink-0 text-rose-500', className)} />
-  if (category === 'DOCUMENT')
-    return <DocumentIcon size={size} className={cn('shrink-0 text-blue-500', className)} />
-  return (
-    <FileIcon
-      size={size}
-      className={cn('shrink-0 text-slate-400 dark:text-slate-500', className)}
-    />
-  )
-}
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
@@ -273,7 +239,7 @@ export function FileList({
                   >
                     <MoreVerticalIcon size={20} />
                   </button>
-                  <EntryIcon file={file} size={72} className="mt-8" />
+                  <EntryIcon name={file.name} category={file.category} directory={file.directory} size={72} className="mt-8" />
                   <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
                     {file.name}
                   </span>
@@ -355,7 +321,7 @@ export function FileList({
                       </button>
                     </td>
                     <td className="px-3 py-2.5">
-                      <EntryIcon file={file} />
+                      <EntryIcon name={file.name} category={file.category} directory={file.directory} />
                     </td>
                     <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
                     <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">

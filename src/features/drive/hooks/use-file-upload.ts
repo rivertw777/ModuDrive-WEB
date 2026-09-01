@@ -5,6 +5,14 @@ import { numberedName } from '../types'
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that file. */
 export type ConflictChoice = 'replace' | 'keep-both'
 
+/** One row in the upload status panel. */
+export type UploadItem = {
+  id: string
+  name: string
+  percent: number
+  status: 'uploading' | 'done' | 'error'
+}
+
 // "report (1).pdf" can itself be taken, so keep-both walks up — bounded so a server that
 // rejects every name can't spin forever.
 const MAX_KEEP_BOTH_ATTEMPTS = 50
@@ -16,16 +24,20 @@ const MAX_KEEP_BOTH_ATTEMPTS = 50
  */
 export function useFileUpload(path: string) {
   const uploadFile = useUploadFile()
-  const [uploadingLabel, setUploadingLabel] = useState<string | null>(null)
+  const [uploads, setUploads] = useState<UploadItem[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [conflictName, setConflictName] = useState<string | null>(null)
   const decide = useRef<((choice: ConflictChoice | null) => void) | null>(null)
+  const nextId = useRef(0)
 
   const resolveConflict = (choice: ConflictChoice | null) => {
     setConflictName(null)
     decide.current?.(choice)
     decide.current = null
   }
+
+  const patchUpload = (id: string, patch: Partial<UploadItem>) =>
+    setUploads((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)))
 
   const uploadKeepingBoth = async (file: File, onProgress: (percent: number) => void) => {
     for (let n = 1; n <= MAX_KEEP_BOTH_ATTEMPTS; n++) {
@@ -41,10 +53,18 @@ export function useFileUpload(path: string) {
 
   const onFilesSelected = async (selected: File[]) => {
     setUploadError(null)
+    const items = selected.map((file) => ({
+      id: String(nextId.current++),
+      name: file.name,
+      percent: 0,
+      status: 'uploading' as const,
+    }))
+    setUploads((prev) => [...prev, ...items])
+
     try {
-      for (const file of selected) {
-        setUploadingLabel(`${file.name} 0%`)
-        const onProgress = (percent: number) => setUploadingLabel(`${file.name} ${percent}%`)
+      for (const [i, file] of selected.entries()) {
+        const id = items[i].id
+        const onProgress = (percent: number) => patchUpload(id, { percent })
         try {
           await uploadFile.mutateAsync({ file, path, onProgress })
         } catch (error) {
@@ -57,16 +77,30 @@ export function useFileUpload(path: string) {
             await uploadFile.mutateAsync({ file, path, replaceExisting: true, onProgress })
           } else if (choice === 'keep-both') {
             await uploadKeepingBoth(file, onProgress)
+          } else {
+            // 취소: skip this file and carry on with the rest of the batch.
+            setUploads((prev) => prev.filter((item) => item.id !== id))
+            continue
           }
-          // null (취소): skip this file and carry on with the rest of the batch.
         }
+        patchUpload(id, { status: 'done', percent: 100 })
       }
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : '업로드에 실패했습니다')
     } finally {
-      setUploadingLabel(null)
+      // A non-conflict failure throws out of the loop above, leaving the failed file (and any
+      // files after it that never got attempted) stuck at 'uploading' — sweep this batch's
+      // leftovers to 'error' so the panel doesn't spin on them forever.
+      const batchIds = new Set(items.map((item) => item.id))
+      setUploads((prev) =>
+        prev.map((item) =>
+          batchIds.has(item.id) && item.status === 'uploading' ? { ...item, status: 'error' } : item,
+        ),
+      )
     }
   }
 
-  return { onFilesSelected, uploadingLabel, uploadError, conflictName, resolveConflict }
+  const clearUploads = () => setUploads([])
+
+  return { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict }
 }
