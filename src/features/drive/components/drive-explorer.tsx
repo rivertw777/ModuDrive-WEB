@@ -10,11 +10,12 @@ import { UploadDropzone } from './upload-dropzone'
 import { NewFolderDialog } from './new-folder-dialog'
 import { FileDetailPanel } from './file-detail-panel'
 import { UploadConflictDialog } from './upload-conflict-dialog'
+import { UploadStatusPanel } from './upload-status-panel'
 
 export function DriveExplorer({ path }: { path: string }) {
   const navigate = useNavigate()
   const { data: files, isLoading, isError } = useDirectoryListing(path)
-  const { onFilesSelected, uploadingLabel, uploadError, conflictName, resolveConflict } =
+  const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
     useFileUpload(path)
 
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
@@ -34,7 +35,6 @@ export function DriveExplorer({ path }: { path: string }) {
           path={path}
           onNewFolder={() => setNewFolderOpen(true)}
           onFilesSelected={onFilesSelected}
-          uploadingLabel={uploadingLabel}
         />
 
         {uploadError && (
@@ -68,6 +68,8 @@ export function DriveExplorer({ path }: { path: string }) {
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={path} />
 
       <UploadConflictDialog name={conflictName} onResolve={resolveConflict} />
+
+      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} />
     </div>
   )
 }

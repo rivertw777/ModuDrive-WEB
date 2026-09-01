@@ -24,6 +24,8 @@ export type FileEntry = {
   status: FileStatus
   directory: boolean
   favorite: boolean
+  /** Server-computed from the name (mirrors backend FileCategory.of()) — meaningless for directories. */
+  category: FileCategory
   updatedAt: string | null
 }
 

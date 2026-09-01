@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
-import { DocumentIcon, FileIcon, FilesIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
+import { DocumentIcon, FilesIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
-import { FILE_CATEGORIES, categorizeFile, formatFileSize, isImageFile, type FileCategory, type FileEntry } from '../types'
+import { FILE_CATEGORIES, formatFileSize, type FileCategory } from '../types'
+import { EntryIcon } from './entry-icon'
 
 // Fixed categorical order/colors, validated for CVD-safe adjacency (dataviz skill).
 const CATEGORY_COLORS: Record<FileCategory, { light: string; dark: string }> = {
@@ -22,12 +23,6 @@ const SIZE = (RADIUS + STROKE) * 2
 const CENTER = SIZE / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 const GAP = 2 // px, matches dataviz mark spec (surface gap between adjacent segments)
-
-function EntryIcon({ file }: { file: FileEntry }) {
-  if (file.directory) return <FolderIcon size={20} className="shrink-0 text-violet-500" />
-  if (isImageFile(file.name)) return <ImageIcon size={20} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={20} className="shrink-0 text-slate-400 dark:text-slate-500" />
-}
 
 type SortField = 'name' | 'size'
 type SortDir = 'asc' | 'desc'
@@ -60,7 +55,7 @@ export function StorageExplorer() {
 
   const categoryBytes: Record<FileCategory, number> = { IMAGE: 0, VIDEO: 0, DOCUMENT: 0, AUDIO: 0, OTHER: 0 }
   for (const file of files) {
-    categoryBytes[categorizeFile(file.name)] += file.fileSize ?? 0
+    categoryBytes[file.category] += file.fileSize ?? 0
   }
 
   const legend = FILE_CATEGORIES.map((c) => ({
@@ -191,7 +186,7 @@ export function StorageExplorer() {
               <tr key={file.fileId} className="border-b border-slate-100 dark:border-slate-800">
                 <td className="py-2.5">
                   <span className="flex items-center gap-2.5 text-slate-800 dark:text-slate-200">
-                    <EntryIcon file={file} />
+                    <EntryIcon name={file.name} category={file.category} directory={file.directory} />
                     {file.name}
                   </span>
                 </td>

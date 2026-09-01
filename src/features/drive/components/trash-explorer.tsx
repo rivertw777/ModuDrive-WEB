@@ -7,21 +7,13 @@ import {
   type ContextMenuPosition,
 } from '@/components/ui/context-menu'
 import { SortHeader } from '@/components/ui/sort-header'
-import {
-  FileIcon,
-  FolderIcon,
-  ImageIcon,
-  MoreVerticalIcon,
-  RestoreIcon,
-  TrashIcon,
-} from '@/components/ui/icons'
+import { MoreVerticalIcon, RestoreIcon, TrashIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
 import { useRestoreFile } from '../api/restore-file'
 import {
   formatDate,
   formatFileSize,
-  isImageFile,
   locationLabel,
   sortFiles,
   type FileEntry,
@@ -31,15 +23,10 @@ import {
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
 import { runBatch } from '@/utils/run-batch'
 import { useFileViewStore } from '@/stores/file-view-store'
+import { EntryIcon } from './entry-icon'
 import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
 import { ViewToggle } from './view-toggle'
-
-function EntryIcon({ file, size = 20 }: { file: FileEntry; size?: number }) {
-  if (file.directory) return <FolderIcon size={size} className="shrink-0 text-violet-500" />
-  if (isImageFile(file.name)) return <ImageIcon size={size} className="shrink-0 text-emerald-500" />
-  return <FileIcon size={size} className="shrink-0 text-slate-400 dark:text-slate-500" />
-}
 
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
 
@@ -136,7 +123,7 @@ export function TrashExplorer() {
                     >
                       <MoreVerticalIcon size={20} />
                     </button>
-                    <EntryIcon file={file} size={72} />
+                    <EntryIcon name={file.name} category={file.category} directory={file.directory} size={72} />
                     <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
                       {file.name}
                     </span>
@@ -207,7 +194,7 @@ export function TrashExplorer() {
                     )}
                   >
                     <td className="py-2.5">
-                      <EntryIcon file={file} />
+                      <EntryIcon name={file.name} category={file.category} directory={file.directory} />
                     </td>
                     <td className="py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
                     <td className="py-2.5 text-slate-500 dark:text-slate-400">
