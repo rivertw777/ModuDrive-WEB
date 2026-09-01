@@ -15,27 +15,29 @@ export function SharedWithMeExplorer() {
 
   return (
     <div className="flex h-full">
-      <div className="min-w-0 flex-1 p-6">
-        <div className="flex items-center justify-between pb-4">
+      <div className="flex min-w-0 flex-1 flex-col p-6">
+        <div className="flex shrink-0 items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">공유 문서함</h1>
           <ViewToggle />
         </div>
 
-        {isLoading && <LoadingState />}
-        {isError && <ErrorState message="공유받은 파일을 불러오지 못했습니다" />}
-        {files && (
-          <FileList
-            files={files}
-            selectedFileId={selectedFileId}
-            onNavigate={() => {}}
-            onSelect={onSelect}
-            onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
-            onClearSelection={() => setSelectedFileId(null)}
-            navigable={false}
-            emptyLabel="아직 공유받은 파일이 없습니다"
-            emptyIcon={UsersIcon}
-          />
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {isLoading && <LoadingState />}
+          {isError && <ErrorState message="공유받은 파일을 불러오지 못했습니다" />}
+          {files && (
+            <FileList
+              files={files}
+              selectedFileId={selectedFileId}
+              onNavigate={() => {}}
+              onSelect={onSelect}
+              onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
+              onClearSelection={() => setSelectedFileId(null)}
+              navigable={false}
+              emptyLabel="아직 공유받은 파일이 없습니다"
+              emptyIcon={UsersIcon}
+            />
+          )}
+        </div>
       </div>
 
       {selectedFileId && (

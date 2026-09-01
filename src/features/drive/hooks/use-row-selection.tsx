@@ -65,46 +65,10 @@ export function useRowSelection(
     if (selected.size === 0) onEmpty?.()
   }, [selected, onEmpty])
 
-  const onRowMouseDown = useCallback(
-    (id: string, event: ReactMouseEvent) => {
-      if (event.button !== 0) return
-      if (event.shiftKey && anchor.current) {
-        const from = orderedIds.indexOf(anchor.current)
-        const to = orderedIds.indexOf(id)
-        if (from !== -1 && to !== -1) {
-          const [lo, hi] = from < to ? [from, to] : [to, from]
-          setSelected(new Set(orderedIds.slice(lo, hi + 1)))
-          focused.current = id
-          return
-        }
-      }
-      if (event.metaKey || event.ctrlKey) {
-        setSelected((cur) => {
-          const next = new Set(cur)
-          if (next.has(id)) next.delete(id)
-          else next.add(id)
-          return next
-        })
-        anchor.current = id
-        focused.current = id
-        return
-      }
-      // Leave an already-selected row alone on mousedown (a drag may be starting, and it
-      // should carry the whole group) — collapsing to just this row happens in onClick instead.
-      anchor.current = id
-      focused.current = id
-      setSelected((cur) => (cur.has(id) ? cur : new Set([id])))
-    },
-    [orderedIds],
-  )
-
-  const onContainerMouseDown = useCallback(
+  // Shared by both entry points below: a blank-space mousedown and a mousedown on a
+  // not-yet-selected row both arm the same rectangle-select drag.
+  const startMarquee = useCallback(
     (event: ReactMouseEvent) => {
-      if (event.button !== 0) return
-      const target = event.target as HTMLElement
-      if (target.closest('[data-row-id]')) return
-      event.preventDefault()
-      setSelected(new Set())
       // Resolved once per drag (not per move) — cheap, and stable for the drag's duration.
       const bounds = containerRef.current ? visibleBounds(containerRef.current) : null
       const start = bounds ? clampPoint(event.clientX, event.clientY, bounds) : null
@@ -145,6 +109,58 @@ export function useRowSelection(
       window.addEventListener('mouseup', onUp)
     },
     [containerRef],
+  )
+
+  const onRowMouseDown = useCallback(
+    (id: string, event: ReactMouseEvent) => {
+      if (event.button !== 0) return
+      if (event.shiftKey && anchor.current) {
+        const from = orderedIds.indexOf(anchor.current)
+        const to = orderedIds.indexOf(id)
+        if (from !== -1 && to !== -1) {
+          const [lo, hi] = from < to ? [from, to] : [to, from]
+          setSelected(new Set(orderedIds.slice(lo, hi + 1)))
+          focused.current = id
+          return
+        }
+      }
+      if (event.metaKey || event.ctrlKey) {
+        setSelected((cur) => {
+          const next = new Set(cur)
+          if (next.has(id)) next.delete(id)
+          else next.add(id)
+          return next
+        })
+        anchor.current = id
+        focused.current = id
+        return
+      }
+      anchor.current = id
+      focused.current = id
+      // Leave an already-selected row alone (a native drag may be starting, and it should
+      // carry the whole group) — collapsing to just this row happens in onClick instead.
+      if (selected.has(id)) return
+      // Not selected yet: a plain click will just select this row (onClick below), but if the
+      // mouse moves instead, treat it as the start of a rectangle-select rather than the
+      // browser's native text-select or a single-item drag — rows fill the whole list once it
+      // gets long, so blank space to start a marquee from may not exist otherwise.
+      event.preventDefault()
+      setSelected(new Set([id]))
+      startMarquee(event)
+    },
+    [orderedIds, selected, startMarquee],
+  )
+
+  const onContainerMouseDown = useCallback(
+    (event: ReactMouseEvent) => {
+      if (event.button !== 0) return
+      const target = event.target as HTMLElement
+      if (target.closest('[data-row-id]')) return
+      event.preventDefault()
+      setSelected(new Set())
+      startMarquee(event)
+    },
+    [startMarquee],
   )
 
   useEffect(() => {

@@ -13,3 +13,26 @@ html.dark {
 body {
   @apply bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100;
 }
+
+/* Thin, unobtrusive scrollbar everywhere (Firefox + WebKit/Blink) instead of the OS default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.dark * {
+  scrollbar-color: #475569 transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+.dark *::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
