@@ -78,9 +78,10 @@ export function StorageExplorer() {
   const percent = usage.quotaBytes > 0 ? Math.round((usage.usedBytes / usage.quotaBytes) * 100) : 0
 
   return (
-    <div className="p-6">
-      <h1 className="pb-6 text-lg font-medium text-slate-900 dark:text-slate-100">저장용량</h1>
+    <div className="flex h-full flex-col p-6">
+      <h1 className="shrink-0 pb-6 text-lg font-medium text-slate-900 dark:text-slate-100">저장용량</h1>
 
+      <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="shrink-0 -rotate-90">
           <circle
@@ -198,6 +199,7 @@ export function StorageExplorer() {
           </tbody>
         </table>
       )}
+      </div>
     </div>
   )
 }

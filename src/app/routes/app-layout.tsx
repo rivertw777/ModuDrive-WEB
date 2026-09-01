@@ -54,7 +54,7 @@ export default function AppLayoutRoute() {
   }
 
   return (
-    <div className="flex min-h-screen bg-white dark:bg-slate-900">
+    <div className="flex h-screen bg-white dark:bg-slate-900">
       <aside
         style={{ width: sidebar.width }}
         className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-slate-700"
@@ -194,7 +194,10 @@ export default function AppLayoutRoute() {
         <header className="flex items-center gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
           <SearchBar />
         </header>
-        <main className="flex-1 overflow-auto">
+        {/* min-h-0 overrides the flex default of "shrink no smaller than content" so this
+            pane actually clips at the viewport edge — each route then owns its own internal
+            scroll region (header pinned, list scrollable) instead of the whole page scrolling. */}
+        <main className="min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </main>
       </div>

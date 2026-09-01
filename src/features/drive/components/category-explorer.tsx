@@ -32,8 +32,8 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
 
   return (
     <div className="flex h-full">
-      <div className="min-w-0 flex-1 p-6">
-        <div className="flex items-center justify-between pb-4">
+      <div className="flex min-w-0 flex-1 flex-col p-6">
+        <div className="flex shrink-0 items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">{label}</h1>
           <div className="flex items-center gap-2">
             <UploadButton onFilesSelected={onFilesSelected} />
@@ -41,21 +41,23 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
           </div>
         </div>
 
-        {uploadError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
+        {uploadError && <p className="mb-2 shrink-0 text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
 
-        {isLoading && <LoadingState />}
-        {isError && <ErrorState message={`${label} 목록을 불러오지 못했습니다`} />}
-        {files && (
-          <FileList
-            files={files}
-            selectedFileId={selectedFileId}
-            onNavigate={() => {}}
-            onSelect={onSelect}
-            navigable={false}
-            emptyLabel={`${label} 파일이 없습니다`}
-            emptyIcon={CATEGORY_ICONS[category]}
-          />
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {isLoading && <LoadingState />}
+          {isError && <ErrorState message={`${label} 목록을 불러오지 못했습니다`} />}
+          {files && (
+            <FileList
+              files={files}
+              selectedFileId={selectedFileId}
+              onNavigate={() => {}}
+              onSelect={onSelect}
+              navigable={false}
+              emptyLabel={`${label} 파일이 없습니다`}
+              emptyIcon={CATEGORY_ICONS[category]}
+            />
+          )}
+        </div>
       </div>
 
       {selectedFileId && (

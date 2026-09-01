@@ -69,12 +69,13 @@ export function TrashExplorer() {
 
   return (
     <div className="flex h-full">
-      <div className="min-w-0 flex-1 p-6">
-        <div className="flex items-center justify-between pb-4">
+      <div className="flex min-w-0 flex-1 flex-col p-6">
+        <div className="flex shrink-0 items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
           <ViewToggle />
         </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {actionError && (
           <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
         )}
@@ -233,6 +234,7 @@ export function TrashExplorer() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {selectedFile && (
