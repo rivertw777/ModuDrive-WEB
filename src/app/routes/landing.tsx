@@ -8,10 +8,10 @@ export default function LandingRoute() {
         <ThemeToggle />
       </div>
       <div className="flex flex-col items-center text-center">
-        <span className="flex size-14 items-center justify-center rounded-2xl bg-violet-600 text-2xl font-bold text-white">
-          M
-        </span>
-        <h1 className="mt-6 text-3xl font-semibold text-slate-900 dark:text-slate-100">ModuDrive</h1>
+        <img src="/logo.png" alt="ModuDrive" className="size-14" />
+        <h1 className="font-brand mt-6 text-5xl font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
+          ModuDrive
+        </h1>
         <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
           파일을 안전하게 저장하고, 어디서나 접근하고, 손쉽게 공유하세요.
         </p>
