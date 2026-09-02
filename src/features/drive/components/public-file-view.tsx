@@ -5,6 +5,7 @@ import { usePublicFile } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
 import { canPreviewFile, isImageFile } from '../types'
 import { FilePreview } from './file-preview'
+import { PublicFolderView } from './public-folder-view'
 import { VIEWER_BACKDROP } from './file-viewer-modal'
 
 // Deliberately its own tree, not reused with ShareModal's authenticated
@@ -18,6 +19,11 @@ import { VIEWER_BACKDROP } from './file-viewer-modal'
 export function PublicFileView({ token }: { token: string }) {
   const { data: file, isLoading, isError } = usePublicFile(token)
   const canPreview = !!file && !file.directory && canPreviewFile(file.name, file.fileSize)
+
+  // A folder link opens a browser for its contents, not a single-file viewer.
+  if (file?.directory) {
+    return <PublicFolderView token={token} rootName={file.name} />
+  }
 
   return (
     <div className={`flex h-dvh flex-col ${VIEWER_BACKDROP}`}>

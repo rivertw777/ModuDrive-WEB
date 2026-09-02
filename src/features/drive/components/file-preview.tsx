@@ -6,7 +6,10 @@ import { viewFile } from '../api/view-file'
 import { viewPublicFile } from '../api/view-public-file'
 import { issueStreamToken } from '../api/issue-stream-token'
 
-type Source = { type: 'auth'; fileId: string } | { type: 'public'; token: string }
+type Source =
+  | { type: 'auth'; fileId: string }
+  /** `entryId` set => `token` is a folder link and this is one file nested under it. */
+  | { type: 'public'; token: string; entryId?: string }
 
 function isStreamed(kind: PreviewKind | null) {
   return kind === 'audio' || kind === 'video'
@@ -17,10 +20,13 @@ function streamUrl(
   sourceId: string,
   fileName: string,
   streamToken?: string,
+  entryId?: string,
 ) {
   const params = new URLSearchParams({ fileName })
   if (sourceType === 'public') {
-    return `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}/view?${params}`
+    const base = `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}`
+    const path = entryId ? `${base}/entry/${encodeURIComponent(entryId)}/view` : `${base}/view`
+    return `${path}?${params}`
   }
   if (streamToken) params.set('streamToken', streamToken)
   return `${env.API_BASE_URL}/api/v1/storage/view/${encodeURIComponent(sourceId)}?${params}`
@@ -52,6 +58,7 @@ export function FilePreview({
   const kind = canPreviewFile(fileName, fileSize) ? previewKind(fileName) : null
   const sourceType = source.type
   const sourceId = source.type === 'auth' ? source.fileId : source.token
+  const entryId = source.type === 'public' ? source.entryId : undefined
   const [text, setText] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
@@ -64,7 +71,7 @@ export function FilePreview({
 
     if (isStreamed(kind)) {
       if (sourceType === 'public') {
-        setUrl(streamUrl(sourceType, sourceId, fileName))
+        setUrl(streamUrl(sourceType, sourceId, fileName, undefined, entryId))
         return
       }
       let cancelled = false
@@ -83,7 +90,9 @@ export function FilePreview({
     let cancelled = false
     let objectUrl: string | null = null
 
-    ;(sourceType === 'auth' ? viewFile(sourceId, fileName) : viewPublicFile(sourceId, fileName))
+    ;(sourceType === 'auth'
+      ? viewFile(sourceId, fileName)
+      : viewPublicFile(sourceId, fileName, entryId))
       .then(async (blobUrl) => {
         if (cancelled) {
           URL.revokeObjectURL(blobUrl)
@@ -105,7 +114,7 @@ export function FilePreview({
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [kind, fileName, sourceType, sourceId])
+  }, [kind, fileName, sourceType, sourceId, entryId])
 
   if (!kind) return null
   if (error) return <ErrorState message="미리보기를 불러오지 못했습니다" />

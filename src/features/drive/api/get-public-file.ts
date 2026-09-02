@@ -21,3 +21,16 @@ export function usePublicFile(token: string) {
     queryFn: () => getPublicFile(token),
   })
 }
+
+/** One level of a link-shared folder tree. `parentId` omitted lists the shared folder itself. */
+export const listPublicChildren = (token: string, parentId?: string) =>
+  publicClient.get<PublicFile[]>(`/api/v1/files/public/${encodeURIComponent(token)}/children`, {
+    params: parentId ? { parentId } : undefined,
+  })
+
+export function usePublicChildren(token: string, parentId?: string) {
+  return useQuery({
+    queryKey: ['public-children', token, parentId ?? null],
+    queryFn: () => listPublicChildren(token, parentId),
+  })
+}
