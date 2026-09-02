@@ -13,6 +13,7 @@ const shares: FileShare[] = [
     role: 'VIEWER',
     sharedWithEmail: 'river@modudrive.com',
     sharedWithName: 'river',
+    inheritedFrom: null,
   },
 ]
 

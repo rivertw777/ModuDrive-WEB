@@ -40,6 +40,17 @@ export type FileShare = {
    * (the caller already knows who they just acted on). */
   sharedWithEmail: string | null
   sharedWithName: string | null
+  /** Non-null when this grant is inherited from a directory above the listed file, not a
+   * share on the file itself — shown read-only; change it from that folder's own dialog. */
+  inheritedFrom: { fileId: string; name: string } | null
+}
+
+/** A directory above the listed file that is currently "anyone with the link" — the file is
+ * reachable through it. To restrict the file you turn these links off (no inheritance break). */
+export type InheritedLink = {
+  fileId: string
+  name: string
+  role: Role
 }
 
 export type FileAccessList = {
@@ -50,6 +61,7 @@ export type FileAccessList = {
   role: Role | null
   linkToken: string | null
   shares: FileShare[]
+  inheritedLinks: InheritedLink[]
 }
 
 /** Deliberately narrow — an anonymous link visitor gets no path/owner/version info. */

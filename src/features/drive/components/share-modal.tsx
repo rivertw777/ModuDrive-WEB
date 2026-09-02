@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-ac
 import { ROLE_LABELS } from './role-select'
 import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
+import { RestrictParentDialog } from './restrict-parent-dialog'
 
 const SCOPE_LABELS: Record<ShareScope, string> = {
   RESTRICTED: '권한이 부여된 사용자',
@@ -50,6 +52,7 @@ export function ShareModal({
 }) {
   const { data: access, isLoading, isError } = useFileShares(fileId, open)
   const { data: member } = useCurrentMember(open)
+  const queryClient = useQueryClient()
   const updateScope = useUpdateFileScope()
   const updateRole = useUpdateFileShareRole()
   const revoke = useRevokeFileShare()
@@ -60,6 +63,7 @@ export function ShareModal({
   const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
+  const [restrictOpen, setRestrictOpen] = useState(false)
 
   // Land back on the list view, with no staged edits, each time the modal is (re)opened for a file.
   useEffect(() => {
@@ -69,12 +73,44 @@ export function ShareModal({
       setPendingRoleChanges({})
       setCommitError(null)
       setConfirmCloseOpen(false)
+      setRestrictOpen(false)
     }
   }, [open, fileId])
 
   const isOwner = access !== undefined && member !== undefined && member.id === access.ownerId
-  const effectiveScope = pendingScope ?? access?.scope
+  // A directory above this file that is link-shared makes the file effectively "anyone with the
+  // link" even though its own scope is RESTRICTED. Restricting the file then means turning those
+  // links off (there is no per-item inheritance break) — that's what RestrictParentDialog does.
+  const inheritedLinks = access?.inheritedLinks ?? []
+  const effectiveScope: ShareScope | undefined =
+    pendingScope ??
+    (access ? (access.scope === 'LINK' || inheritedLinks.length > 0 ? 'LINK' : access.scope) : undefined)
   const isCommitting = updateScope.isPending || updateRole.isPending || revoke.isPending
+
+  const onScopeChange = (next: ShareScope) => {
+    if (next === 'RESTRICTED' && inheritedLinks.length > 0) {
+      setRestrictOpen(true)
+      return
+    }
+    setPendingScope(next)
+  }
+
+  const onRestrictConfirm = async () => {
+    setRestrictOpen(false)
+    setCommitError(null)
+    const targets = [
+      ...inheritedLinks.map((link) => link.fileId),
+      ...(access?.scope === 'LINK' ? [fileId] : []),
+    ]
+    try {
+      for (const targetId of targets) {
+        await updateScope.mutateAsync({ fileId: targetId, scope: 'RESTRICTED', role: undefined })
+      }
+      await queryClient.invalidateQueries({ queryKey: ['file-shares', fileId] })
+    } catch {
+      setCommitError('상위 폴더의 링크를 해제하지 못했습니다. 다시 시도해주세요.')
+    }
+  }
 
   // RESTRICTED shares have no link token — point invited members at the
   // login-gated deep link instead of the anonymous /public/:token route.
@@ -186,7 +222,7 @@ export function ShareModal({
                   <select
                     value={effectiveScope}
                     disabled={isCommitting}
-                    onChange={(e) => setPendingScope(e.target.value as ShareScope)}
+                    onChange={(e) => onScopeChange(e.target.value as ShareScope)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {(Object.keys(SCOPE_LABELS) as ShareScope[]).map((scope) => (
@@ -277,6 +313,14 @@ export function ShareModal({
           setConfirmCloseOpen(false)
           onClose()
         }}
+      />
+      <RestrictParentDialog
+        open={restrictOpen}
+        fileName={fileName}
+        folders={inheritedLinks}
+        includesThisItem={access?.scope === 'LINK'}
+        onConfirm={onRestrictConfirm}
+        onCancel={() => setRestrictOpen(false)}
       />
     </>
   )

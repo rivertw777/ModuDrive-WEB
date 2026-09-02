@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ShareModal } from './share-modal'
 import type { FileAccessList } from '../types'
@@ -23,6 +24,7 @@ const access: FileAccessList = {
   role: null,
   linkToken: null,
   shares: [],
+  inheritedLinks: [],
 }
 
 const scopeMutate = vi.fn()
@@ -48,7 +50,11 @@ function renderModal(overrides: Partial<FileAccessList> = {}) {
     idle as unknown as ReturnType<typeof useRevokeFileShare>,
   )
   const onClose = vi.fn()
-  render(<ShareModal open onClose={onClose} fileId="file-1" fileName="report.pdf" />)
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <ShareModal open onClose={onClose} fileId="file-1" fileName="report.pdf" />
+    </QueryClientProvider>,
+  )
   return { onClose }
 }
 
@@ -92,6 +98,30 @@ describe('ShareModal', () => {
 
     expect(scopeMutate).toHaveBeenCalledWith({
       fileId: 'file-1',
+      scope: 'RESTRICTED',
+      role: undefined,
+    })
+  })
+
+  it('shows LINK as the effective scope when a parent folder link is inherited', () => {
+    renderModal({ inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }] })
+
+    expect(screen.getByRole('combobox')).toHaveValue('LINK')
+  })
+
+  it('restricting an inherited-link file turns the parent folder link off instead', async () => {
+    renderModal({ inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }] })
+    const user = userEvent.setup()
+
+    await user.selectOptions(screen.getByRole('combobox'), 'RESTRICTED')
+    // The staged scope must NOT change — a confirm dialog opens instead.
+    expect(screen.getByText('상위 폴더의 액세스 권한을 삭제하시겠습니까?')).toBeInTheDocument()
+    expect(scopeMutate).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+
+    expect(scopeMutate).toHaveBeenCalledWith({
+      fileId: 'folder-1',
       scope: 'RESTRICTED',
       role: undefined,
     })

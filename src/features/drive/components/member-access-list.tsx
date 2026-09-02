@@ -68,9 +68,17 @@ export function MemberAccessList({
                   {share.sharedWithEmail}
                 </p>
               )}
+              {share.inheritedFrom && (
+                <p className="truncate text-xs text-slate-400 dark:text-slate-500">
+                  {share.inheritedFrom.name}에서 상속됨
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {isOwner ? (
+              {/* An inherited grant is changed from its own folder's dialog, never here. */}
+              {share.inheritedFrom || !isOwner ? (
+                <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
+              ) : (
                 <select
                   value={selectValue}
                   disabled={disabled}
@@ -84,8 +92,6 @@ export function MemberAccessList({
                   ))}
                   <option value={REMOVE_ACCESS}>삭제</option>
                 </select>
-              ) : (
-                <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
               )}
             </div>
           </li>
