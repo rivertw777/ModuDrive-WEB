@@ -60,10 +60,8 @@ export default function AppLayoutRoute() {
         className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-slate-700"
       >
         <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
-            M
-          </span>
-          <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+          <img src="/logo.png" alt="ModuDrive" className="size-8" />
+          <span className="font-brand text-2xl font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
             ModuDrive
           </span>
         </Link>
