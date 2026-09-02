@@ -42,7 +42,7 @@ export function UploadConflictDialog({
               value={option.value}
               checked={choice === option.value}
               onChange={() => setChoice(option.value)}
-              className="mt-0.5 size-4 accent-violet-600"
+              className="mt-0.5 size-4 accent-brand-600"
             />
             <span className="min-w-0">
               <span className="block text-sm text-slate-900 dark:text-slate-100">

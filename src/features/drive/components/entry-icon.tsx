@@ -27,7 +27,7 @@ export function EntryIcon({
   className?: string
 }) {
   if (directory)
-    return <FolderIcon size={size} className={cn('shrink-0 text-violet-500', className)} />
+    return <FolderIcon size={size} className={cn('shrink-0 text-brand-500', className)} />
   const { Icon, color } = CATEGORY_STYLE[category ?? categorizeFile(name)]
   return <Icon size={size} className={cn('shrink-0', color, className)} />
 }

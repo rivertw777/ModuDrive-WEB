@@ -4,6 +4,18 @@
 
 @theme {
   --font-brand: 'Manrope', sans-serif;
+
+  /* Brand point color, derived from logo navy #1C3D5A (brand-700) */
+  --color-brand-50: #ecf3f9;
+  --color-brand-100: #d8e6f3;
+  --color-brand-200: #b1cee7;
+  --color-brand-300: #83b0d8;
+  --color-brand-400: #5090c9;
+  --color-brand-500: #336fa3;
+  --color-brand-600: #27547c;
+  --color-brand-700: #1c3d5a;
+  --color-brand-900: #112536;
+  --color-brand-950: #0b1823;
 }
 
 html {

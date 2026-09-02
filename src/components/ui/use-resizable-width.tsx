@@ -57,7 +57,7 @@ export function ResizeHandle({
     <div
       onMouseDown={onMouseDown}
       className={cn(
-        'absolute top-0 h-full w-1.5 cursor-col-resize hover:bg-violet-400/50 active:bg-violet-400/50',
+        'absolute top-0 h-full w-1.5 cursor-col-resize hover:bg-brand-400/50 active:bg-brand-400/50',
         edge === 'right' ? '-right-0.5' : '-left-0.5',
       )}
     />

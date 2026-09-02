@@ -15,7 +15,7 @@ export function SearchBar() {
 
   return (
     <form onSubmit={onSubmit} className="w-full max-w-md">
-      <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-4 py-2 focus-within:border-violet-500 focus-within:bg-white dark:border-slate-600 dark:bg-slate-800 dark:focus-within:bg-slate-800">
+      <div className="flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-4 py-2 focus-within:border-brand-500 focus-within:bg-white dark:border-slate-600 dark:bg-slate-800 dark:focus-within:bg-slate-800">
         <SearchIcon size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
         <input
           value={value}

@@ -43,7 +43,7 @@ export function ConfirmDialog({
         <button
           type="button"
           onClick={onCancel}
-          className="text-violet-600 hover:underline dark:text-violet-400"
+          className="text-brand-600 hover:underline dark:text-brand-400"
         >
           {cancelLabel}
         </button>
@@ -53,7 +53,7 @@ export function ConfirmDialog({
           className={
             danger
               ? 'text-red-600 hover:underline dark:text-red-400'
-              : 'text-violet-600 hover:underline dark:text-violet-400'
+              : 'text-brand-600 hover:underline dark:text-brand-400'
           }
         >
           {confirmLabel}

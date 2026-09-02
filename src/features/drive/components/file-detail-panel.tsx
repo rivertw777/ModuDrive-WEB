@@ -54,7 +54,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
         <div className="mt-4 space-y-5 text-sm">
           <div className="flex flex-col items-center gap-2 rounded-lg bg-slate-50 py-6 dark:bg-slate-800">
             {file.directory ? (
-              <FolderIcon size={36} className="text-violet-500" />
+              <FolderIcon size={36} className="text-brand-500" />
             ) : (
               <FileIcon size={36} className="text-slate-400 dark:text-slate-500" />
             )}

@@ -111,7 +111,7 @@ export function MoveDialog({
               onClick={() => setBrowsePath(joinPath(folder.path, folder.name))}
               className="flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700"
             >
-              <FolderIcon size={18} className="shrink-0 text-violet-500" />
+              <FolderIcon size={18} className="shrink-0 text-brand-500" />
               <span className="flex-1 truncate">{folder.name}</span>
               <span className="shrink-0 text-xs text-slate-400 dark:text-slate-500">
                 {formatDate(folder.updatedAt)}
@@ -120,26 +120,22 @@ export function MoveDialog({
           ))}
         </div>
 
-        <Button
-          type="button"
-          variant="ghost"
-          className="border border-white/20"
-          onClick={() => setNewFolderOpen(true)}
-        >
-          <FolderPlusIcon size={16} /> 새 폴더
-        </Button>
-
         <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={browsePath} />
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={close}>
-            취소
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={() => setNewFolderOpen(true)}>
+            <FolderPlusIcon size={16} /> 새 폴더
           </Button>
-          <Button type="button" variant="primary" onClick={onMove} disabled={isSubmitting}>
-            {isSubmitting ? '이동 중...' : '이동'}
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" onClick={close}>
+              취소
+            </Button>
+            <Button type="button" variant="primary" onClick={onMove} disabled={isSubmitting}>
+              {isSubmitting ? '이동 중...' : '이동'}
+            </Button>
+          </div>
         </div>
       </div>
     </Dialog>

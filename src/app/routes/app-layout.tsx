@@ -30,7 +30,7 @@ const CATEGORY_ICONS = {
 
 const NAV_LINK_CLASS =
   'flex items-center gap-3 rounded-full px-3 py-2 font-medium transition-colors'
-const NAV_LINK_ACTIVE_CLASS = 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
+const NAV_LINK_ACTIVE_CLASS = 'bg-brand-100 text-brand-700 dark:bg-brand-700 dark:text-white'
 const NAV_LINK_INACTIVE_CLASS =
   'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
 
@@ -61,7 +61,7 @@ export default function AppLayoutRoute() {
       >
         <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
           <img src="/logo.png" alt="ModuDrive" className="size-8" />
-          <span className="font-brand text-2xl font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
+          <span className="font-brand text-[1.6875rem] font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
             ModuDrive
           </span>
         </Link>
@@ -157,7 +157,7 @@ export default function AppLayoutRoute() {
           <StorageUsage />
 
           {/* ponytail: no billing flow yet, button is a placeholder until upgrade tiers exist */}
-          <button className="mb-3 w-full rounded-full border border-violet-600 px-4 py-2 text-sm font-medium text-violet-600 transition-colors hover:bg-violet-50 dark:border-violet-400 dark:text-violet-400 dark:hover:bg-violet-950">
+          <button className="mb-3 w-full rounded-full border border-brand-600 px-4 py-2 text-sm font-medium text-brand-600 transition-colors hover:bg-brand-50 dark:border-brand-400 dark:text-brand-400 dark:hover:bg-brand-950">
             드라이브 업그레이드
           </button>
 

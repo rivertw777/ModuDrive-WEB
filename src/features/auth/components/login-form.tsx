@@ -33,7 +33,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           id="email"
           type="email"
           autoComplete="email"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
           {...register('email')}
         />
         {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
@@ -47,7 +47,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           id="password"
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
           {...register('password')}
         />
         {errors.password && (
