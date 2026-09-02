@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
+import { Button } from '@/components/ui/button'
 import {
   ContextMenu,
   ContextMenuItem,
@@ -26,6 +27,7 @@ import { useFileViewStore } from '@/stores/file-view-store'
 import { EntryIcon } from './entry-icon'
 import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
+import { EmptyTrashConfirmDialog } from './empty-trash-confirm-dialog'
 import { ViewToggle } from './view-toggle'
 
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
@@ -36,6 +38,7 @@ export function TrashExplorer() {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [purgeTargets, setPurgeTargets] = useState<FileEntry[] | null>(null)
+  const [emptyTrashOpen, setEmptyTrashOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -72,8 +75,21 @@ export function TrashExplorer() {
       <div className="flex min-w-0 flex-1 flex-col p-6">
         <div className="flex shrink-0 items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
-          <ViewToggle />
+          <div className="flex items-center gap-2">
+            {files && files.length > 0 && (
+              <Button variant="ghost" onClick={() => setEmptyTrashOpen(true)}>
+                휴지통 비우기
+              </Button>
+            )}
+            <ViewToggle />
+          </div>
         </div>
+
+        {files && files.length > 0 && (
+          <p className="mb-4 shrink-0 rounded-lg bg-slate-100 px-4 py-2.5 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+            휴지통에 있는 항목은 30일 후 자동으로 삭제됩니다.
+          </p>
+        )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
         {actionError && (
@@ -298,6 +314,17 @@ export function TrashExplorer() {
           onPurged={() => {
             const purgedIds = new Set(purgeTargets.map((file) => file.fileId))
             setSelectedFileId((cur) => (cur && purgedIds.has(cur) ? null : cur))
+            setSelected(new Set())
+          }}
+        />
+      )}
+
+      {emptyTrashOpen && (
+        <EmptyTrashConfirmDialog
+          open
+          onClose={() => {
+            setEmptyTrashOpen(false)
+            setSelectedFileId(null)
             setSelected(new Set())
           }}
         />
