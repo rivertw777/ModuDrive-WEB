@@ -111,7 +111,7 @@ export function AddMemberForm({
   return (
     <div className="space-y-4">
       <div className="flex items-stretch gap-2">
-        <div className="flex min-h-[2.875rem] min-w-0 flex-1 flex-wrap content-center items-center gap-1.5 rounded-lg border border-slate-300 p-2 focus-within:border-violet-500 dark:border-slate-600">
+        <div className="flex min-h-[2.875rem] min-w-0 flex-1 flex-wrap content-center items-center gap-1.5 rounded-lg border border-slate-300 p-2 focus-within:border-brand-500 dark:border-slate-600">
           {emails.map((email) => (
             <span
               key={email}

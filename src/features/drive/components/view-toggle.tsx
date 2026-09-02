@@ -24,7 +24,7 @@ export function ViewToggle() {
           className={cn(
             'inline-flex size-9 items-center justify-center rounded-full transition-colors',
             mode === optionMode
-              ? 'bg-violet-100 text-violet-600 dark:bg-violet-950 dark:text-violet-400'
+              ? 'bg-brand-100 text-brand-700 dark:bg-brand-700 dark:text-white'
               : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200',
           )}
         >

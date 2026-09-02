@@ -12,7 +12,7 @@ export function StorageUsage() {
     <div className="px-2 py-4 text-sm">
       <div className="flex items-baseline justify-between">
         <span>
-          <span className="font-semibold text-violet-600 dark:text-violet-400">
+          <span className="font-semibold text-brand-600 dark:text-brand-400">
             {formatFileSize(data.usedBytes)}
           </span>
           <span className="text-slate-400 dark:text-slate-500"> / {formatFileSize(data.quotaBytes)}</span>
@@ -20,7 +20,7 @@ export function StorageUsage() {
         <span className="text-slate-400 dark:text-slate-500">{remainingPercent}% 남음</span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
-        <div className="h-full rounded-full bg-violet-600" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-brand-600" style={{ width: `${percent}%` }} />
       </div>
     </div>
   )

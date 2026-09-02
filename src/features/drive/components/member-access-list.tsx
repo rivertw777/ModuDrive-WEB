@@ -35,7 +35,7 @@ export function MemberAccessList({
   disabled?: boolean
 }) {
   return (
-    <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-violet-100 bg-violet-50/50 dark:border-violet-900/40 dark:bg-violet-950/20">
+    <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
         <div className="min-w-0">
           <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? accessorLabel(ownerId)}</p>
@@ -75,7 +75,7 @@ export function MemberAccessList({
                   value={selectValue}
                   disabled={disabled}
                   onChange={(e) => onChange(share.shareId, e.target.value as PendingChange)}
-                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-violet-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
                     <option key={role} value={role}>

@@ -210,8 +210,8 @@ export function FileList({
                   className={cn(
                     'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
                     (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                      'border-violet-200 bg-violet-50 hover:bg-violet-50 dark:border-violet-900 dark:bg-violet-950 dark:hover:bg-violet-950',
-                    dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
+                      'border-brand-200 bg-brand-50 hover:bg-brand-50 dark:border-brand-700 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                    dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
                   )}
                 >
                   <button
@@ -300,8 +300,8 @@ export function FileList({
                     className={cn(
                       'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
                       (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                        'bg-violet-50 hover:bg-violet-50 dark:bg-violet-950 dark:hover:bg-violet-950',
-                      dragOverId === file.fileId && 'ring-2 ring-inset ring-violet-400',
+                        'bg-brand-50 hover:bg-brand-50 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                      dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
                     )}
                   >
                     <td className="py-2.5 pl-2">

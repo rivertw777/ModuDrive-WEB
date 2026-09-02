@@ -202,7 +202,7 @@ export function MarqueeOverlay({ box }: { box: MarqueeBox | null }) {
   if (!box) return null
   return (
     <div
-      className="pointer-events-none fixed z-40 border border-violet-400 bg-violet-400/10"
+      className="pointer-events-none fixed z-40 border border-brand-400 bg-brand-400/10"
       style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
     />
   )

@@ -73,7 +73,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   const inputClass =
-    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-violet-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100'
+    'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100'
   const labelClass = 'block text-sm font-medium text-slate-700 dark:text-slate-300'
 
   return (
@@ -99,7 +99,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
             {...register('email')}
           />
           {isVerified ? (
-            <span className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-violet-600 dark:text-violet-400">
+            <span className="mt-1 inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-brand-600 dark:text-brand-400">
               <CheckIcon size={16} />
               인증 완료
             </span>

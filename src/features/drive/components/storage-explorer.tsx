@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
-import { DocumentIcon, FilesIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
+import { DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
 import { FILE_CATEGORIES, formatFileSize, type FileCategory } from '../types'
@@ -59,21 +59,48 @@ export function StorageExplorer() {
   }
 
   const legend = FILE_CATEGORIES.map((c) => ({
-    type: c.type,
+    type: c.type as string,
     label: c.label,
     icon: CATEGORY_ICONS[c.type],
     color: CATEGORY_COLORS[c.type],
     bytes: categoryBytes[c.type],
   })).filter((s) => s.bytes > 0)
 
-  let offset = 0
+  // /files/all (which categoryBytes is built from) excludes trashed files, but /files/usage
+  // still counts them against the quota — so the two rarely add up. Rather than leave that
+  // gap as unexplained empty ring, surface it as its own "휴지통 등" slice so the ring always
+  // accounts for 100% of what's actually counted against the quota.
+  const uncategorizedBytes = Math.max(
+    0,
+    usage.usedBytes - legend.reduce((sum, s) => sum + s.bytes, 0),
+  )
+  if (uncategorizedBytes > 0) {
+    legend.push({
+      type: 'UNCATEGORIZED',
+      label: '휴지통 등 기타',
+      icon: TrashIcon,
+      color: { light: '#94a3b8', dark: '#64748b' },
+      bytes: uncategorizedBytes,
+    })
+  }
+  legend.sort((a, b) => b.bytes - a.bytes)
+
+  // Full donut, wedges sized by each category's share of USED space (sums to 100% — the
+  // "휴지통 등 기타" slice above covers the rest) — not a sliver against the whole quota,
+  // which reads as "broken" when usage is a small fraction of a large quota. The overall
+  // quota percentage still shows in the center label below.
+  let offsetPx = 0
   const arcs = legend.map((s) => {
-    const fraction = usage.quotaBytes > 0 ? s.bytes / usage.quotaBytes : 0
-    const len = Math.max(0, fraction * CIRCUMFERENCE - GAP)
-    const dashoffset = -offset * CIRCUMFERENCE
-    offset += fraction
-    return { ...s, len, dashoffset }
+    const fraction = usage.usedBytes > 0 ? s.bytes / usage.usedBytes : 0
+    const rawLen = fraction * CIRCUMFERENCE
+    const len = Math.max(0, rawLen - GAP)
+    const dashoffset = -offsetPx
+    const midAngle = ((offsetPx + rawLen / 2) / CIRCUMFERENCE) * 2 * Math.PI
+    offsetPx += rawLen
+    return { ...s, fraction, len, dashoffset, midAngle }
   })
+  const LABEL_RADIUS = RADIUS
+  const MIN_LABEL_FRACTION = 0.03 // hide labels on slivers too thin to hold text
 
   const percent = usage.quotaBytes > 0 ? Math.round((usage.usedBytes / usage.quotaBytes) * 100) : 0
 
@@ -84,14 +111,6 @@ export function StorageExplorer() {
       <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="shrink-0 -rotate-90">
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            className="stroke-slate-100 dark:stroke-slate-800"
-          />
           {arcs.map((arc) => (
             <circle
               key={arc.type}
@@ -122,6 +141,25 @@ export function StorageExplorer() {
               strokeDashoffset={arc.dashoffset}
             />
           ))}
+          {arcs
+            .filter((arc) => arc.fraction >= MIN_LABEL_FRACTION)
+            .map((arc) => {
+              const x = CENTER + LABEL_RADIUS * Math.cos(arc.midAngle)
+              const y = CENTER + LABEL_RADIUS * Math.sin(arc.midAngle)
+              return (
+                <text
+                  key={`${arc.type}-label`}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  transform={`rotate(90 ${x} ${y})`}
+                  className="fill-white text-xs font-semibold"
+                >
+                  {Math.round(arc.fraction * 100)}%
+                </text>
+              )
+            })}
           <text
             x={CENTER}
             y={CENTER - 6}
@@ -143,7 +181,7 @@ export function StorageExplorer() {
         </svg>
 
         <ul className="flex flex-col gap-2 text-sm">
-          {legend.map((s) => (
+          {arcs.map((s) => (
             <li key={s.type} className="flex items-center gap-2">
               <span className="relative size-2.5 shrink-0 rounded-full">
                 <span className="absolute inset-0 rounded-full dark:hidden" style={{ background: s.color.light }} />
@@ -151,7 +189,9 @@ export function StorageExplorer() {
               </span>
               <s.icon size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
               <span className="text-slate-700 dark:text-slate-300">{s.label}</span>
-              <span className="text-slate-400 dark:text-slate-500">{formatFileSize(s.bytes)}</span>
+              <span className="text-slate-400 dark:text-slate-500">
+                {formatFileSize(s.bytes)} · {Math.round(s.fraction * 100)}%
+              </span>
             </li>
           ))}
         </ul>

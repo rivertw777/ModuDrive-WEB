@@ -23,7 +23,7 @@ export function SortHeader({
       <span
         className={`flex size-5 shrink-0 items-center justify-center rounded-full border leading-none transition-colors ${
           active
-            ? 'border-violet-600 bg-violet-600 text-white dark:border-violet-500 dark:bg-violet-500'
+            ? 'border-brand-600 bg-brand-600 text-white dark:border-brand-500 dark:bg-brand-500'
             : 'border-slate-300 text-slate-400 dark:border-slate-600 dark:text-slate-500'
         }`}
       >

@@ -24,7 +24,7 @@ export function PublicFileView({ token }: { token: string }) {
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-8 py-3 text-slate-100 shadow-sm backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-2">
           {file?.directory ? (
-            <FolderIcon size={26} className="shrink-0 text-violet-400" />
+            <FolderIcon size={26} className="shrink-0 text-brand-400" />
           ) : file && isImageFile(file.name) ? (
             <ImageIcon size={26} className="shrink-0 text-emerald-400" />
           ) : (
