@@ -67,9 +67,9 @@ export function StorageExplorer() {
   })).filter((s) => s.bytes > 0)
 
   // /files/all (which categoryBytes is built from) excludes trashed files, but /files/usage
-  // still counts them against the quota — so the two rarely add up. Rather than leave that
-  // gap as unexplained empty ring, surface it as its own "휴지통 등" slice so the ring always
-  // accounts for 100% of what's actually counted against the quota.
+  // still counts them against the quota — the gap is trashed files (there's no trash-size
+  // API to read it directly). Surface it as a "휴지통" slice, like Google Drive does, so the
+  // ring accounts for 100% of what's counted against the quota.
   const uncategorizedBytes = Math.max(
     0,
     usage.usedBytes - legend.reduce((sum, s) => sum + s.bytes, 0),
@@ -77,7 +77,7 @@ export function StorageExplorer() {
   if (uncategorizedBytes > 0) {
     legend.push({
       type: 'UNCATEGORIZED',
-      label: '휴지통 등 기타',
+      label: '휴지통',
       icon: TrashIcon,
       color: { light: '#94a3b8', dark: '#64748b' },
       bytes: uncategorizedBytes,
@@ -85,13 +85,12 @@ export function StorageExplorer() {
   }
   legend.sort((a, b) => b.bytes - a.bytes)
 
-  // Full donut, wedges sized by each category's share of USED space (sums to 100% — the
-  // "휴지통 등 기타" slice above covers the rest) — not a sliver against the whole quota,
-  // which reads as "broken" when usage is a small fraction of a large quota. The overall
-  // quota percentage still shows in the center label below.
+  // Wedges sized by each category's share of the WHOLE QUOTA — the ring only fills as much
+  // as is actually used, the rest stays empty track (= free space). Categories subdivide
+  // the filled arc.
   let offsetPx = 0
   const arcs = legend.map((s) => {
-    const fraction = usage.usedBytes > 0 ? s.bytes / usage.usedBytes : 0
+    const fraction = usage.quotaBytes > 0 ? s.bytes / usage.quotaBytes : 0
     const rawLen = fraction * CIRCUMFERENCE
     const len = Math.max(0, rawLen - GAP)
     const dashoffset = -offsetPx
@@ -111,6 +110,14 @@ export function StorageExplorer() {
       <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="shrink-0 -rotate-90">
+          <circle
+            cx={CENTER}
+            cy={CENTER}
+            r={RADIUS}
+            fill="none"
+            strokeWidth={STROKE}
+            className="stroke-slate-200 dark:stroke-slate-800"
+          />
           {arcs.map((arc) => (
             <circle
               key={arc.type}
@@ -119,7 +126,7 @@ export function StorageExplorer() {
               r={RADIUS}
               fill="none"
               strokeWidth={STROKE}
-              strokeLinecap="round"
+              strokeLinecap="butt"
               stroke={arc.color.light}
               className="dark:hidden"
               strokeDasharray={`${arc.len} ${CIRCUMFERENCE}`}
@@ -134,7 +141,7 @@ export function StorageExplorer() {
               r={RADIUS}
               fill="none"
               strokeWidth={STROKE}
-              strokeLinecap="round"
+              strokeLinecap="butt"
               stroke={arc.color.dark}
               className="hidden dark:inline"
               strokeDasharray={`${arc.len} ${CIRCUMFERENCE}`}
@@ -183,14 +190,14 @@ export function StorageExplorer() {
         <ul className="flex flex-col gap-2 text-sm">
           {arcs.map((s) => (
             <li key={s.type} className="flex items-center gap-2">
-              <span className="relative size-2.5 shrink-0 rounded-full">
-                <span className="absolute inset-0 rounded-full dark:hidden" style={{ background: s.color.light }} />
-                <span className="absolute inset-0 hidden rounded-full dark:block" style={{ background: s.color.dark }} />
+              <span className="relative size-2.5 shrink-0 rounded-sm">
+                <span className="absolute inset-0 rounded-sm dark:hidden" style={{ background: s.color.light }} />
+                <span className="absolute inset-0 hidden rounded-sm dark:block" style={{ background: s.color.dark }} />
               </span>
               <s.icon size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
               <span className="text-slate-700 dark:text-slate-300">{s.label}</span>
               <span className="text-slate-400 dark:text-slate-500">
-                {formatFileSize(s.bytes)} · {Math.round(s.fraction * 100)}%
+                {Math.round(s.fraction * 100)}% ({formatFileSize(s.bytes)})
               </span>
             </li>
           ))}
