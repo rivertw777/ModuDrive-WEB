@@ -4,6 +4,7 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { FolderIcon } from '@/components/ui/icons'
 import { useDirectoryListing } from '../api/list-directory'
 import { useFileUpload } from '../hooks/use-file-upload'
+import { useFileDeeplink } from '../hooks/use-file-deeplink'
 import type { FileEntry, SortDir, SortField } from '../types'
 import { Toolbar } from './toolbar'
 import { FileList } from './file-list'
@@ -20,7 +21,8 @@ export function DriveExplorer({ path }: { path: string }) {
   const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
     useFileUpload(path)
 
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  // `?file=<id>` deep link — a "위치" link lands here with the file pre-selected.
+  const { selectedFileId, setSelectedFileId, clearSelection } = useFileDeeplink()
   const [newFolderOpen, setNewFolderOpen] = useState(false)
 
   const files = query.data?.pages.flatMap((page) => page.content) ?? []
@@ -33,7 +35,7 @@ export function DriveExplorer({ path }: { path: string }) {
     )
 
   const onNavigate = (nextPath: string) => {
-    setSelectedFileId(null)
+    clearSelection()
     navigate(`/drive${nextPath === '/' ? '' : nextPath}`)
   }
 
@@ -67,7 +69,7 @@ export function DriveExplorer({ path }: { path: string }) {
                 onFileDeleted={(fileId) =>
                   setSelectedFileId((cur) => (cur === fileId ? null : cur))
                 }
-                onClearSelection={() => setSelectedFileId(null)}
+                onClearSelection={clearSelection}
                 emptyLabel="저장된 파일이 없습니다"
                 emptyIcon={FolderIcon}
                 serverPagination={{
@@ -87,7 +89,7 @@ export function DriveExplorer({ path }: { path: string }) {
       </div>
 
       {selectedFileId && (
-        <FileDetailPanel fileId={selectedFileId} onClose={() => setSelectedFileId(null)} />
+        <FileDetailPanel fileId={selectedFileId} onClose={clearSelection} />
       )}
 
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={path} />

@@ -27,6 +27,12 @@ export type FileEntry = {
   /** Server-computed from the name (mirrors backend FileCategory.of()) — meaningless for directories. */
   category: FileCategory
   updatedAt: string | null
+  /** Only populated by GET /api/v1/files/shared-with-me: who shared the file (null if the
+   * backend could not resolve them), the caller's role on it, and when it was shared. */
+  sharedByName?: string | null
+  sharedByEmail?: string | null
+  role?: Role
+  sharedAt?: string | null
 }
 
 export type FileShare = {

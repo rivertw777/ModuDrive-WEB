@@ -20,6 +20,9 @@ export function useRenameFile() {
       queryClient.invalidateQueries({ queryKey: ['files'] })
       queryClient.invalidateQueries({ queryKey: ['search'] })
       queryClient.invalidateQueries({ queryKey: ['favorites'] })
+      // 공유 문서함 / 공유 폴더 안 — a folder EDITOR renames from here
+      queryClient.invalidateQueries({ queryKey: ['shared-with-me'] })
+      queryClient.invalidateQueries({ queryKey: ['shared-directory'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
     },
   })

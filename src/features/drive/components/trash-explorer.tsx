@@ -23,6 +23,7 @@ import {
 } from '../types'
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
 import { useWindowedList } from '../hooks/use-windowed-list'
+import { useFileDeeplink } from '../hooks/use-file-deeplink'
 import { runBatch } from '@/utils/run-batch'
 import { useFileViewStore } from '@/stores/file-view-store'
 import { EntryIcon } from './entry-icon'
@@ -36,7 +37,8 @@ type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
 export function TrashExplorer() {
   const navigate = useNavigate()
   const { data: files, isLoading, isError } = useTrash()
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
+  // `?file=<id>` deep link — a "위치" link from 저장용량 lands here with the file's detail open.
+  const { selectedFileId, setSelectedFileId, clearSelection } = useFileDeeplink()
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [purgeTargets, setPurgeTargets] = useState<FileEntry[] | null>(null)
   const [emptyTrashOpen, setEmptyTrashOpen] = useState(false)
@@ -68,7 +70,7 @@ export function TrashExplorer() {
   const { selected, setSelected, box, onRowMouseDown, onContainerMouseDown } = useRowSelection(
     containerRef,
     shown.map((file) => file.fileId),
-    () => setSelectedFileId(null),
+    clearSelection,
   )
   const selectedFiles = shown.filter((file) => selected.has(file.fileId))
 
@@ -261,7 +263,7 @@ export function TrashExplorer() {
       </div>
 
       {selectedFile && (
-        <TrashDetailPanel file={selectedFile} onClose={() => setSelectedFileId(null)} />
+        <TrashDetailPanel file={selectedFile} onClose={clearSelection} />
       )}
 
       {menu && !menu.batch && (

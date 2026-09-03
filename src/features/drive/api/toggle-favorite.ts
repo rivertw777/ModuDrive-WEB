@@ -20,6 +20,9 @@ export function useToggleFavorite() {
       // recent / category / all + search results also render the star
       queryClient.invalidateQueries({ queryKey: ['files'] })
       queryClient.invalidateQueries({ queryKey: ['search'] })
+      // 공유 문서함 rows carry a per-user star too
+      queryClient.invalidateQueries({ queryKey: ['shared-with-me'] })
+      queryClient.invalidateQueries({ queryKey: ['shared-directory'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
     },
   })

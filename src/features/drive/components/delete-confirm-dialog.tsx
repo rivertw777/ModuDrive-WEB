@@ -1,8 +1,12 @@
 import { useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { runBatch } from '@/utils/run-batch'
 import { useDeleteFile } from '../api/delete-file'
+import { listFileShares } from '../api/list-file-shares'
+
+type Target = { fileId: string; name: string; directory?: boolean }
 
 export function DeleteConfirmDialog({
   open,
@@ -12,12 +16,29 @@ export function DeleteConfirmDialog({
 }: {
   open: boolean
   onClose: () => void
-  files: { fileId: string; name: string }[]
+  files: Target[]
   onDeleted: () => void
 }) {
   const deleteFile = useDeleteFile()
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Which targets are currently shared — directly, inherited from a parent folder, or reachable
+  // through a parent that's an "anyone with the link" folder. Trashing revokes that access for
+  // everyone until the owner restores it, so it's worth a heads-up before confirming.
+  const shareQueries = useQueries({
+    queries: files.map((file) => ({
+      queryKey: ['file-shares', file.fileId],
+      queryFn: () => listFileShares(file.fileId),
+      enabled: open,
+    })),
+  })
+  const sharedNames = files
+    .filter((_, i) => {
+      const data = shareQueries[i]?.data
+      return !!data && (data.shares.length > 0 || data.inheritedLinks.length > 0)
+    })
+    .map((file) => file.name)
 
   const onConfirm = async () => {
     setError(null)
@@ -33,8 +54,10 @@ export function DeleteConfirmDialog({
     onClose()
   }
 
+  const onlyFolders = files.length > 0 && files.every((file) => file.directory)
+
   return (
-    <Dialog open={open} onClose={onClose} title="파일 삭제">
+    <Dialog open={open} onClose={onClose} title="휴지통으로 이동">
       <p className="text-sm text-slate-600 dark:text-slate-400">
         {files.length === 1 ? (
           <>
@@ -50,8 +73,22 @@ export function DeleteConfirmDialog({
             을
           </>
         )}{' '}
-        삭제할까요? 이 작업은 되돌릴 수 없습니다.
+        휴지통으로 옮길까요? 휴지통에서 복원할 수 있습니다.
       </p>
+
+      {sharedNames.length > 0 && (
+        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+          {sharedNames.length === files.length ? (
+            <>현재 공유 중{onlyFolders ? '인 폴더입니다.' : '입니다.'}</>
+          ) : (
+            <>
+              <span className="font-medium">{sharedNames.join(', ')}</span> 은(는) 현재 공유 중입니다.
+            </>
+          )}{' '}
+          휴지통으로 옮기면{onlyFolders ? ' 하위 항목을 포함해' : ''} 공유된 사용자는 접근할 수
+          없게 되며, 복원하면 다시 접근할 수 있습니다.
+        </div>
+      )}
 
       {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
@@ -65,7 +102,7 @@ export function DeleteConfirmDialog({
           disabled={isSubmitting}
           className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
         >
-          {isSubmitting ? '삭제 중...' : '삭제'}
+          {isSubmitting ? '이동 중...' : '휴지통으로 이동'}
         </Button>
       </div>
     </Dialog>
