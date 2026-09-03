@@ -3,6 +3,7 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { ChevronRightIcon, UsersIcon } from '@/components/ui/icons'
 import { useSharedWithMe } from '../api/list-shared-with-me'
 import { useSharedDirectory } from '../api/list-shared-directory'
+import { useFileDeeplink } from '../hooks/use-file-deeplink'
 import { joinPath, type FileEntry } from '../types'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
@@ -11,8 +12,9 @@ import { ViewToggle } from './view-toggle'
 type Crumb = { fileId: string; name: string }
 
 export function SharedWithMeExplorer() {
+  // `?file=<id>` deep link — a notification or a "위치" link lands here with the file pre-selected.
+  const { selectedFileId, setSelectedFileId, clearSelection } = useFileDeeplink()
   const [trail, setTrail] = useState<Crumb[]>([])
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
 
   const current: Crumb | null = trail[trail.length - 1] ?? null
   const root = useSharedWithMe()
@@ -27,13 +29,13 @@ export function SharedWithMeExplorer() {
       (f) => f.directory && joinPath(f.path, f.name) === targetPath,
     )
     if (entry) {
-      setSelectedFileId(null)
+      clearSelection()
       setTrail((t) => [...t, { fileId: entry.fileId, name: entry.name }])
     }
   }
 
   const goToDepth = (depth: number) => {
-    setSelectedFileId(null)
+    clearSelection()
     setTrail((t) => t.slice(0, depth))
   }
 
@@ -84,8 +86,9 @@ export function SharedWithMeExplorer() {
               onNavigate={onNavigate}
               onSelect={onSelect}
               onFileDeleted={(fileId) => setSelectedFileId((cur) => (cur === fileId ? null : cur))}
-              onClearSelection={() => setSelectedFileId(null)}
+              onClearSelection={clearSelection}
               navigable
+              showSharedBy={!current}
               emptyLabel={current ? '이 폴더는 비어 있습니다' : '아직 공유받은 파일이 없습니다'}
               emptyIcon={UsersIcon}
             />
@@ -93,9 +96,7 @@ export function SharedWithMeExplorer() {
         </div>
       </div>
 
-      {selectedFileId && (
-        <FileDetailPanel fileId={selectedFileId} onClose={() => setSelectedFileId(null)} />
-      )}
+      {selectedFileId && <FileDetailPanel fileId={selectedFileId} onClose={clearSelection} />}
     </div>
   )
 }

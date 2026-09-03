@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCurrentMember } from '@/features/auth'
 import { EmptyState, type EmptyStateIcon } from '@/components/ui/state'
 import {
   ContextMenu,
@@ -18,6 +20,7 @@ import {
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import { useFileViewStore } from '@/stores/file-view-store'
+import { ROLE_LABELS } from './role-select'
 import {
   formatDate,
   formatFileSize,
@@ -69,6 +72,7 @@ export function FileList({
   onClearSelection,
   navigable = true,
   showLocation = false,
+  showSharedBy = false,
   emptyLabel = '이 폴더는 비어 있습니다',
   emptyIcon,
   preserveOrder = false,
@@ -82,6 +86,7 @@ export function FileList({
   onClearSelection?: () => void
   navigable?: boolean
   showLocation?: boolean
+  showSharedBy?: boolean
   emptyLabel?: string
   emptyIcon?: EmptyStateIcon
   preserveOrder?: boolean
@@ -100,6 +105,27 @@ export function FileList({
   const toggleFavorite = useToggleFavorite()
   const moveFile = useMoveFile()
   const containerRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const { data: me } = useCurrentMember()
+
+  // In recent / favorites, a file the viewer doesn't own lives in 공유 문서함, not their drive.
+  // While `me` is still loading we can't confirm ownership, so treat the file as shared for
+  // action-gating (hide owner-only menu items rather than 403 on click) but keep the real path
+  // as the location label until we know.
+  const isSharedFile = (file: FileEntry) => file.ownerId !== me?.id
+  const locationText = (file: FileEntry) =>
+    me && isSharedFile(file) ? '공유 문서함' : locationLabel(file.path)
+  const openLocation = (file: FileEntry, event: React.MouseEvent) => {
+    event.stopPropagation()
+    // Land in the right box with this file's detail panel open (?file= deep link), rather than
+    // just changing folders and closing the panel.
+    const fileParam = `?file=${encodeURIComponent(file.fileId)}`
+    if (isSharedFile(file)) {
+      navigate(`/shared${fileParam}`)
+    } else {
+      navigate(`/drive${file.path === '/' ? '' : file.path}${fileParam}`)
+    }
+  }
 
   const toggleSort = (field: SortField) => {
     if (serverPagination) {
@@ -282,13 +308,10 @@ export function FileList({
                   {showLocation && (
                     <button
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onNavigate(file.path)
-                      }}
+                      onClick={(event) => openLocation(file, event)}
                       className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
                     >
-                      {locationLabel(file.path)}
+                      {locationText(file)}
                     </button>
                   )}
                 </div>
@@ -308,22 +331,33 @@ export function FileList({
                       onClick={() => toggleSort('name')}
                     />
                   </th>
-                  <th className="w-28 px-3 py-2 font-medium">
-                    <SortHeader
-                      label="크기"
-                      active={sortField === 'size'}
-                      dir={sortField === 'size' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('size')}
-                    />
-                  </th>
-                  <th className="w-44 px-3 py-2 font-medium">
-                    <SortHeader
-                      label="수정한 날짜"
-                      active={sortField === 'date'}
-                      dir={sortField === 'date' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('date')}
-                    />
-                  </th>
+                  {showSharedBy ? (
+                    <>
+                      <th className="w-48 px-3 py-2 font-medium">공유한 사용자</th>
+                      <th className="w-20 px-3 py-2 font-medium">권한</th>
+                      <th className="w-44 px-3 py-2 font-medium">공유된 날짜</th>
+                      <th className="w-28 px-3 py-2 font-medium">크기</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="w-28 px-3 py-2 font-medium">
+                        <SortHeader
+                          label="크기"
+                          active={sortField === 'size'}
+                          dir={sortField === 'size' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('size')}
+                        />
+                      </th>
+                      <th className="w-44 px-3 py-2 font-medium">
+                        <SortHeader
+                          label="수정한 날짜"
+                          active={sortField === 'date'}
+                          dir={sortField === 'date' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('date')}
+                        />
+                      </th>
+                    </>
+                  )}
                   {showLocation && <th className="w-32 py-2 pr-4 pl-3 font-medium">위치</th>}
                   <th className="w-14 py-2" />
                 </tr>
@@ -360,23 +394,43 @@ export function FileList({
                       <EntryIcon name={file.name} category={file.category} directory={file.directory} />
                     </td>
                     <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
-                    <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                      {file.directory ? '-' : formatFileSize(file.fileSize)}
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                      {formatDate(file.updatedAt)}
-                    </td>
+                    {showSharedBy ? (
+                      <>
+                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                          <SharedByCell file={file} />
+                        </td>
+                        <td className="px-3 py-2.5">
+                          {file.role && (
+                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-300">
+                              {ROLE_LABELS[file.role]}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                          {formatDate(file.sharedAt ?? null)}
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                          {file.directory ? '-' : formatFileSize(file.fileSize)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                          {file.directory ? '-' : formatFileSize(file.fileSize)}
+                        </td>
+                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
+                          {formatDate(file.updatedAt)}
+                        </td>
+                      </>
+                    )}
                     {showLocation && (
                       <td className="py-2.5 pr-4 pl-3">
                         <button
                           type="button"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            onNavigate(file.path)
-                          }}
+                          onClick={(event) => openLocation(file, event)}
                           className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                         >
-                          {locationLabel(file.path)}
+                          {locationText(file)}
                         </button>
                       </td>
                     )}
@@ -427,30 +481,37 @@ export function FileList({
               <DownloadIcon size={16} /> 다운로드
             </ContextMenuItem>
           )}
-          <ContextMenuItem
-            onClick={() => {
-              setDialog({ type: 'rename', files: [menu.file] })
-              setMenu(null)
-            }}
-          >
-            <PencilIcon size={16} /> 이름 바꾸기
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => {
-              setDialog({ type: 'move', files: [menu.file] })
-              setMenu(null)
-            }}
-          >
-            <MoveIcon size={16} /> 이동
-          </ContextMenuItem>
-          <ContextMenuItem
-            onClick={() => {
-              setDialog({ type: 'share', files: [menu.file] })
-              setMenu(null)
-            }}
-          >
-            <ShareIcon size={16} /> 공유
-          </ContextMenuItem>
+          {/* A file the viewer doesn't own: rename needs EDITOR, move / share / trash are off. */}
+          {(!isSharedFile(menu.file) || menu.file.role === 'EDITOR') && (
+            <ContextMenuItem
+              onClick={() => {
+                setDialog({ type: 'rename', files: [menu.file] })
+                setMenu(null)
+              }}
+            >
+              <PencilIcon size={16} /> 이름 바꾸기
+            </ContextMenuItem>
+          )}
+          {!isSharedFile(menu.file) && (
+            <ContextMenuItem
+              onClick={() => {
+                setDialog({ type: 'move', files: [menu.file] })
+                setMenu(null)
+              }}
+            >
+              <MoveIcon size={16} /> 이동
+            </ContextMenuItem>
+          )}
+          {!isSharedFile(menu.file) && (
+            <ContextMenuItem
+              onClick={() => {
+                setDialog({ type: 'share', files: [menu.file] })
+                setMenu(null)
+              }}
+            >
+              <ShareIcon size={16} /> 공유
+            </ContextMenuItem>
+          )}
           <ContextMenuItem
             onClick={() => {
               toggleFavorite.mutate({ fileId: menu.file.fileId, favorite: !menu.file.favorite })
@@ -459,15 +520,17 @@ export function FileList({
           >
             <StarIcon size={16} /> {menu.file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
           </ContextMenuItem>
-          <ContextMenuItem
-            danger
-            onClick={() => {
-              setDialog({ type: 'delete', files: [menu.file] })
-              setMenu(null)
-            }}
-          >
-            <TrashIcon size={16} /> 휴지통으로 이동
-          </ContextMenuItem>
+          {!isSharedFile(menu.file) && (
+            <ContextMenuItem
+              danger
+              onClick={() => {
+                setDialog({ type: 'delete', files: [menu.file] })
+                setMenu(null)
+              }}
+            >
+              <TrashIcon size={16} /> 휴지통으로 이동
+            </ContextMenuItem>
+          )}
         </ContextMenu>
       )}
 
@@ -485,14 +548,16 @@ export function FileList({
               <DownloadIcon size={16} /> 다운로드
             </ContextMenuItem>
           )}
-          <ContextMenuItem
-            onClick={() => {
-              setDialog({ type: 'move', files: selectedFiles })
-              setMenu(null)
-            }}
-          >
-            <MoveIcon size={16} /> 이동 ({selectedFiles.length}개)
-          </ContextMenuItem>
+          {!selectedFiles.some(isSharedFile) && (
+            <ContextMenuItem
+              onClick={() => {
+                setDialog({ type: 'move', files: selectedFiles })
+                setMenu(null)
+              }}
+            >
+              <MoveIcon size={16} /> 이동 ({selectedFiles.length}개)
+            </ContextMenuItem>
+          )}
           {selectedFiles.some((file) => !file.favorite) && (
             <ContextMenuItem
               onClick={async () => {
@@ -525,15 +590,17 @@ export function FileList({
               <StarIcon size={16} /> 즐겨찾기 해제
             </ContextMenuItem>
           )}
-          <ContextMenuItem
-            danger
-            onClick={() => {
-              setDialog({ type: 'delete', files: selectedFiles })
-              setMenu(null)
-            }}
-          >
-            <TrashIcon size={16} /> 휴지통으로 이동 ({selectedFiles.length}개)
-          </ContextMenuItem>
+          {!selectedFiles.some(isSharedFile) && (
+            <ContextMenuItem
+              danger
+              onClick={() => {
+                setDialog({ type: 'delete', files: selectedFiles })
+                setMenu(null)
+              }}
+            >
+              <TrashIcon size={16} /> 휴지통으로 이동 ({selectedFiles.length}개)
+            </ContextMenuItem>
+          )}
         </ContextMenu>
       )}
 
@@ -575,8 +642,18 @@ export function FileList({
           fileId={viewerFile.fileId}
           fileName={viewerFile.name}
           fileSize={viewerFile.fileSize}
+          canShare={!isSharedFile(viewerFile)}
         />
       )}
     </>
+  )
+}
+
+/** "공유한 사용자" cell for the shared-with-me list: sharer email (name only if email is unknown). */
+function SharedByCell({ file }: { file: FileEntry }) {
+  return (
+    <span className="block truncate text-slate-600 dark:text-slate-300">
+      {file.sharedByEmail ?? file.sharedByName ?? '알 수 없음'}
+    </span>
   )
 }

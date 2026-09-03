@@ -17,6 +17,7 @@ import {
   VideoIcon,
 } from '@/components/ui/icons'
 import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
+import { NotificationBell } from '@/features/notifications'
 import { cn } from '@/utils/cn'
 import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
 
@@ -191,6 +192,9 @@ export default function AppLayoutRoute() {
       <div className="flex flex-1 flex-col">
         <header className="flex items-center gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
           <SearchBar />
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
         {/* min-h-0 overrides the flex default of "shrink no smaller than content" so this
             pane actually clips at the viewport edge — each route then owns its own internal

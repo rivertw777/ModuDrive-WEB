@@ -29,7 +29,7 @@ Structure follows the **bulletproof-react** convention:
 ```
 src/
   app/
-    routes/          # landing, login, signup, app-layout (drive shell), drive, search, shared, not-found
+    routes/          # landing, login, signup, app-layout (drive shell), drive, search, shared, notifications, not-found
     provider.tsx     # global providers (QueryClientProvider, ReactQueryDevtools in dev)
     router.tsx       # createBrowserRouter
   components/ui/     # shared UI primitives (button, dialog, icons, state, theme-toggle)
@@ -38,6 +38,7 @@ src/
   features/
     auth/            # login/signup forms, current-member query
     drive/            # file explorer, upload, search, sharing — the app's core feature
+    notifications/    # in-app notification bell (header) + /notifications page, polls unread count
   lib/
     api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
@@ -68,7 +69,7 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
   - Response interceptor unwraps `response.data.data` — callers receive the unwrapped payload directly, not the `ApiResponse` envelope.
   - On a 401 response, the stored access token is cleared.
   - All rejected promises are normalized to `Error(message)` using the backend's `message` field when present.
-- `notification-service` has no controllers yet (application class only) — treat any notification-related screen as backend-not-ready.
+- `notification-service` is live: `GET /api/v1/notifications` (Spring `Page`, `unreadOnly`/`page`/`size` params), `PATCH /api/v1/notifications/{id}/read`. No count endpoint (ask for `unreadOnly=true&size=1` and read `totalElements`) and no SSE/websocket — the bell polls. Rows are produced only on a file share to a registered member; `sharerName`/`sharerEmail` may be null (backend best-effort).
 - There is no "list deleted files" endpoint (soft delete only sets a DELETED status, no filtered-list API) — a trash/bin screen isn't buildable until the backend adds one.
 
 ## State management

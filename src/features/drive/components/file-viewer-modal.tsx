@@ -19,12 +19,15 @@ export function FileViewerModal({
   fileId,
   fileName,
   fileSize,
+  canShare = true,
 }: {
   open: boolean
   onClose: () => void
   fileId: string
   fileName: string
   fileSize: number | null
+  /** Off for shared-with-me files — the viewer isn't the owner. */
+  canShare?: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -68,14 +71,16 @@ export function FileViewerModal({
             >
               <DownloadIcon size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-500"
-            >
-              <ShareIcon size={16} />
-              공유
-            </button>
+            {canShare && (
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-500"
+              >
+                <ShareIcon size={16} />
+                공유
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -107,12 +112,14 @@ export function FileViewerModal({
           )}
         </div>
       </div>
-      <ShareModal
-        open={shareOpen}
-        onClose={() => setShareOpen(false)}
-        fileId={fileId}
-        fileName={fileName}
-      />
+      {canShare && (
+        <ShareModal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          fileId={fileId}
+          fileName={fileName}
+        />
+      )}
     </dialog>
   )
 }
