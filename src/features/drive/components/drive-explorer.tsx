@@ -44,19 +44,17 @@ export function DriveExplorer({ path }: { path: string }) {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="shrink-0">
-          <Toolbar
-            path={path}
-            onNewFolder={() => setNewFolderOpen(true)}
-            onFilesSelected={onFilesSelected}
-          />
+        <Toolbar
+          path={path}
+          onNewFolder={() => setNewFolderOpen(true)}
+          onFilesSelected={onFilesSelected}
+        />
 
-          {uploadError && (
-            <p className="mt-2 text-sm text-red-600 dark:text-red-400">{uploadError}</p>
-          )}
-        </div>
+        {uploadError && (
+          <p className="mb-2 shrink-0 text-sm text-red-600 dark:text-red-400">{uploadError}</p>
+        )}
 
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {query.isLoading && <LoadingState />}
           {query.isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
           {query.data && (

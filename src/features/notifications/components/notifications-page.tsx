@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useInfiniteScrollRef } from '@/hooks/use-windowed-list'
 import { BellIcon } from '@/components/ui/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
+import { PageHeader } from '@/components/ui/page-header'
 import { useNotifications } from '../api/list-notifications'
 import { useOpenNotification } from '../hooks/use-open-notification'
 import { NotificationItem } from './notification-item'
@@ -22,8 +23,7 @@ export function NotificationsPage() {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">알림</h1>
+        <PageHeader title="알림">
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
             <input
               type="checkbox"
@@ -33,7 +33,7 @@ export function NotificationsPage() {
             />
             안 읽은 알림만
           </label>
-        </div>
+        </PageHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
