@@ -22,6 +22,7 @@ import {
   type SortField,
 } from '../types'
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
+import { useWindowedList } from '../hooks/use-windowed-list'
 import { runBatch } from '@/utils/run-batch'
 import { useFileViewStore } from '@/stores/file-view-store'
 import { EntryIcon } from './entry-icon'
@@ -57,12 +58,19 @@ export function TrashExplorer() {
 
   const selectedFile = files?.find((file) => file.fileId === selectedFileId) ?? null
   const sorted = files ? sortFiles(files, sortField, sortDir) : []
+  const {
+    visible: shown,
+    hasMore,
+    sentinelRef,
+  } = useWindowedList(sorted, `${sortField}:${sortDir}`)
+  // Selection domain must match what's rendered — a batch permanent-delete resolves this list,
+  // so it must never contain rows the user can't see (keyboard nav past the window).
   const { selected, setSelected, box, onRowMouseDown, onContainerMouseDown } = useRowSelection(
     containerRef,
-    sorted.map((file) => file.fileId),
+    shown.map((file) => file.fileId),
     () => setSelectedFileId(null),
   )
-  const selectedFiles = sorted.filter((file) => selected.has(file.fileId))
+  const selectedFiles = shown.filter((file) => selected.has(file.fileId))
 
   const openMenu = (file: FileEntry, x: number, y: number) => {
     const batch = selected.has(file.fileId) && selected.size > 1
@@ -75,20 +83,18 @@ export function TrashExplorer() {
       <div className="flex min-w-0 flex-1 flex-col p-6">
         <div className="flex shrink-0 items-center justify-between pb-4">
           <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
-          <div className="flex items-center gap-2">
-            {files && files.length > 0 && (
-              <Button variant="ghost" onClick={() => setEmptyTrashOpen(true)}>
-                휴지통 비우기
-              </Button>
-            )}
-            <ViewToggle />
-          </div>
+          <ViewToggle />
         </div>
 
         {files && files.length > 0 && (
-          <p className="mb-4 shrink-0 rounded-lg bg-slate-100 px-4 py-2.5 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-            휴지통에 있는 항목은 30일 후 자동으로 삭제됩니다.
-          </p>
+          <div className="mb-4 flex shrink-0 items-center justify-between gap-2 rounded-lg bg-slate-100 py-1.5 pr-2 pl-4 dark:bg-slate-800">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              휴지통에 있는 항목은 30일 후 자동으로 삭제됩니다.
+            </p>
+            <Button variant="ghost" onClick={() => setEmptyTrashOpen(true)}>
+              휴지통 비우기
+            </Button>
+          </div>
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -110,7 +116,7 @@ export function TrashExplorer() {
             <MarqueeOverlay box={box} />
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {sorted.map((file) => (
+                {shown.map((file) => (
                   <div
                     key={file.fileId}
                     data-row-id={file.fileId}
@@ -190,7 +196,7 @@ export function TrashExplorer() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((file) => (
+                {shown.map((file) => (
                   <tr
                     key={file.fileId}
                     data-row-id={file.fileId}
@@ -248,6 +254,7 @@ export function TrashExplorer() {
               </tbody>
             </table>
             )}
+            {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
           </div>
         )}
         </div>
