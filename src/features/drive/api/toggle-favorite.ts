@@ -17,6 +17,9 @@ export function useToggleFavorite() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
       queryClient.invalidateQueries({ queryKey: ['favorites'] })
+      // recent / category / all + search results also render the star
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+      queryClient.invalidateQueries({ queryKey: ['search'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
     },
   })
