@@ -9,7 +9,7 @@ export default function LandingRoute() {
       </div>
       <div className="flex flex-col items-center text-center">
         <img src="/logo.png" alt="ModuDrive" className="size-14" />
-        <h1 className="font-brand mt-6 text-5xl font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
+        <h1 className="font-brand mt-6 text-5xl font-bold text-[#1C3D5A] dark:text-[#F5F3EE]">
           ModuDrive
         </h1>
         <p className="mt-2 max-w-sm text-sm text-slate-500 dark:text-slate-400">
