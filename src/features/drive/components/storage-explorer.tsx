@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useThemeStore } from '@/stores/theme-store'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
 import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
@@ -9,28 +10,22 @@ import { useTrash } from '../api/list-trash'
 import { FILE_CATEGORIES, formatFileSize, locationLabel, type FileCategory, type FileEntry } from '../types'
 import { EntryIcon } from './entry-icon'
 
-// Fixed categorical order/colors, validated for CVD-safe adjacency (dataviz skill).
+// Tailwind palette hues — cohesive, CVD-safe adjacency, one light/dark pair each.
 const CATEGORY_COLORS: Record<FileCategory, { light: string; dark: string }> = {
-  IMAGE: { light: '#2a78d6', dark: '#3987e5' },
-  VIDEO: { light: '#eb6834', dark: '#d95926' },
-  DOCUMENT: { light: '#1baf7a', dark: '#199e70' },
-  AUDIO: { light: '#eda100', dark: '#c98500' },
-  OTHER: { light: '#e87ba4', dark: '#d55181' },
+  IMAGE: { light: '#0ea5e9', dark: '#38bdf8' }, // sky
+  DOCUMENT: { light: '#10b981', dark: '#34d399' }, // emerald
+  VIDEO: { light: '#8b5cf6', dark: '#a78bfa' }, // violet
+  AUDIO: { light: '#f59e0b', dark: '#fbbf24' }, // amber
+  OTHER: { light: '#f43f5e', dark: '#fb7185' }, // rose
 }
 const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: DocumentIcon, AUDIO: MusicIcon, OTHER: FilesIcon } as const
-
-const RADIUS = 110
-const STROKE = 32
-const SIZE = (RADIUS + STROKE) * 2
-const CENTER = SIZE / 2
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-const GAP = 2 // px, matches dataviz mark spec (surface gap between adjacent segments)
 
 type SortField = 'name' | 'size'
 type SortDir = 'asc' | 'desc'
 
 export function StorageExplorer() {
   const navigate = useNavigate()
+  const theme = useThemeStore((s) => s.theme)
   const { data: usage, isLoading: usageLoading, isError: usageError } = useStorageUsage()
   const { data: entries, isLoading: filesLoading, isError: filesError } = useAllFiles()
   // Trash is secondary data on this page — if the endpoint is down, still show the donut + table
@@ -112,21 +107,13 @@ export function StorageExplorer() {
   }
   legend.sort((a, b) => b.bytes - a.bytes)
 
-  // Wedges sized by each category's share of the WHOLE QUOTA — the ring only fills as much
-  // as is actually used, the rest stays empty track (= free space). Categories subdivide
-  // the filled arc.
-  let offsetPx = 0
-  const arcs = legend.map((s) => {
-    const fraction = usage.quotaBytes > 0 ? s.bytes / usage.quotaBytes : 0
-    const rawLen = fraction * CIRCUMFERENCE
-    const len = Math.max(0, rawLen - GAP)
-    const dashoffset = -offsetPx
-    const midAngle = ((offsetPx + rawLen / 2) / CIRCUMFERENCE) * 2 * Math.PI
-    offsetPx += rawLen
-    return { ...s, fraction, len, dashoffset, midAngle }
-  })
-  const LABEL_RADIUS = RADIUS
-  const MIN_LABEL_FRACTION = 0.03 // hide labels on slivers too thin to hold text
+  // Meter segments are each category's share of the WHOLE quota, so the coloured strip only
+  // fills as far as storage is actually used — the grey remainder is free space.
+  const slices = legend.map((s) => ({
+    ...s,
+    quotaShare: usage.quotaBytes > 0 ? s.bytes / usage.quotaBytes : 0,
+    fill: theme === 'dark' ? s.color.dark : s.color.light,
+  }))
 
   const percent = usage.quotaBytes > 0 ? Math.round((usage.usedBytes / usage.quotaBytes) * 100) : 0
 
@@ -137,105 +124,40 @@ export function StorageExplorer() {
       {tableFiles.length === 0 ? (
         <EmptyState label="저장된 파일이 없습니다" icon={CloudIcon} />
       ) : (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center">
-        <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="shrink-0 -rotate-90">
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={RADIUS}
-            fill="none"
-            strokeWidth={STROKE}
-            className="stroke-slate-200 dark:stroke-slate-800"
-          />
-          {arcs.map((arc) => (
-            <circle
-              key={arc.type}
-              cx={CENTER}
-              cy={CENTER}
-              r={RADIUS}
-              fill="none"
-              strokeWidth={STROKE}
-              strokeLinecap="butt"
-              stroke={arc.color.light}
-              className="dark:hidden"
-              strokeDasharray={`${arc.len} ${CIRCUMFERENCE}`}
-              strokeDashoffset={arc.dashoffset}
-            />
-          ))}
-          {arcs.map((arc) => (
-            <circle
-              key={`${arc.type}-dark`}
-              cx={CENTER}
-              cy={CENTER}
-              r={RADIUS}
-              fill="none"
-              strokeWidth={STROKE}
-              strokeLinecap="butt"
-              stroke={arc.color.dark}
-              className="hidden dark:inline"
-              strokeDasharray={`${arc.len} ${CIRCUMFERENCE}`}
-              strokeDashoffset={arc.dashoffset}
-            />
-          ))}
-          {arcs
-            .filter((arc) => arc.fraction >= MIN_LABEL_FRACTION)
-            .map((arc) => {
-              const x = CENTER + LABEL_RADIUS * Math.cos(arc.midAngle)
-              const y = CENTER + LABEL_RADIUS * Math.sin(arc.midAngle)
-              return (
-                <text
-                  key={`${arc.type}-label`}
-                  x={x}
-                  y={y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  transform={`rotate(90 ${x} ${y})`}
-                  className="fill-white text-xs font-semibold"
-                >
-                  {Math.round(arc.fraction * 100)}%
-                </text>
-              )
-            })}
-          <text
-            x={CENTER}
-            y={CENTER - 6}
-            textAnchor="middle"
-            transform={`rotate(90 ${CENTER} ${CENTER})`}
-            className="fill-slate-900 text-3xl font-semibold dark:fill-slate-100"
-          >
-            {percent}%
-          </text>
-          <text
-            x={CENTER}
-            y={CENTER + 20}
-            textAnchor="middle"
-            transform={`rotate(90 ${CENTER} ${CENTER})`}
-            className="fill-slate-500 text-sm dark:fill-slate-400"
-          >
-            {formatFileSize(usage.usedBytes)} / {formatFileSize(usage.quotaBytes)}
-          </text>
-        </svg>
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto w-full max-w-2xl shrink-0 rounded-2xl border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-900/40">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-semibold tracking-tight tabular-nums text-brand-600 dark:text-brand-400">
+            {formatFileSize(usage.usedBytes)}
+          </span>
+          <span className="text-sm text-slate-400 dark:text-slate-500">
+            / {formatFileSize(usage.quotaBytes)} · {percent}% 사용
+          </span>
+        </div>
 
-        <ul className="flex flex-col gap-2 text-sm">
-          {arcs.map((s) => (
-            <li key={s.type} className="flex items-center gap-2">
-              <span className="relative size-2.5 shrink-0 rounded-sm">
-                <span className="absolute inset-0 rounded-sm dark:hidden" style={{ background: s.color.light }} />
-                <span className="absolute inset-0 hidden rounded-sm dark:block" style={{ background: s.color.dark }} />
-              </span>
-              <s.icon size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />
-              <span className="text-slate-700 dark:text-slate-300">{s.label}</span>
-              <span className="text-slate-400 dark:text-slate-500">
-                {Math.round(s.fraction * 100)}% ({formatFileSize(s.bytes)})
+        <div className="mt-5 flex h-3.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          {slices.map((s) => (
+            <span key={s.type} className="h-full" style={{ width: `${s.quotaShare * 100}%`, background: s.fill }} />
+          ))}
+        </div>
+
+        <ul className="mt-7 grid grid-cols-1 gap-x-12 gap-y-3.5 text-sm sm:grid-cols-2">
+          {slices.map((s) => (
+            <li key={s.type} className="flex items-center gap-2.5">
+              <span className="size-2.5 shrink-0 rounded-full" style={{ background: s.fill }} />
+              <s.icon size={15} className="shrink-0 text-slate-400 dark:text-slate-500" />
+              <span className="text-slate-700 dark:text-slate-200">{s.label}</span>
+              <span className="ml-auto tabular-nums text-slate-500 dark:text-slate-400">
+                {formatFileSize(s.bytes)}
               </span>
             </li>
           ))}
         </ul>
       </div>
 
-        <table className="mt-8 w-full text-sm">
-          <thead>
+      <div className="mt-8 min-h-0 flex-1 overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-white dark:bg-slate-900">
             <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
               <th className="w-14 py-2 pr-3 font-medium whitespace-nowrap">종류</th>
               <th className="py-2 font-medium">
@@ -281,6 +203,7 @@ export function StorageExplorer() {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
       )}
     </div>
