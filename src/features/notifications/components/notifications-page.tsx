@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useInfiniteScrollRef } from '@/hooks/use-windowed-list'
 import { BellIcon } from '@/components/ui/icons'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { useNotifications } from '../api/list-notifications'
@@ -12,6 +13,11 @@ export function NotificationsPage() {
   const openNotification = useOpenNotification()
 
   const notifications = data?.pages.flatMap((page) => page.content) ?? []
+  const sentinelRef = useInfiniteScrollRef(
+    !!hasNextPage,
+    () => void fetchNextPage(),
+    isFetchingNextPage,
+  )
 
   return (
     <div className="flex h-full">
@@ -46,15 +52,11 @@ export function NotificationsPage() {
             ))}
           </div>
 
-          {hasNextPage && (
-            <button
-              type="button"
-              onClick={() => void fetchNextPage()}
-              disabled={isFetchingNextPage}
-              className="w-full py-3 text-sm font-medium text-brand-600 hover:bg-slate-50 disabled:opacity-50 dark:text-brand-400 dark:hover:bg-slate-700/50"
-            >
-              {isFetchingNextPage ? '불러오는 중...' : '더 보기'}
-            </button>
+          {hasNextPage && <div ref={sentinelRef} aria-hidden className="h-8" />}
+          {isFetchingNextPage && (
+            <p role="status" className="py-3 text-center text-sm text-slate-400 dark:text-slate-500">
+              불러오는 중...
+            </p>
           )}
         </div>
       </div>

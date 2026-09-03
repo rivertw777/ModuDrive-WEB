@@ -7,9 +7,12 @@ import { formatRelativeTime, roleLabel, sharerLabel, type Notification } from '.
 export function NotificationItem({
   notification,
   onSelect,
+  showUnreadDot = true,
 }: {
   notification: Notification
   onSelect: (notification: Notification) => void
+  /** The bell dropdown is an unread-only inbox, so the per-row dot is redundant there. */
+  showUnreadDot?: boolean
 }) {
   const sharer = sharerLabel(notification)
   return (
@@ -17,10 +20,16 @@ export function NotificationItem({
       type="button"
       onClick={() => onSelect(notification)}
       className={cn(
-        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/60',
+        'flex w-full items-start gap-2 px-4 py-3 text-left transition-colors hover:bg-slate-100 dark:hover:bg-slate-700/60',
         !notification.read && 'bg-brand-50/60 dark:bg-brand-950/40',
       )}
     >
+      {/* fixed-width slot so read/unread rows stay aligned */}
+      <span className="flex w-2 shrink-0 justify-center pt-1">
+        {showUnreadDot && !notification.read && (
+          <span className="size-2 rounded-full bg-red-500" />
+        )}
+      </span>
       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700">
         <EntryIcon name={notification.fileName} directory={notification.directory} size={16} />
       </span>
@@ -35,9 +44,6 @@ export function NotificationItem({
           {roleLabel(notification.role)} 권한 · {formatRelativeTime(notification.createdAt)}
         </span>
       </span>
-      {!notification.read && (
-        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-600 dark:bg-brand-400" />
-      )}
     </button>
   )
 }

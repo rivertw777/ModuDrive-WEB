@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/stores/theme-store'
+import { useWindowedList } from '@/hooks/use-windowed-list'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
 import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
@@ -34,20 +35,6 @@ export function StorageExplorer() {
   const [sortField, setSortField] = useState<SortField>('size')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  if (usageLoading || filesLoading || trashLoading) return <LoadingState />
-  if (usageError || filesError || !usage || !entries) {
-    return <ErrorState message="저장용량 정보를 불러오지 못했습니다" />
-  }
-
-  function toggleSort(field: SortField) {
-    if (field === sortField) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDir(field === 'name' ? 'asc' : 'desc')
-    }
-  }
-
   // /api/v1/files/all excludes folders and trashed files — that's the set the donut breaks down
   // by category. The table also lists trashed files (still counted against the quota), tagged
   // "휴지통".
@@ -61,8 +48,27 @@ export function StorageExplorer() {
 
   // Tag trashed rows from their source list — don't trust `status` to come back on /files/trash.
   const trashedFiles = (trashed ?? []).map((file): FileEntry => ({ ...file, status: 'DELETED' }))
-  const files = sortEntries(entries)
-  const tableFiles = sortEntries([...entries, ...trashedFiles])
+  const files = sortEntries(entries ?? [])
+  const tableFiles = sortEntries([...(entries ?? []), ...trashedFiles])
+  // Table can hold every file the user owns — window it so only 100 rows paint at a time.
+  const { visible: shownFiles, hasMore, sentinelRef } = useWindowedList(
+    tableFiles,
+    `${sortField}:${sortDir}`,
+  )
+
+  if (usageLoading || filesLoading || trashLoading) return <LoadingState />
+  if (usageError || filesError || !usage || !entries) {
+    return <ErrorState message="저장용량 정보를 불러오지 못했습니다" />
+  }
+
+  function toggleSort(field: SortField) {
+    if (field === sortField) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir(field === 'name' ? 'asc' : 'desc')
+    }
+  }
 
   const isTrashed = (file: FileEntry) => file.status === 'DELETED'
   const locationText = (file: FileEntry) =>
@@ -157,7 +163,7 @@ export function StorageExplorer() {
 
       <div className="mt-8 min-h-0 flex-1 overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-white dark:bg-slate-900">
+          <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
             <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
               <th className="w-14 py-2 pr-3 font-medium whitespace-nowrap">종류</th>
               <th className="py-2 font-medium">
@@ -181,7 +187,7 @@ export function StorageExplorer() {
             </tr>
           </thead>
           <tbody>
-            {tableFiles.map((file) => (
+            {shownFiles.map((file) => (
               <tr key={file.fileId} className="border-b border-slate-100 dark:border-slate-800">
                 <td className="py-2.5 pr-3">
                   <EntryIcon name={file.name} category={file.category} directory={file.directory} />
@@ -203,6 +209,7 @@ export function StorageExplorer() {
             ))}
           </tbody>
         </table>
+        {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
       </div>
       </div>
       )}
