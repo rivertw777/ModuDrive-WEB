@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { StarIcon } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { useFavorites } from '../api/list-favorites'
 import type { FileEntry } from '../types'
 import { FileList } from './file-list'
@@ -23,10 +24,9 @@ export function FavoritesExplorer() {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">즐겨찾기</h1>
+        <PageHeader title="즐겨찾기">
           <ViewToggle />
-        </div>
+        </PageHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}

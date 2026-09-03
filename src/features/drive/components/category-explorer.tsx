@@ -4,6 +4,7 @@ import { DocumentIcon, FileIcon, ImageIcon, MusicIcon, VideoIcon } from '@/compo
 import { useFilesByCategory } from '../api/list-files-by-category'
 import { useFileUpload } from '../hooks/use-file-upload'
 import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '../types'
+import { PageHeader } from '@/components/ui/page-header'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
 import { UploadButton } from './upload-button'
@@ -33,13 +34,12 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">{label}</h1>
+        <PageHeader title={label}>
           <div className="flex items-center gap-2">
             <UploadButton onFilesSelected={onFilesSelected} />
             <ViewToggle />
           </div>
-        </div>
+        </PageHeader>
 
         {uploadError && <p className="mb-2 shrink-0 text-sm text-red-600 dark:text-red-400">{uploadError}</p>}
 

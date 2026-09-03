@@ -5,7 +5,7 @@ export function Breadcrumb({ path }: { path: string }) {
   const segments = path.split('/').filter(Boolean)
 
   return (
-    <nav className="flex items-center gap-1 text-lg">
+    <nav className="-ml-1.5 flex items-center gap-1 text-lg">
       <Link
         to="/drive"
         className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"

@@ -10,7 +10,7 @@ export default function LoginRoute() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-white px-4 dark:bg-slate-900">
-      <div className="absolute left-4 top-4">
+      <div className="absolute right-6 top-3">
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">

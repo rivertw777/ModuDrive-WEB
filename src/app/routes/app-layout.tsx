@@ -55,19 +55,32 @@ export default function AppLayoutRoute() {
   }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-slate-900">
-      <aside
-        style={{ width: sidebar.width }}
-        className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-slate-700"
-      >
-        <Link to="/drive" className="flex items-center gap-2 px-2 py-1.5">
+    <div className="flex h-screen flex-col bg-white dark:bg-slate-900">
+      <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 pr-6 dark:border-slate-700">
+        <Link
+          to="/drive"
+          className="flex w-60 shrink-0 items-center gap-2 self-stretch px-4"
+        >
           <img src="/logo.png" alt="ModuDrive" className="size-8" />
           <span className="font-brand text-[1.6875rem] font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
             ModuDrive
           </span>
         </Link>
+        <div className="flex flex-1 items-center gap-4 py-3">
+          <SearchBar />
+          <div className="ml-auto flex items-center gap-3">
+            <NotificationBell />
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
 
-        <nav className="mt-6 flex flex-col gap-1 text-sm">
+      <div className="flex min-h-0 flex-1">
+      <aside
+        style={{ width: sidebar.width }}
+        className="relative flex shrink-0 flex-col border-r border-slate-200 p-4 dark:border-slate-700"
+      >
+        <nav className="flex flex-col gap-1 text-sm">
           <Link
             to="/drive"
             className={cn(
@@ -173,35 +186,25 @@ export default function AppLayoutRoute() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1">
-              <ThemeToggle />
-              <button
-                onClick={() => logoutMutation.mutate()}
-                aria-label="로그아웃"
-                className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
-              >
-                <LogOutIcon size={17} />
-              </button>
-            </div>
+            <button
+              onClick={() => logoutMutation.mutate()}
+              aria-label="로그아웃"
+              className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+            >
+              <LogOutIcon size={17} />
+            </button>
           </div>
         </div>
 
         <ResizeHandle edge="right" onMouseDown={sidebar.onMouseDown} />
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center gap-4 border-b border-slate-200 px-6 py-3 dark:border-slate-700">
-          <SearchBar />
-          <div className="ml-auto">
-            <NotificationBell />
-          </div>
-        </header>
-        {/* min-h-0 overrides the flex default of "shrink no smaller than content" so this
-            pane actually clips at the viewport edge — each route then owns its own internal
-            scroll region (header pinned, list scrollable) instead of the whole page scrolling. */}
-        <main className="min-h-0 flex-1 overflow-hidden">
-          <Outlet />
-        </main>
+      {/* min-h-0 overrides the flex default of "shrink no smaller than content" so this
+          pane actually clips at the viewport edge — each route then owns its own internal
+          scroll region (header pinned, list scrollable) instead of the whole page scrolling. */}
+      <main className="min-h-0 flex-1 overflow-hidden">
+        <Outlet />
+      </main>
       </div>
     </div>
   )

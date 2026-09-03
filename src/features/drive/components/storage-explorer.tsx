@@ -4,6 +4,7 @@ import { useThemeStore } from '@/stores/theme-store'
 import { useWindowedList } from '@/hooks/use-windowed-list'
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
+import { PageHeader } from '@/components/ui/page-header'
 import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
@@ -125,7 +126,7 @@ export function StorageExplorer() {
 
   return (
     <div className="flex h-full flex-col p-6">
-      <h1 className="shrink-0 pb-6 text-lg font-medium text-slate-900 dark:text-slate-100">저장용량</h1>
+      <PageHeader title="저장용량" />
 
       {tableFiles.length === 0 ? (
         <EmptyState label="저장된 파일이 없습니다" icon={CloudIcon} />

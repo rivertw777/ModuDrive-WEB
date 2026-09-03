@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/context-menu'
 import { SortHeader } from '@/components/ui/sort-header'
 import { MoreVerticalIcon, RestoreIcon, TrashIcon } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
 import { useRestoreFile } from '../api/restore-file'
@@ -83,10 +84,9 @@ export function TrashExplorer() {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">휴지통</h1>
+        <PageHeader title="휴지통">
           <ViewToggle />
-        </div>
+        </PageHeader>
 
         {files && files.length > 0 && (
           <div className="mb-4 flex shrink-0 items-center justify-between gap-2 rounded-lg bg-slate-100 py-1.5 pr-2 pl-4 dark:bg-slate-800">

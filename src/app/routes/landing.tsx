@@ -4,7 +4,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 export default function LandingRoute() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-white px-4 dark:bg-slate-900">
-      <div className="absolute left-4 top-4">
+      <div className="absolute right-6 top-3">
         <ThemeToggle />
       </div>
       <div className="flex flex-col items-center text-center">

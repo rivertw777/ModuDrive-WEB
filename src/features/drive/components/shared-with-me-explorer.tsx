@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { ChevronRightIcon, UsersIcon } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { useSharedWithMe } from '../api/list-shared-with-me'
 import { useSharedDirectory } from '../api/list-shared-directory'
 import { useFileDeeplink } from '../hooks/use-file-deeplink'
@@ -42,8 +43,12 @@ export function SharedWithMeExplorer() {
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col p-6">
-        <div className="flex shrink-0 items-center justify-between pb-4">
-          <nav className="flex min-w-0 items-center gap-1 text-lg">
+        <PageHeader
+          title={
+            trail.length === 0 ? (
+              '공유 문서함'
+            ) : (
+            <nav className="-ml-1.5 flex min-w-0 items-center gap-1 text-lg">
             <button
               type="button"
               onClick={() => goToDepth(0)}
@@ -72,9 +77,12 @@ export function SharedWithMeExplorer() {
                 </span>
               )
             })}
-          </nav>
+            </nav>
+            )
+          }
+        >
           <ViewToggle />
-        </div>
+        </PageHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}

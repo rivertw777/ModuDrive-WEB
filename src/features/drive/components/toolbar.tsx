@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { FolderPlusIcon } from '@/components/ui/icons'
+import { PageHeader } from '@/components/ui/page-header'
 import { Breadcrumb } from './breadcrumb'
 import { UploadButton } from './upload-button'
 import { ViewToggle } from './view-toggle'
@@ -14,8 +15,7 @@ export function Toolbar({
   onFilesSelected: (files: File[]) => void
 }) {
   return (
-    <div className="flex items-center justify-between pb-4">
-      <Breadcrumb path={path} />
+    <PageHeader title={<Breadcrumb path={path} />}>
       <div className="flex items-center gap-2">
         <Button variant="secondary" onClick={onNewFolder}>
           <FolderPlusIcon size={16} />
@@ -24,6 +24,6 @@ export function Toolbar({
         <UploadButton onFilesSelected={onFilesSelected} />
         <ViewToggle />
       </div>
-    </div>
+    </PageHeader>
   )
 }
