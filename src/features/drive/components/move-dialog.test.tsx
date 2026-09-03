@@ -6,11 +6,11 @@ import type { FileEntry } from '../types'
 
 vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))
 vi.mock('../api/create-directory', () => ({ useCreateDirectory: vi.fn() }))
-vi.mock('../api/list-directory', () => ({ useDirectoryListing: vi.fn() }))
+vi.mock('../api/list-directory', () => ({ useDirectoryFolders: vi.fn() }))
 
 const { useMoveFile } = await import('../api/move-file')
 const { useCreateDirectory } = await import('../api/create-directory')
-const { useDirectoryListing } = await import('../api/list-directory')
+const { useDirectoryFolders } = await import('../api/list-directory')
 
 const folder: FileEntry = {
   fileId: 'folder-1',
@@ -30,11 +30,11 @@ const folder: FileEntry = {
 const movingFolder: FileEntry = { ...folder, fileId: 'folder-2', name: '문서' }
 
 function setup(entries: FileEntry[], files = [{ ...folder, fileId: 'file-1', name: 'a.txt', directory: false }]) {
-  vi.mocked(useDirectoryListing).mockReturnValue({
+  vi.mocked(useDirectoryFolders).mockReturnValue({
     data: entries,
     isLoading: false,
     isError: false,
-  } as ReturnType<typeof useDirectoryListing>)
+  } as ReturnType<typeof useDirectoryFolders>)
   vi.mocked(useMoveFile).mockReturnValue({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
   } as unknown as ReturnType<typeof useMoveFile>)
@@ -51,7 +51,7 @@ describe('MoveDialog', () => {
     setup([folder])
     expect(screen.getByText('사진')).toBeInTheDocument()
     await userEvent.click(screen.getByText('사진'))
-    expect(useDirectoryListing).toHaveBeenLastCalledWith('/사진')
+    expect(useDirectoryFolders).toHaveBeenLastCalledWith('/사진')
   })
 
   it('excludes a folder being moved from the destination list (no moving into itself)', () => {

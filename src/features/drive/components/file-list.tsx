@@ -32,6 +32,7 @@ import { downloadFile } from '../api/download-file'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
 import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
+import { useInfiniteScrollRef, useWindowedList } from '../hooks/use-windowed-list'
 import { runBatch } from '@/utils/run-batch'
 import { EntryIcon } from './entry-icon'
 import { RenameDialog } from './rename-dialog'
@@ -47,6 +48,18 @@ const DRAG_MIME = 'application/x-modudrive-file-ids'
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
 
+/** When set, the list is already sorted and paged by the server: `files` holds every page
+ * loaded so far, sort-header clicks go to `onSortChange` (which restarts from page 1), and the
+ * scroll sentinel calls `onLoadMore`. Client-side sorting/windowing is bypassed. */
+export type ServerPagination = {
+  hasMore: boolean
+  isLoadingMore: boolean
+  onLoadMore: () => void
+  sortField: SortField
+  sortDir: SortDir
+  onSortChange: (field: SortField) => void
+}
+
 export function FileList({
   files,
   selectedFileId,
@@ -59,6 +72,7 @@ export function FileList({
   emptyLabel = '이 폴더는 비어 있습니다',
   emptyIcon,
   preserveOrder = false,
+  serverPagination,
 }: {
   files: FileEntry[]
   selectedFileId: string | null
@@ -71,9 +85,12 @@ export function FileList({
   emptyLabel?: string
   emptyIcon?: EmptyStateIcon
   preserveOrder?: boolean
+  serverPagination?: ServerPagination
 }) {
-  const [sortField, setSortField] = useState<SortField>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [localSortField, setLocalSortField] = useState<SortField>('name')
+  const [localSortDir, setLocalSortDir] = useState<SortDir>('asc')
+  const sortField = serverPagination?.sortField ?? localSortField
+  const sortDir = serverPagination?.sortDir ?? localSortDir
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [viewerFile, setViewerFile] = useState<FileEntry | null>(null)
@@ -85,22 +102,41 @@ export function FileList({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const toggleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
+    if (serverPagination) {
+      serverPagination.onSortChange(field)
+      return
+    }
+    if (field === localSortField) {
+      setLocalSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
     } else {
-      setSortField(field)
-      setSortDir('asc')
+      setLocalSortField(field)
+      setLocalSortDir('asc')
     }
   }
 
   const nonDeleted = files.filter((file) => file.status !== 'DELETED')
-  const visible = preserveOrder ? nonDeleted : sortFiles(nonDeleted, sortField, sortDir)
+  // Server mode: `files` already arrives sorted (directories first) and paged — don't re-sort
+  // or window it here, just render every loaded page and let the sentinel pull the next one.
+  const visible =
+    preserveOrder || serverPagination ? nonDeleted : sortFiles(nonDeleted, sortField, sortDir)
+  const clientWindow = useWindowedList(visible, `${preserveOrder ? 'order' : sortField}:${sortDir}`)
+  const serverSentinelRef = useInfiniteScrollRef(
+    serverPagination?.hasMore ?? false,
+    () => serverPagination?.onLoadMore(),
+    serverPagination?.isLoadingMore,
+  )
+  const shown = serverPagination ? visible : clientWindow.visible
+  const sentinelRef = serverPagination ? serverSentinelRef : clientWindow.sentinelRef
+  const hasMore = serverPagination ? serverPagination.hasMore : clientWindow.hasMore
+  // Selection domain must match what's rendered — keyboard nav indexes into this list, and a
+  // batch delete resolves it. Handing it rows that aren't in the DOM lets Shift+Arrow select
+  // (and permanently delete) files the user can't see.
   const { selected, setSelected, box, onRowMouseDown, onContainerMouseDown } = useRowSelection(
     containerRef,
-    visible.map((file) => file.fileId),
+    shown.map((file) => file.fileId),
     onClearSelection,
   )
-  const selectedFiles = visible.filter((file) => selected.has(file.fileId))
+  const selectedFiles = shown.filter((file) => selected.has(file.fileId))
 
   const openMenu = (file: FileEntry, x: number, y: number) => {
     const batch = selected.has(file.fileId) && selected.size > 1
@@ -203,7 +239,7 @@ export function FileList({
           <MarqueeOverlay box={box} />
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {visible.map((file) => (
+              {shown.map((file) => (
                 <div
                   key={file.fileId}
                   {...rowHandlers(file)}
@@ -293,7 +329,7 @@ export function FileList({
                 </tr>
               </thead>
               <tbody>
-                {visible.map((file) => (
+                {shown.map((file) => (
                   <tr
                     key={file.fileId}
                     {...rowHandlers(file)}
@@ -361,6 +397,12 @@ export function FileList({
                 ))}
               </tbody>
             </table>
+          )}
+          {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
+          {serverPagination?.isLoadingMore && (
+            <p className="py-3 text-center text-sm text-slate-400 dark:text-slate-500">
+              불러오는 중…
+            </p>
           )}
         </div>
       )}

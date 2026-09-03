@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { ErrorState, LoadingState } from '@/components/ui/state'
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/state'
 import { SortHeader } from '@/components/ui/sort-header'
-import { DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
+import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
 import { FILE_CATEGORIES, formatFileSize, type FileCategory } from '../types'
@@ -107,6 +107,9 @@ export function StorageExplorer() {
     <div className="flex h-full flex-col p-6">
       <h1 className="shrink-0 pb-6 text-lg font-medium text-slate-900 dark:text-slate-100">저장용량</h1>
 
+      {files.length === 0 ? (
+        <EmptyState label="저장된 파일이 없습니다" icon={CloudIcon} />
+      ) : (
       <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="flex flex-col items-center gap-8 sm:flex-row sm:items-start sm:justify-center">
         <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="shrink-0 -rotate-90">
@@ -204,9 +207,6 @@ export function StorageExplorer() {
         </ul>
       </div>
 
-      {files.length === 0 ? (
-        <p className="mt-8 py-8 text-center text-sm text-slate-400 dark:text-slate-500">파일이 없습니다</p>
-      ) : (
         <table className="mt-8 w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
@@ -245,8 +245,8 @@ export function StorageExplorer() {
             ))}
           </tbody>
         </table>
-      )}
       </div>
+      )}
     </div>
   )
 }

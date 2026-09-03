@@ -5,7 +5,7 @@ import { ChevronRightIcon, FolderIcon, FolderPlusIcon } from '@/components/ui/ic
 import { LoadingState, ErrorState, EmptyState } from '@/components/ui/state'
 import { runBatch } from '@/utils/run-batch'
 import { useMoveFile } from '../api/move-file'
-import { useDirectoryListing } from '../api/list-directory'
+import { useDirectoryFolders } from '../api/list-directory'
 import { formatDate, joinPath, type FileEntry } from '../types'
 import { NewFolderDialog } from './new-folder-dialog'
 
@@ -26,7 +26,7 @@ export function MoveDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
 
-  const { data: entries, isLoading, isError } = useDirectoryListing(browsePath)
+  const { data: entries, isLoading, isError } = useDirectoryFolders(browsePath)
 
   // Folders being moved (and anything under them) can't be a valid destination —
   // filtering them out of each level's listing blocks drilling into that subtree at all.
