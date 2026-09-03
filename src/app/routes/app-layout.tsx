@@ -56,7 +56,7 @@ export default function AppLayoutRoute() {
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-900">
-      <header className="z-10 flex shrink-0 items-center gap-4 border-b border-slate-200/80 pr-6 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.5)]">
+      <header className="z-20 flex shrink-0 items-center gap-4 border-b border-slate-200/80 pr-6 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.5)]">
         <Link
           to="/drive"
           className="flex shrink-0 items-center gap-2 px-4 py-3"
