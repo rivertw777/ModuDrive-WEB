@@ -56,17 +56,17 @@ export default function AppLayoutRoute() {
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-900">
-      <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 pr-6 dark:border-slate-700">
+      <header className="z-10 flex shrink-0 items-center gap-4 border-b border-slate-200/80 pr-6 shadow-[0_2px_6px_-2px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.5)]">
         <Link
           to="/drive"
-          className="flex w-60 shrink-0 items-center gap-2 self-stretch px-4"
+          className="flex shrink-0 items-center gap-2 px-4 py-3"
         >
-          <img src="/logo.png" alt="ModuDrive" className="size-8" />
-          <span className="font-brand text-[1.6875rem] font-extrabold text-[#1C3D5A] dark:text-[#F5F3EE]">
+          <img src="/logo.png" alt="ModuDrive" className="size-7" />
+          <span className="font-brand text-[1.375rem] font-bold text-[#1C3D5A] dark:text-[#F5F3EE]">
             ModuDrive
           </span>
         </Link>
-        <div className="flex flex-1 items-center gap-4 py-3">
+        <div className="flex flex-1 items-center gap-3 py-3">
           <SearchBar />
           <div className="ml-auto flex items-center gap-3">
             <NotificationBell />
