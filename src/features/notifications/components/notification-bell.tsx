@@ -73,6 +73,7 @@ export function NotificationBell() {
               <NotificationItem
                 key={notification.id}
                 notification={notification}
+                showUnreadDot={false}
                 onSelect={(n) => {
                   setOpen(false)
                   openNotification(n)
