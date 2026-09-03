@@ -16,6 +16,10 @@ export function useMoveFile() {
     mutationFn: moveFile,
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
+      // recent / category / all + search results + favorites show this file's location, which just changed
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+      queryClient.invalidateQueries({ queryKey: ['search'] })
+      queryClient.invalidateQueries({ queryKey: ['favorites'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
     },
   })
