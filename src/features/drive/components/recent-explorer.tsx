@@ -41,6 +41,7 @@ export function RecentExplorer() {
               onClearSelection={() => setSelectedFileId(null)}
               showLocation
               preserveOrder
+              dateColumn={{ label: '접근한 날짜', getValue: (file) => file.accessedAt }}
               emptyLabel="최근에 연 파일이 없습니다"
               emptyIcon={ClockIcon}
             />

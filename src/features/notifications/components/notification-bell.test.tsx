@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NotificationBell } from './notification-bell'
 import type { Notification } from '../types'
 
-vi.mock('../api/list-notifications', () => ({ useNotifications: vi.fn() }))
+vi.mock('../api/list-notifications', () => ({
+  useNotifications: vi.fn(),
+  NOTIFICATION_POLL_INTERVAL_MS: 30_000,
+}))
 vi.mock('../api/unread-count', () => ({ useUnreadNotificationCount: vi.fn() }))
 vi.mock('../hooks/use-open-notification', () => ({ useOpenNotification: vi.fn() }))
 

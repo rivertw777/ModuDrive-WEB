@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BellIcon } from '@/components/ui/icons'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { useNotifications } from '../api/list-notifications'
+import { NOTIFICATION_POLL_INTERVAL_MS, useNotifications } from '../api/list-notifications'
 import { useUnreadNotificationCount } from '../api/unread-count'
 import { useOpenNotification } from '../hooks/use-open-notification'
 import { NotificationItem } from './notification-item'
@@ -16,8 +16,10 @@ export function NotificationBell() {
 
   const { data: unreadCount } = useUnreadNotificationCount()
   // Dropdown is an unread inbox: once a notification is opened (→ marked read) it drops off
-  // the bell. The full history stays on /notifications.
-  const { data, isLoading, isError } = useNotifications(true)
+  // the bell. The full history stays on /notifications. Always mounted in the header (not just
+  // while open), so it needs its own poll to pick up new notifications — nothing else invalidates
+  // this query when one arrives.
+  const { data, isLoading, isError } = useNotifications(true, NOTIFICATION_POLL_INTERVAL_MS)
   const openNotification = useOpenNotification()
 
   useEffect(() => {
@@ -37,7 +39,8 @@ export function NotificationBell() {
   }, [open])
 
   const notifications = data?.pages.flatMap((page) => page.content).slice(0, PREVIEW_COUNT) ?? []
-  const badge = unreadCount && unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : null
+  const badge =
+    unreadCount && unreadCount > 0 ? (unreadCount > 99 ? '99+' : String(unreadCount)) : null
 
   return (
     <div ref={ref} className="relative">

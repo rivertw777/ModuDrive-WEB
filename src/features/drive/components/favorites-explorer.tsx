@@ -41,6 +41,7 @@ export function FavoritesExplorer() {
               onClearSelection={() => setSelectedFileId(null)}
               showLocation
               preserveOrder
+              dateColumn={{ label: '즐겨찾기한 날짜', getValue: (file) => file.favoritedAt }}
               emptyLabel="즐겨찾기한 파일이 없습니다"
               emptyIcon={StarIcon}
             />

@@ -13,6 +13,9 @@ export type NotificationPage = {
 
 export const PAGE_SIZE = 20
 
+/** No SSE/websocket on the backend, so the header bell polls at this interval. */
+export const NOTIFICATION_POLL_INTERVAL_MS = 30_000
+
 export const listNotifications = (opts: { unreadOnly?: boolean; page?: number; size?: number }) =>
   apiClient.get<NotificationPage>('/api/v1/notifications', {
     params: {
@@ -22,11 +25,12 @@ export const listNotifications = (opts: { unreadOnly?: boolean; page?: number; s
     },
   })
 
-export function useNotifications(unreadOnly = false) {
+export function useNotifications(unreadOnly = false, refetchInterval?: number) {
   return useInfiniteQuery({
     queryKey: ['notifications', 'list', { unreadOnly }],
     queryFn: ({ pageParam }) => listNotifications({ unreadOnly, page: pageParam }),
     initialPageParam: 0,
     getNextPageParam: (last) => (last.last ? undefined : last.number + 1),
+    refetchInterval,
   })
 }

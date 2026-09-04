@@ -36,6 +36,10 @@ export type FileEntry = {
   sharedByEmail?: string | null
   role?: Role
   sharedAt?: string | null
+  /** Only populated by GET /api/v1/files/recent — when the caller opened it ("접근한 날짜"). */
+  accessedAt?: string | null
+  /** Only populated by GET /api/v1/files/favorites — when the caller starred it ("즐겨찾기한 날짜"). */
+  favoritedAt?: string | null
 }
 
 export type FileShare = {
@@ -161,17 +165,28 @@ export function canPreviewFile(name: string, fileSize: number | null): boolean {
   return cap === undefined || fileSize === null || fileSize <= cap
 }
 
-export type SortField = 'name' | 'size' | 'date'
+export type SortField = 'name' | 'size' | 'date' | 'sharedBy'
 export type SortDir = 'asc' | 'desc'
 
 /** Folders always sort above files. Within each group, entries order by `field`/`dir`. */
-export function sortFiles(files: FileEntry[], field: SortField, dir: SortDir) {
+export function sortFiles(
+  files: FileEntry[],
+  field: SortField,
+  dir: SortDir,
+  // Which timestamp "date" sorts by — defaults to updatedAt, but 즐겨찾기/최근 문서함 sort by
+  // whatever they display instead (favoritedAt/accessedAt) so the header stays honest.
+  dateValue: (file: FileEntry) => string | null | undefined = (file) => file.updatedAt,
+) {
   const sign = dir === 'asc' ? 1 : -1
   return [...files].sort((a, b) => {
     if (a.directory !== b.directory) return a.directory ? -1 : 1
     if (field === 'name') return sign * a.name.localeCompare(b.name, 'ko')
     if (field === 'size') return sign * ((a.fileSize ?? 0) - (b.fileSize ?? 0))
-    return sign * (new Date(a.updatedAt ?? 0).getTime() - new Date(b.updatedAt ?? 0).getTime())
+    if (field === 'sharedBy') {
+      const label = (f: FileEntry) => f.sharedByName ?? f.sharedByEmail ?? ''
+      return sign * label(a).localeCompare(label(b), 'ko')
+    }
+    return sign * (new Date(dateValue(a) ?? 0).getTime() - new Date(dateValue(b) ?? 0).getTime())
   })
 }
 
