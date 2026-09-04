@@ -35,7 +35,7 @@ function renderView(data: PublicFile = file, children: PublicFile[] = []) {
   } as ReturnType<typeof usePublicChildren>)
   render(
     <MemoryRouter>
-      <PublicFileView token="tok-1" />
+      <PublicFileView fileId="file-1" shareKey="key-1" />
     </MemoryRouter>,
   )
 }
@@ -49,16 +49,16 @@ describe('PublicFileView', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('downloads through the anonymous endpoint when 다운로드 is clicked', async () => {
+  it('downloads through the anonymous endpoint with the fileId and key', async () => {
     renderView()
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('button', { name: '다운로드' }))
 
-    expect(downloadPublicFile).toHaveBeenCalledWith('tok-1', 'report.pdf')
+    expect(downloadPublicFile).toHaveBeenCalledWith('file-1', 'key-1', 'report.pdf')
   })
 
-  it('browses a shared folder and downloads a nested file by its entry id', async () => {
+  it('browses a shared folder and downloads a nested file by its own id', async () => {
     const child: PublicFile = {
       fileId: 'child-1',
       name: 'nested.txt',
@@ -74,6 +74,22 @@ describe('PublicFileView', () => {
 
     await user.click(screen.getByRole('button', { name: 'nested.txt 다운로드' }))
 
-    expect(downloadPublicFile).toHaveBeenCalledWith('tok-1', 'nested.txt', 'child-1')
+    expect(downloadPublicFile).toHaveBeenCalledWith('child-1', 'key-1', 'nested.txt')
+  })
+
+  it('lists a nested folder by its own id, keeping the root link key', async () => {
+    const sub: PublicFile = {
+      fileId: 'sub-1',
+      name: 'inner',
+      fileSize: 0,
+      directory: true,
+      updatedAt: null,
+    }
+    renderView({ ...file, directory: true, name: 'photos' }, [sub])
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: 'inner' }))
+
+    expect(usePublicChildren).toHaveBeenCalledWith('sub-1', 'key-1')
   })
 })

@@ -17,13 +17,16 @@ import { VIEWER_BACKDROP } from './file-viewer-modal'
 // action buttons right), minus the share button — an anonymous link visitor
 // has nothing to share from — and minus the close button: there's no app
 // underneath to return to, this page *is* the destination.
-export function PublicFileView({ token }: { token: string }) {
-  const { data: file, isLoading, isError } = usePublicFile(token)
+//
+// `shareKey` is the capability from the link's `?key=` (the file's linkToken or a
+// guest invite token); null when the link carried none.
+export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey: string | null }) {
+  const { data: file, isLoading, isError } = usePublicFile(fileId, shareKey)
   const canPreview = !!file && !file.directory && canPreviewFile(file.name, file.fileSize)
 
   // A folder link opens a browser for its contents, not a single-file viewer.
   if (file?.directory) {
-    return <PublicFolderView token={token} rootName={file.name} />
+    return <PublicFolderView fileId={fileId} shareKey={shareKey} rootName={file.name} />
   }
 
   return (
@@ -41,7 +44,7 @@ export function PublicFileView({ token }: { token: string }) {
           {file && !file.directory && (
             <button
               type="button"
-              onClick={() => downloadPublicFile(token, file.name)}
+              onClick={() => downloadPublicFile(fileId, shareKey, file.name)}
               aria-label="다운로드"
               className="inline-flex size-9 items-center justify-center rounded-full hover:bg-white/10"
             >
@@ -63,7 +66,7 @@ export function PublicFileView({ token }: { token: string }) {
           <FilePreview
             fileName={file.name}
             fileSize={file.fileSize}
-            source={{ type: 'public', token }}
+            source={{ type: 'public', fileId, shareKey }}
             fullscreen
           />
         )}

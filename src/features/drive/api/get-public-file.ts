@@ -12,25 +12,33 @@ import type { PublicFile } from '../types'
 const publicClient = axios.create({ baseURL: env.API_BASE_URL })
 publicClient.interceptors.response.use((res: AxiosResponse<ApiResponse<unknown>>) => res.data.data as AxiosResponse)
 
-export const getPublicFile = (token: string) =>
-  publicClient.get<PublicFile>(`/api/v1/files/public/${encodeURIComponent(token)}`)
+// Google-Drive-style stable link: fileId in the path, `key` (the file's linkToken or a guest
+// invite token) as the capability that authorizes it. `key` may be absent — file-service then
+// 404s, which is the right result for an anonymous visitor with no capability.
+const keyParams = (key: string | null) => (key ? { key } : undefined)
 
-export function usePublicFile(token: string) {
+export const getPublicFile = (fileId: string, key: string | null) =>
+  publicClient.get<PublicFile>(`/api/v1/files/public/${encodeURIComponent(fileId)}`, {
+    params: keyParams(key),
+  })
+
+export function usePublicFile(fileId: string, key: string | null) {
   return useQuery({
-    queryKey: ['public-file', token],
-    queryFn: () => getPublicFile(token),
+    queryKey: ['public-file', fileId, key],
+    queryFn: () => getPublicFile(fileId, key),
   })
 }
 
-/** One level of a link-shared folder tree. `parentId` omitted lists the shared folder itself. */
-export const listPublicChildren = (token: string, parentId?: string) =>
-  publicClient.get<PublicFile[]>(`/api/v1/files/public/${encodeURIComponent(token)}/children`, {
-    params: parentId ? { parentId } : undefined,
+/** One level of a link-shared folder tree. `fileId` is the directory to list — the link's own
+ * folder or any folder nested under it; `key` stays the root link's key throughout. */
+export const listPublicChildren = (fileId: string, key: string | null) =>
+  publicClient.get<PublicFile[]>(`/api/v1/files/public/${encodeURIComponent(fileId)}/children`, {
+    params: keyParams(key),
   })
 
-export function usePublicChildren(token: string, parentId?: string) {
+export function usePublicChildren(fileId: string, key: string | null) {
   return useQuery({
-    queryKey: ['public-children', token, parentId ?? null],
-    queryFn: () => listPublicChildren(token, parentId),
+    queryKey: ['public-children', fileId, key],
+    queryFn: () => listPublicChildren(fileId, key),
   })
 }

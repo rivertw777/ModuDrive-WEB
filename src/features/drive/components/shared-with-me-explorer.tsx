@@ -97,6 +97,9 @@ export function SharedWithMeExplorer() {
               onClearSelection={clearSelection}
               navigable
               showSharedBy={!current}
+              // Root list arrives from the server already ordered by "shared on" desc; keep it.
+              // Inside a folder it's an unordered directory listing, so let the client name-sort.
+              preserveOrder={!current}
               emptyLabel={current ? '이 폴더는 비어 있습니다' : '아직 공유받은 파일이 없습니다'}
               emptyIcon={UsersIcon}
             />

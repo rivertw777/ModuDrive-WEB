@@ -30,7 +30,7 @@ const router = createBrowserRouter([
     element: <SignupRoute />,
   },
   {
-    path: '/public/:token',
+    path: '/public/:fileId',
     element: <PublicFileRoute />,
   },
   {
