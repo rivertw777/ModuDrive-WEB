@@ -8,8 +8,9 @@ import { issueStreamToken } from '../api/issue-stream-token'
 
 type Source =
   | { type: 'auth'; fileId: string }
-  /** `entryId` set => `token` is a folder link and this is one file nested under it. */
-  | { type: 'public'; token: string; entryId?: string }
+  /** `fileId` is the shared file or one nested under a shared folder; `shareKey` is the
+   * capability (the file's linkToken or a guest invite token). */
+  | { type: 'public'; fileId: string; shareKey: string | null }
 
 function isStreamed(kind: PreviewKind | null) {
   return kind === 'audio' || kind === 'video'
@@ -20,13 +21,12 @@ function streamUrl(
   sourceId: string,
   fileName: string,
   streamToken?: string,
-  entryId?: string,
+  shareKey?: string | null,
 ) {
   const params = new URLSearchParams({ fileName })
   if (sourceType === 'public') {
-    const base = `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}`
-    const path = entryId ? `${base}/entry/${encodeURIComponent(entryId)}/view` : `${base}/view`
-    return `${path}?${params}`
+    if (shareKey) params.set('key', shareKey)
+    return `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}/view?${params}`
   }
   if (streamToken) params.set('streamToken', streamToken)
   return `${env.API_BASE_URL}/api/v1/storage/view/${encodeURIComponent(sourceId)}?${params}`
@@ -41,9 +41,9 @@ function streamUrl(
  *
  * text/image are small enough to just blob-fetch (revoked on unmount/file change so repeated
  * opens don't leak memory). audio/video instead point straight at the Range/206-backed view
- * endpoint — the element pulls its own bytes and seeks natively; a public link's token already
- * is the credential, an authenticated view needs a short-lived stream token first (see
- * issueStreamToken) since the element can't attach an Authorization header. */
+ * endpoint — the element pulls its own bytes and seeks natively; a public link's `key` already
+ * is the credential (it goes in the URL), an authenticated view needs a short-lived stream token
+ * first (see issueStreamToken) since the element can't attach an Authorization header. */
 export function FilePreview({
   fileName,
   fileSize,
@@ -57,8 +57,8 @@ export function FilePreview({
 }) {
   const kind = canPreviewFile(fileName, fileSize) ? previewKind(fileName) : null
   const sourceType = source.type
-  const sourceId = source.type === 'auth' ? source.fileId : source.token
-  const entryId = source.type === 'public' ? source.entryId : undefined
+  const sourceId = source.fileId
+  const shareKey = source.type === 'public' ? source.shareKey : undefined
   const [text, setText] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
@@ -71,7 +71,7 @@ export function FilePreview({
 
     if (isStreamed(kind)) {
       if (sourceType === 'public') {
-        setUrl(streamUrl(sourceType, sourceId, fileName, undefined, entryId))
+        setUrl(streamUrl(sourceType, sourceId, fileName, undefined, shareKey))
         return
       }
       let cancelled = false
@@ -92,7 +92,7 @@ export function FilePreview({
 
     ;(sourceType === 'auth'
       ? viewFile(sourceId, fileName)
-      : viewPublicFile(sourceId, fileName, entryId))
+      : viewPublicFile(sourceId, shareKey ?? null, fileName))
       .then(async (blobUrl) => {
         if (cancelled) {
           URL.revokeObjectURL(blobUrl)
@@ -114,7 +114,7 @@ export function FilePreview({
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [kind, fileName, sourceType, sourceId, entryId])
+  }, [kind, fileName, sourceType, sourceId, shareKey])
 
   if (!kind) return null
   if (error) return <ErrorState message="미리보기를 불러오지 못했습니다" />

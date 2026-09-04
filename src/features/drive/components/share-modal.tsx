@@ -109,13 +109,13 @@ export function ShareModal({
   }
 
   // RESTRICTED shares have no link token — point invited members at the
-  // login-gated deep link instead of the anonymous /public/:token route.
+  // login-gated deep link instead of the anonymous /public/:fileId route.
   // Deliberately reflects the server's current scope, not a staged pending one:
   // an uncommitted scope has no valid link yet.
   const shareLink = access
     ? access.scope === 'LINK'
       ? access.linkToken
-        ? `${window.location.origin}/public/${encodeURIComponent(access.linkToken)}`
+        ? `${window.location.origin}/public/${encodeURIComponent(fileId)}?key=${encodeURIComponent(access.linkToken)}`
         : null
       : `${window.location.origin}/files/${encodeURIComponent(fileId)}`
     : null

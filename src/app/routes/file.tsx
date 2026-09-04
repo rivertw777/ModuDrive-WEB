@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { FileDetailPanel } from '@/features/drive'
 
 /** Login-required deep link a RESTRICTED-scope share's "링크 복사" points at
- * (sits behind AppLayoutRoute's auth guard, unlike /public/:token). */
+ * (sits behind AppLayoutRoute's auth guard, unlike /public/:fileId). */
 export default function FileRoute() {
   const { fileId } = useParams()
   const navigate = useNavigate()

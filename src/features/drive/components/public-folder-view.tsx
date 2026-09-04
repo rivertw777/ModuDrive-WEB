@@ -11,14 +11,22 @@ import { VIEWER_BACKDROP } from './file-viewer-modal'
 type Crumb = { id: string; name: string }
 
 /** Anonymous browser for a link-shared folder — its own tree, like PublicFileView, so no
- * authenticated UI leaks to a visitor. Navigates by entry id (the same value the download/view
- * routes take as `entryId`); the shared folder's own children need no id. */
-export function PublicFolderView({ token, rootName }: { token: string; rootName: string }) {
+ * authenticated UI leaks to a visitor. Navigates by entry id: the path segment is the folder
+ * (or file) currently open, `shareKey` stays the root link's key throughout. */
+export function PublicFolderView({
+  fileId,
+  shareKey,
+  rootName,
+}: {
+  fileId: string
+  shareKey: string | null
+  rootName: string
+}) {
   const [trail, setTrail] = useState<Crumb[]>([])
   const [preview, setPreview] = useState<PublicFile | null>(null)
 
-  const currentId = trail[trail.length - 1]?.id
-  const { data: entries, isLoading, isError } = usePublicChildren(token, currentId)
+  const currentId = trail[trail.length - 1]?.id ?? fileId
+  const { data: entries, isLoading, isError } = usePublicChildren(currentId, shareKey)
 
   const onOpen = (entry: PublicFile) => {
     if (entry.directory) {
@@ -101,7 +109,7 @@ export function PublicFolderView({ token, rootName }: { token: string; rootName:
               {!entry.directory && (
                 <button
                   type="button"
-                  onClick={() => downloadPublicFile(token, entry.name, entry.fileId)}
+                  onClick={() => downloadPublicFile(entry.fileId, shareKey, entry.name)}
                   aria-label={`${entry.name} 다운로드`}
                   className="shrink-0 rounded-full p-1 text-slate-400 opacity-0 hover:bg-white/10 hover:text-slate-100 group-hover:opacity-100"
                 >
@@ -118,7 +126,7 @@ export function PublicFolderView({ token, rootName }: { token: string; rootName:
             <FilePreview
               fileName={preview.name}
               fileSize={preview.fileSize}
-              source={{ type: 'public', token, entryId: preview.fileId }}
+              source={{ type: 'public', fileId: preview.fileId, shareKey }}
               fullscreen
             />
           )}
@@ -128,7 +136,7 @@ export function PublicFolderView({ token, rootName }: { token: string; rootName:
               <p className="text-sm">미리보기를 지원하지 않는 파일입니다</p>
               <button
                 type="button"
-                onClick={() => downloadPublicFile(token, preview.name, preview.fileId)}
+                onClick={() => downloadPublicFile(preview.fileId, shareKey, preview.name)}
                 className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
               >
                 <DownloadIcon size={16} />

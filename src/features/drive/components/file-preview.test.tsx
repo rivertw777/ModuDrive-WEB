@@ -94,14 +94,14 @@ describe('FilePreview', () => {
       <FilePreview
         fileName="clip.mp4"
         fileSize={1024}
-        source={{ type: 'public', token: 'tok-1' }}
+        source={{ type: 'public', fileId: 'f-1', shareKey: 'k-1' }}
       />,
     )
 
     await waitFor(() =>
       expect(container.querySelector('video')).toHaveAttribute(
         'src',
-        'http://localhost:10001/api/v1/storage/public/tok-1/view?fileName=clip.mp4',
+        'http://localhost:10001/api/v1/storage/public/f-1/view?fileName=clip.mp4&key=k-1',
       ),
     )
     expect(viewPublicFile).not.toHaveBeenCalled()

@@ -102,6 +102,17 @@ describe('ShareModal', () => {
     })
   })
 
+  it('builds the anonymous link as /public/:fileId?key=<linkToken>', async () => {
+    renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: '링크 복사' }))
+
+    expect(await navigator.clipboard.readText()).toBe(
+      'http://localhost:3000/public/file-1?key=tok-1',
+    )
+  })
+
   it('shows LINK as the effective scope when a parent folder link is inherited', () => {
     renderModal({ inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }] })
 
