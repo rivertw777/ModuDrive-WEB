@@ -50,7 +50,7 @@ export function TrashDetailPanel({ file, onClose }: { file: FileEntry; onClose: 
           </div>
           <div className="flex justify-between">
             <dt>휴지통에 버린 날짜</dt>
-            <dd className="text-slate-700 dark:text-slate-300">{formatDate(file.updatedAt)}</dd>
+            <dd className="text-slate-700 dark:text-slate-300">{formatDate(file.trashedAt ?? null)}</dd>
           </div>
         </dl>
 

@@ -27,6 +27,9 @@ export type FileEntry = {
   /** Server-computed from the name (mirrors backend FileCategory.of()) — meaningless for directories. */
   category: FileCategory
   updatedAt: string | null
+  /** When the file was sent to trash — null unless it is in the trash. Use this, not
+   * {@link updatedAt}, for the trash view's "휴지통에 버린 날짜". */
+  trashedAt?: string | null
   /** Only populated by GET /api/v1/files/shared-with-me: who shared the file (null if the
    * backend could not resolve them), the caller's role on it, and when it was shared. */
   sharedByName?: string | null
