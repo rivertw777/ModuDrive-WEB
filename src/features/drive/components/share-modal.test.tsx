@@ -63,20 +63,19 @@ describe('ShareModal', () => {
     scopeMutate.mockReset().mockResolvedValue(undefined)
   })
 
-  it('hides the link role select while the scope is RESTRICTED', () => {
+  it('hides the link role badge while the scope is RESTRICTED', () => {
     renderModal()
 
-    expect(screen.queryByText('링크 권한')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('link-role-badge')).not.toBeInTheDocument()
   })
 
-  it('shows the link role as a fixed 뷰어 label once LINK is staged', async () => {
+  it('shows the link role as a fixed 뷰어 badge once LINK is staged', async () => {
     renderModal()
     const user = userEvent.setup()
 
     await user.selectOptions(screen.getByRole('combobox'), 'LINK')
 
-    expect(screen.getByText('링크 권한')).toBeInTheDocument()
-    expect(screen.getByText('뷰어')).toBeInTheDocument()
+    expect(screen.getByTestId('link-role-badge')).toHaveTextContent('뷰어')
   })
 
   it('sends the staged scope with a VIEWER link role on 완료', async () => {

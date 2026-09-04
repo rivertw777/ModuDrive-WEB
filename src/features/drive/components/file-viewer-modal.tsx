@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { DownloadIcon, FileIcon, ImageIcon, ShareIcon, XIcon } from '@/components/ui/icons'
-import { canPreviewFile, isImageFile } from '../types'
+import { useQueryClient } from '@tanstack/react-query'
+import { DownloadIcon, FileIcon, ShareIcon, XIcon } from '@/components/ui/icons'
+import { canPreviewFile } from '../types'
 import { downloadFile } from '../api/download-file'
+import { EntryIcon } from './entry-icon'
 import { FilePreview } from './file-preview'
 import { ShareModal } from './share-modal'
 
@@ -32,6 +34,7 @@ export function FileViewerModal({
   const ref = useRef<HTMLDialogElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
   const canPreview = canPreviewFile(fileName, fileSize)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const dialog = ref.current
@@ -39,6 +42,17 @@ export function FileViewerModal({
     if (open && !dialog.open) dialog.showModal()
     if (!open && dialog.open) dialog.close()
   }, [open])
+
+  // Previewing the file records a "recent files" access server-side (the /storage/view fetch
+  // hits file-service with markAccessed=true). Refresh the recent list when the viewer closes —
+  // by then that fetch has completed, so the access write is in. Non-previewable files make no
+  // such request, so there's nothing to reflect.
+  useEffect(() => {
+    if (!open || !canPreview) return
+    return () => {
+      void queryClient.invalidateQueries({ queryKey: ['files', 'recent'] })
+    }
+  }, [open, canPreview, fileId, queryClient])
 
   return (
     <dialog
@@ -55,11 +69,7 @@ export function FileViewerModal({
       <div className="flex h-full flex-col">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-8 py-3 text-slate-100 shadow-sm backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2">
-            {isImageFile(fileName) ? (
-              <ImageIcon size={26} className="shrink-0 text-emerald-400" />
-            ) : (
-              <FileIcon size={26} className="shrink-0 text-slate-400" />
-            )}
+            <EntryIcon name={fileName} size={26} />
             <p className="min-w-0 truncate text-sm font-medium">{fileName}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
