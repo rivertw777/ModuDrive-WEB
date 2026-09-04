@@ -90,7 +90,7 @@ describe('AddMemberForm', () => {
     await user.type(screen.getByPlaceholderText('이메일 입력 후 Enter'), 'guest@example.com{Enter}')
     await user.click(screen.getByRole('button', { name: '전송' }))
 
-    expect(await screen.findByText(/ModuDrive에 가입하지 않았습니다/)).toBeInTheDocument()
+    expect(await screen.findByText(/ModuDrive 이외의 계정과 공유하시겠습니까/)).toBeInTheDocument()
     expect(mutateAsync).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: '무시하고 공유' }))
@@ -111,7 +111,7 @@ describe('AddMemberForm', () => {
 
     await user.type(screen.getByPlaceholderText('이메일 입력 후 Enter'), 'guest@example.com{Enter}')
     await user.click(screen.getByRole('button', { name: '전송' }))
-    expect(await screen.findByText(/ModuDrive에 가입하지 않았습니다/)).toBeInTheDocument()
+    expect(await screen.findByText(/ModuDrive 이외의 계정과 공유하시겠습니까/)).toBeInTheDocument()
 
     // Two "취소" buttons exist while the guest-warning dialog is open (the form's own,
     // and the dialog's) — the dialog's is the one rendered last.

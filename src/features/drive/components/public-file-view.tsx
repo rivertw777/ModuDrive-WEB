@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { DownloadIcon, FileIcon, FolderIcon, ImageIcon } from '@/components/ui/icons'
+import { DownloadIcon, FileIcon, FolderIcon } from '@/components/ui/icons'
 import { usePublicFile } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
-import { canPreviewFile, isImageFile } from '../types'
+import { canPreviewFile } from '../types'
+import { EntryIcon } from './entry-icon'
 import { FilePreview } from './file-preview'
 import { PublicFolderView } from './public-folder-view'
 import { VIEWER_BACKDROP } from './file-viewer-modal'
@@ -29,10 +30,8 @@ export function PublicFileView({ token }: { token: string }) {
     <div className={`flex h-dvh flex-col ${VIEWER_BACKDROP}`}>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 bg-white/5 px-8 py-3 text-slate-100 shadow-sm backdrop-blur-xl">
         <div className="flex min-w-0 items-center gap-2">
-          {file?.directory ? (
-            <FolderIcon size={26} className="shrink-0 text-brand-400" />
-          ) : file && isImageFile(file.name) ? (
-            <ImageIcon size={26} className="shrink-0 text-emerald-400" />
+          {file ? (
+            <EntryIcon name={file.name} directory={file.directory} size={26} />
           ) : (
             <FileIcon size={26} className="shrink-0 text-slate-400" />
           )}

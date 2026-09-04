@@ -25,10 +25,6 @@ const SCOPE_LABELS: Record<ShareScope, string> = {
 const HELP_CONTENT = (
   <ul className="space-y-2">
     <li>
-      <span className="font-medium text-slate-800 dark:text-slate-100">소유자</span>는 공유 및
-      액세스 권한을 수정할 수 있습니다.
-    </li>
-    <li>
       <span className="font-medium text-slate-800 dark:text-slate-100">뷰어</span>는 공유받은 파일의
       조회 및 다운로드가 가능합니다.
     </li>
@@ -223,7 +219,7 @@ export function ShareModal({
                     value={effectiveScope}
                     disabled={isCommitting}
                     onChange={(e) => onScopeChange(e.target.value as ShareScope)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {(Object.keys(SCOPE_LABELS) as ShareScope[]).map((scope) => (
                       <option key={scope} value={scope}>
@@ -232,23 +228,23 @@ export function ShareModal({
                     ))}
                   </select>
                 ) : (
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                  <p className="min-w-0 flex-1 text-sm text-slate-600 dark:text-slate-300">
                     {SCOPE_LABELS[access.scope]}
                   </p>
                 )}
-              </div>
-              {isOwner && effectiveScope === 'LINK' && (
-                <div className="mt-2 flex items-center justify-end gap-2">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">링크 권한</span>
-                  {/* New link shares are always VIEWER (server only accepts VIEWER on
-                      scope updates now), but a link created before that restriction can
-                      still hold a stored EDITOR role — read it from access.role rather
-                      than assuming VIEWER, so a stale editable link isn't mislabeled. */}
-                  <span className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300">
+                {/* New link shares are always VIEWER (server only accepts VIEWER on scope
+                    updates now), but a link created before that restriction can still hold a
+                    stored EDITOR role — read it from access.role rather than assuming VIEWER,
+                    so a stale editable link isn't mislabeled. */}
+                {isOwner && effectiveScope === 'LINK' && (
+                  <span
+                    data-testid="link-role-badge"
+                    className="flex shrink-0 items-center self-stretch rounded-lg border border-slate-300 px-3 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300"
+                  >
                     {ROLE_LABELS[access.role ?? 'VIEWER']}
                   </span>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             <div>

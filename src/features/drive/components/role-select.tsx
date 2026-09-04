@@ -23,7 +23,7 @@ export function RoleSelect({
       disabled={disabled}
       onChange={(e) => onChange(e.target.value as Role)}
       className={cn(
-        'rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100',
+        'rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100',
         className,
       )}
     >
