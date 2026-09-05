@@ -55,12 +55,12 @@ describe('PublicFileRoute', () => {
     expect(screen.getByText('anonymous view f-1 / null')).toBeInTheDocument()
   })
 
-  it('keeps a signed-in visitor on the anonymous view for a folder link', () => {
+  it('opens the real app for a folder link too, when the signed-in visitor has access', () => {
     useAuthStore.setState({ accessToken: 'token' })
     useFile.mockReturnValue({ isLoading: false, isError: false, data: { directory: true } })
 
     renderAt('/public/f-1?key=k-1')
 
-    expect(screen.getByText('anonymous view f-1 / k-1')).toBeInTheDocument()
+    expect(screen.getByText('app file page')).toBeInTheDocument()
   })
 })

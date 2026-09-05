@@ -16,7 +16,10 @@ import { UploadStatusPanel } from './upload-status-panel'
 
 export function DriveExplorer({ path }: { path: string }) {
   const navigate = useNavigate()
-  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({ field: 'name', dir: 'asc' })
+  const [sort, setSort] = useState<{ field: SortField; dir: SortDir }>({
+    field: 'date',
+    dir: 'desc',
+  })
   const query = useDirectoryListing(path, sort.field, sort.dir)
   const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
     useFileUpload(path)
@@ -86,9 +89,7 @@ export function DriveExplorer({ path }: { path: string }) {
         </div>
       </div>
 
-      {selectedFileId && (
-        <FileDetailPanel fileId={selectedFileId} onClose={clearSelection} />
-      )}
+      {selectedFileId && <FileDetailPanel fileId={selectedFileId} onClose={clearSelection} />}
 
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={path} />
 

@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { clampPoint } from './use-row-selection'
+import { act, renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { describe, expect, it, vi } from 'vitest'
+import { clampPoint, useRowSelection } from './use-row-selection'
 
 describe('clampPoint', () => {
   const bounds = { left: 10, top: 10, right: 100, bottom: 100 }
@@ -19,5 +21,26 @@ describe('clampPoint', () => {
     // header), not the container's own — a point dragged up over the header must snap to it.
     const bounds = { left: 0, top: 50, right: 1000, bottom: 800 }
     expect(clampPoint(20, 20, bounds)).toEqual({ x: 20, y: 50 })
+  })
+})
+
+describe('useRowSelection onEmpty', () => {
+  const ref = { current: null }
+
+  it('does not fire on mount, even under StrictMode double-invoke', () => {
+    const onEmpty = vi.fn()
+    renderHook(() => useRowSelection(ref, ['a', 'b'], onEmpty), { wrapper: StrictMode })
+    expect(onEmpty).not.toHaveBeenCalled()
+  })
+
+  it('fires once selection actually transitions from non-empty to empty', () => {
+    const onEmpty = vi.fn()
+    const { result } = renderHook(() => useRowSelection(ref, ['a', 'b'], onEmpty))
+
+    act(() => result.current.setSelected(new Set(['a'])))
+    expect(onEmpty).not.toHaveBeenCalled()
+
+    act(() => result.current.setSelected(new Set()))
+    expect(onEmpty).toHaveBeenCalledTimes(1)
   })
 })

@@ -61,8 +61,14 @@ export function useRowSelection(
   // the "active" end of the range — what arrow keys move from
   const focused = useRef<string | null>(null)
 
+  // Selection starts empty, so mount is never a real clear — only notify a parent when size
+  // actually transitions from non-zero to zero. Tracking the transition (not just "have we
+  // mounted") also survives StrictMode's synchronous double-invoke of this same effect: neither
+  // invoke sees a change in `selected`, so prevSize.current stays 0 across both.
+  const prevSize = useRef(selected.size)
   useEffect(() => {
-    if (selected.size === 0) onEmpty?.()
+    if (selected.size === 0 && prevSize.current !== 0) onEmpty?.()
+    prevSize.current = selected.size
   }, [selected, onEmpty])
 
   // Shared by both entry points below: a blank-space mousedown and a mousedown on a

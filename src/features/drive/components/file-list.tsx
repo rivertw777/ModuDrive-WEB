@@ -77,6 +77,9 @@ export function FileList({
   emptyIcon,
   preserveOrder = false,
   serverPagination,
+  // What the "date" column shows/sorts by — 수정한 날짜 (updatedAt) everywhere except
+  // 즐겨찾기/최근 문서함, which show when *this list's* thing happened instead.
+  dateColumn = { label: '수정한 날짜', getValue: (file: FileEntry) => file.updatedAt },
 }: {
   files: FileEntry[]
   selectedFileId: string | null
@@ -91,9 +94,13 @@ export function FileList({
   emptyIcon?: EmptyStateIcon
   preserveOrder?: boolean
   serverPagination?: ServerPagination
+  dateColumn?: { label: string; getValue: (file: FileEntry) => string | null | undefined }
 }) {
-  const [localSortField, setLocalSortField] = useState<SortField>('name')
-  const [localSortDir, setLocalSortDir] = useState<SortDir>('asc')
+  // Date-descending is the default everywhere in the app (내 드라이브/휴지통 and up), so every
+  // FileList instance opens the same way — a click still opts into a real client-side sort.
+  const [localSortField, setLocalSortField] = useState<SortField>('date')
+  const [localSortDir, setLocalSortDir] = useState<SortDir>('desc')
+  const [userSorted, setUserSorted] = useState(false)
   const sortField = serverPagination?.sortField ?? localSortField
   const sortDir = serverPagination?.sortDir ?? localSortDir
   const [menu, setMenu] = useState<MenuState | null>(null)
@@ -132,6 +139,7 @@ export function FileList({
       serverPagination.onSortChange(field)
       return
     }
+    setUserSorted(true)
     if (field === localSortField) {
       setLocalSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
     } else {
@@ -141,11 +149,19 @@ export function FileList({
   }
 
   const nonDeleted = files.filter((file) => file.status !== 'DELETED')
+  // preserveOrder holds the server's order only until the user clicks a header; serverPagination
+  // means the server is already sorting/paging, so client sort never applies there.
+  const unsortedPreserve = preserveOrder && !userSorted
+  const skipClientSort = unsortedPreserve || serverPagination
   // Server mode: `files` already arrives sorted (directories first) and paged — don't re-sort
   // or window it here, just render every loaded page and let the sentinel pull the next one.
-  const visible =
-    preserveOrder || serverPagination ? nonDeleted : sortFiles(nonDeleted, sortField, sortDir)
-  const clientWindow = useWindowedList(visible, `${preserveOrder ? 'order' : sortField}:${sortDir}`)
+  const visible = skipClientSort
+    ? nonDeleted
+    : sortFiles(nonDeleted, sortField, sortDir, dateColumn.getValue)
+  const clientWindow = useWindowedList(
+    visible,
+    `${skipClientSort ? 'order' : sortField}:${sortDir}`,
+  )
   const serverSentinelRef = useInfiniteScrollRef(
     serverPagination?.hasMore ?? false,
     () => serverPagination?.onLoadMore(),
@@ -301,7 +317,13 @@ export function FileList({
                   >
                     <MoreVerticalIcon size={20} />
                   </button>
-                  <EntryIcon name={file.name} category={file.category} directory={file.directory} size={72} className="mt-8" />
+                  <EntryIcon
+                    name={file.name}
+                    category={file.category}
+                    directory={file.directory}
+                    size={72}
+                    className="mt-8"
+                  />
                   <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
                     {file.name}
                   </span>
@@ -333,10 +355,31 @@ export function FileList({
                   </th>
                   {showSharedBy ? (
                     <>
-                      <th className="w-48 px-3 py-2 font-medium">공유한 사용자</th>
+                      <th className="w-48 px-3 py-2 font-medium">
+                        <SortHeader
+                          label="공유한 사용자"
+                          active={sortField === 'sharedBy'}
+                          dir={sortField === 'sharedBy' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('sharedBy')}
+                        />
+                      </th>
                       <th className="w-20 px-3 py-2 font-medium">권한</th>
-                      <th className="w-44 px-3 py-2 font-medium">공유된 날짜</th>
-                      <th className="w-28 px-3 py-2 font-medium">크기</th>
+                      <th className="w-44 px-3 py-2 font-medium">
+                        <SortHeader
+                          label="공유된 날짜"
+                          active={sortField === 'date'}
+                          dir={sortField === 'date' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('date')}
+                        />
+                      </th>
+                      <th className="w-28 px-3 py-2 font-medium">
+                        <SortHeader
+                          label="크기"
+                          active={sortField === 'size'}
+                          dir={sortField === 'size' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('size')}
+                        />
+                      </th>
                     </>
                   ) : (
                     <>
@@ -350,7 +393,7 @@ export function FileList({
                       </th>
                       <th className="w-44 px-3 py-2 font-medium">
                         <SortHeader
-                          label="수정한 날짜"
+                          label={dateColumn.label}
                           active={sortField === 'date'}
                           dir={sortField === 'date' ? sortDir : 'asc'}
                           onClick={() => toggleSort('date')}
@@ -391,7 +434,11 @@ export function FileList({
                       </button>
                     </td>
                     <td className="px-3 py-2.5">
-                      <EntryIcon name={file.name} category={file.category} directory={file.directory} />
+                      <EntryIcon
+                        name={file.name}
+                        category={file.category}
+                        directory={file.directory}
+                      />
                     </td>
                     <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
                     {showSharedBy ? (
@@ -419,7 +466,7 @@ export function FileList({
                           {file.directory ? '-' : formatFileSize(file.fileSize)}
                         </td>
                         <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          {formatDate(file.updatedAt)}
+                          {formatDate(dateColumn.getValue(file) ?? null)}
                         </td>
                       </>
                     )}

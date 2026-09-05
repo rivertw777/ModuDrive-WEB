@@ -16,6 +16,7 @@ import { ROLE_LABELS } from './role-select'
 import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
 import { RestrictParentDialog } from './restrict-parent-dialog'
+import { RevokeInheritedDialog } from './revoke-inherited-dialog'
 
 const SCOPE_LABELS: Record<ShareScope, string> = {
   RESTRICTED: '권한이 부여된 사용자',
@@ -57,6 +58,19 @@ export function ShareModal({
   // Scope/role/revoke edits are staged here and only sent to the server on 완료.
   const [pendingScope, setPendingScope] = useState<ShareScope | null>(null)
   const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
+  // Removing a direct share whose grantee also has a separate grant on an ancestor folder is a
+  // no-op unless that ancestor grant goes too (see RevokeInheritedDialog) — this stages that
+  // second revoke, keyed by the direct row's shareId so it travels with it.
+  const [cascadeRevokes, setCascadeRevokes] = useState<
+    Record<string, { fileId: string; shareId: string }>
+  >({})
+  const [cascadeTarget, setCascadeTarget] = useState<{
+    directShareId: string
+    granteeLabel: string
+    ancestorFileId: string
+    ancestorShareId: string
+    ancestorName: string
+  } | null>(null)
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [restrictOpen, setRestrictOpen] = useState(false)
@@ -67,6 +81,8 @@ export function ShareModal({
       setView('list')
       setPendingScope(null)
       setPendingRoleChanges({})
+      setCascadeRevokes({})
+      setCascadeTarget(null)
       setCommitError(null)
       setConfirmCloseOpen(false)
       setRestrictOpen(false)
@@ -80,7 +96,11 @@ export function ShareModal({
   const inheritedLinks = access?.inheritedLinks ?? []
   const effectiveScope: ShareScope | undefined =
     pendingScope ??
-    (access ? (access.scope === 'LINK' || inheritedLinks.length > 0 ? 'LINK' : access.scope) : undefined)
+    (access
+      ? access.scope === 'LINK' || inheritedLinks.length > 0
+        ? 'LINK'
+        : access.scope
+      : undefined)
   const isCommitting = updateScope.isPending || updateRole.isPending || revoke.isPending
 
   const onScopeChange = (next: ShareScope) => {
@@ -108,6 +128,50 @@ export function ShareModal({
     }
   }
 
+  // A member's row here can be shadowed by a separate grant on an ancestor folder (this file
+  // itself was shared directly, then a folder above it also was) — dropping just this row would
+  // change nothing, since the ancestor grant still lets them in. Removing that ancestor row would
+  // also drop every other file only reachable through it, so this is confirmed, not silent.
+  const onMemberChange = (shareId: string, change: PendingChange) => {
+    if (change !== REMOVE_ACCESS) {
+      setCascadeRevokes((prev) => {
+        if (!(shareId in prev)) return prev
+        return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== shareId))
+      })
+      setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
+      return
+    }
+    const target = access?.shares.find((s) => s.shareId === shareId)
+    const inherited = access?.shares.find(
+      (s) =>
+        s.sharedWithUserId && s.sharedWithUserId === target?.sharedWithUserId && s.inheritedFrom,
+    )
+    if (target && inherited?.inheritedFrom) {
+      setCascadeTarget({
+        directShareId: shareId,
+        granteeLabel: target.sharedWithEmail ?? target.sharedWithName ?? '이 사용자',
+        ancestorFileId: inherited.inheritedFrom.fileId,
+        ancestorShareId: inherited.shareId,
+        ancestorName: inherited.inheritedFrom.name,
+      })
+      return
+    }
+    setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
+  }
+
+  const onCascadeConfirm = () => {
+    if (!cascadeTarget) return
+    setPendingRoleChanges((prev) => ({ ...prev, [cascadeTarget.directShareId]: REMOVE_ACCESS }))
+    setCascadeRevokes((prev) => ({
+      ...prev,
+      [cascadeTarget.directShareId]: {
+        fileId: cascadeTarget.ancestorFileId,
+        shareId: cascadeTarget.ancestorShareId,
+      },
+    }))
+    setCascadeTarget(null)
+  }
+
   // RESTRICTED shares have no link token — point invited members at the
   // login-gated deep link instead of the anonymous /public/:fileId route.
   // Deliberately reflects the server's current scope, not a staged pending one:
@@ -123,7 +187,10 @@ export function ShareModal({
   const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
   // A link is a bearer credential anyone who obtains it can use, so it only ever grants
   // read-only access — VIEWER isn't a default here, it's the only value the server accepts.
-  const hasPendingChanges = pendingScope !== null || Object.keys(pendingRoleChanges).length > 0
+  const hasPendingChanges =
+    pendingScope !== null ||
+    Object.keys(pendingRoleChanges).length > 0 ||
+    Object.keys(cascadeRevokes).length > 0
 
   const onComplete = async () => {
     const roleEntries = Object.entries(pendingRoleChanges)
@@ -155,6 +222,13 @@ export function ShareModal({
           : updateRole.mutateAsync({ fileId, shareId, role: change }),
       )
     }
+    // A cascade revoke is tracked and retried independently of its triggering direct row —
+    // resending a revoke that already succeeded 404s (see the note above), so a retry must not
+    // resend the direct one just because its paired cascade failed, or vice versa.
+    for (const [directShareId, cascade] of Object.entries(cascadeRevokes)) {
+      keys.push(`cascade:${directShareId}`)
+      tasks.push(revoke.mutateAsync({ fileId: cascade.fileId, shareId: cascade.shareId }))
+    }
     const results = await Promise.allSettled(tasks)
     const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
     if (failedKeys.size > 0) {
@@ -162,11 +236,17 @@ export function ShareModal({
       setPendingRoleChanges((prev) =>
         Object.fromEntries(Object.entries(prev).filter(([shareId]) => failedKeys.has(shareId))),
       )
+      setCascadeRevokes((prev) =>
+        Object.fromEntries(
+          Object.entries(prev).filter(([shareId]) => failedKeys.has(`cascade:${shareId}`)),
+        ),
+      )
       setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해주세요.')
       return
     }
     setPendingScope(null)
     setPendingRoleChanges({})
+    setCascadeRevokes({})
     onClose()
   }
 
@@ -271,9 +351,7 @@ export function ShareModal({
                 shares={access.shares}
                 isOwner={isOwner}
                 pendingChanges={pendingRoleChanges}
-                onChange={(shareId, change) =>
-                  setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
-                }
+                onChange={onMemberChange}
                 disabled={isCommitting}
               />
             </div>
@@ -317,6 +395,13 @@ export function ShareModal({
         includesThisItem={access?.scope === 'LINK'}
         onConfirm={onRestrictConfirm}
         onCancel={() => setRestrictOpen(false)}
+      />
+      <RevokeInheritedDialog
+        open={cascadeTarget !== null}
+        granteeLabel={cascadeTarget?.granteeLabel ?? ''}
+        ancestorName={cascadeTarget?.ancestorName ?? ''}
+        onConfirm={onCascadeConfirm}
+        onCancel={() => setCascadeTarget(null)}
       />
     </>
   )

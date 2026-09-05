@@ -60,7 +60,7 @@ export function TrashExplorer() {
   }
 
   const selectedFile = files?.find((file) => file.fileId === selectedFileId) ?? null
-  const sorted = files ? sortFiles(files, sortField, sortDir) : []
+  const sorted = files ? sortFiles(files, sortField, sortDir, (file) => file.trashedAt) : []
   const {
     visible: shown,
     hasMore,
@@ -100,171 +100,178 @@ export function TrashExplorer() {
         )}
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-        {actionError && (
-          <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
-        )}
+          {actionError && (
+            <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
+          )}
 
-        {isLoading && <LoadingState />}
-        {isError && <ErrorState message="휴지통을 불러오지 못했습니다" />}
-        {files && files.length === 0 && (
-          <EmptyState label="휴지통이 비어 있습니다" icon={TrashIcon} />
-        )}
-        {files && files.length > 0 && (
-          <div
-            ref={containerRef}
-            onMouseDown={onContainerMouseDown}
-            className="relative min-h-[50vh]"
-          >
-            <MarqueeOverlay box={box} />
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-                {shown.map((file) => (
-                  <div
-                    key={file.fileId}
-                    data-row-id={file.fileId}
-                    onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
-                    onClick={(event) => {
-                      if (event.shiftKey || event.metaKey || event.ctrlKey) return
-                      setSelected(new Set([file.fileId]))
-                      setSelectedFileId(file.fileId)
-                    }}
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      openMenu(file, event.clientX, event.clientY)
-                    }}
-                    className={cn(
-                      'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
-                      (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                        'border-brand-200 bg-brand-50 hover:bg-brand-50 dark:border-brand-700 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
-                    )}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openMenu(file, e.clientX, e.clientY)
+          {isLoading && <LoadingState />}
+          {isError && <ErrorState message="휴지통을 불러오지 못했습니다" />}
+          {files && files.length === 0 && (
+            <EmptyState label="휴지통이 비어 있습니다" icon={TrashIcon} />
+          )}
+          {files && files.length > 0 && (
+            <div
+              ref={containerRef}
+              onMouseDown={onContainerMouseDown}
+              className="relative min-h-[50vh]"
+            >
+              <MarqueeOverlay box={box} />
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                  {shown.map((file) => (
+                    <div
+                      key={file.fileId}
+                      data-row-id={file.fileId}
+                      onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
+                      onClick={(event) => {
+                        if (event.shiftKey || event.metaKey || event.ctrlKey) return
+                        setSelected(new Set([file.fileId]))
+                        setSelectedFileId(file.fileId)
                       }}
-                      aria-label="더보기"
-                      className="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                    >
-                      <MoreVerticalIcon size={20} />
-                    </button>
-                    <EntryIcon name={file.name} category={file.category} directory={file.directory} size={72} />
-                    <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
-                      {file.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate(`/drive${file.path === '/' ? '' : file.path}`)
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        openMenu(file, event.clientX, event.clientY)
                       }}
-                      className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
+                      className={cn(
+                        'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
+                        (selected.has(file.fileId) || selectedFileId === file.fileId) &&
+                          'border-brand-200 bg-brand-50 hover:bg-brand-50 dark:border-brand-700 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                      )}
                     >
-                      {locationLabel(file.path)}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
-                <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  <th className="w-14 py-2 font-medium whitespace-nowrap">종류</th>
-                  <th className="py-2 font-medium">
-                    <SortHeader
-                      label="이름"
-                      active={sortField === 'name'}
-                      dir={sortField === 'name' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('name')}
-                    />
-                  </th>
-                  <th className="w-24 py-2 font-medium">
-                    <SortHeader
-                      label="크기"
-                      active={sortField === 'size'}
-                      dir={sortField === 'size' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('size')}
-                    />
-                  </th>
-                  <th className="w-44 py-2 font-medium">
-                    <SortHeader
-                      label="휴지통에 버린 날짜"
-                      active={sortField === 'date'}
-                      dir={sortField === 'date' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('date')}
-                    />
-                  </th>
-                  <th className="w-32 py-2 pr-4 font-medium">원래 위치</th>
-                  <th className="w-14 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((file) => (
-                  <tr
-                    key={file.fileId}
-                    data-row-id={file.fileId}
-                    onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
-                    onClick={(event) => {
-                      if (event.shiftKey || event.metaKey || event.ctrlKey) return
-                      setSelected(new Set([file.fileId]))
-                      setSelectedFileId(file.fileId)
-                    }}
-                    onContextMenu={(event) => {
-                      event.preventDefault()
-                      openMenu(file, event.clientX, event.clientY)
-                    }}
-                    className={cn(
-                      'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
-                      (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                        'bg-brand-50 hover:bg-brand-50 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
-                    )}
-                  >
-                    <td className="py-2.5">
-                      <EntryIcon name={file.name} category={file.category} directory={file.directory} />
-                    </td>
-                    <td className="py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
-                    <td className="py-2.5 text-slate-500 dark:text-slate-400">
-                      {file.directory ? '-' : formatFileSize(file.fileSize)}
-                    </td>
-                    <td className="py-2.5 text-slate-500 dark:text-slate-400">
-                      {formatDate(file.updatedAt)}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/drive${file.path === '/' ? '' : file.path}`)
-                        }}
-                        className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        {locationLabel(file.path)}
-                      </button>
-                    </td>
-                    <td className="py-2.5 pr-2 text-right">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           openMenu(file, e.clientX, e.clientY)
                         }}
                         aria-label="더보기"
-                        className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                        className="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
                       >
-                        <MoreVerticalIcon size={16} />
+                        <MoreVerticalIcon size={20} />
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            )}
-            {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
-          </div>
-        )}
+                      <EntryIcon
+                        name={file.name}
+                        category={file.category}
+                        directory={file.directory}
+                        size={72}
+                      />
+                      <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
+                        {file.name}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/drive${file.path === '/' ? '' : file.path}`)
+                        }}
+                        className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
+                      >
+                        {locationLabel(file.path)}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
+                    <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      <th className="w-14 py-2 font-medium whitespace-nowrap">종류</th>
+                      <th className="py-2 font-medium">
+                        <SortHeader
+                          label="이름"
+                          active={sortField === 'name'}
+                          dir={sortField === 'name' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('name')}
+                        />
+                      </th>
+                      <th className="w-24 py-2 font-medium">
+                        <SortHeader
+                          label="크기"
+                          active={sortField === 'size'}
+                          dir={sortField === 'size' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('size')}
+                        />
+                      </th>
+                      <th className="w-44 py-2 font-medium">
+                        <SortHeader
+                          label="휴지통에 버린 날짜"
+                          active={sortField === 'date'}
+                          dir={sortField === 'date' ? sortDir : 'asc'}
+                          onClick={() => toggleSort('date')}
+                        />
+                      </th>
+                      <th className="w-32 py-2 pr-4 font-medium">원래 위치</th>
+                      <th className="w-14 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((file) => (
+                      <tr
+                        key={file.fileId}
+                        data-row-id={file.fileId}
+                        onMouseDown={(event) => onRowMouseDown(file.fileId, event)}
+                        onClick={(event) => {
+                          if (event.shiftKey || event.metaKey || event.ctrlKey) return
+                          setSelected(new Set([file.fileId]))
+                          setSelectedFileId(file.fileId)
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          openMenu(file, event.clientX, event.clientY)
+                        }}
+                        className={cn(
+                          'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
+                          (selected.has(file.fileId) || selectedFileId === file.fileId) &&
+                            'bg-brand-50 hover:bg-brand-50 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                        )}
+                      >
+                        <td className="py-2.5">
+                          <EntryIcon
+                            name={file.name}
+                            category={file.category}
+                            directory={file.directory}
+                          />
+                        </td>
+                        <td className="py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
+                        <td className="py-2.5 text-slate-500 dark:text-slate-400">
+                          {file.directory ? '-' : formatFileSize(file.fileSize)}
+                        </td>
+                        <td className="py-2.5 text-slate-500 dark:text-slate-400">
+                          {formatDate(file.trashedAt ?? null)}
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              navigate(`/drive${file.path === '/' ? '' : file.path}`)
+                            }}
+                            className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                          >
+                            {locationLabel(file.path)}
+                          </button>
+                        </td>
+                        <td className="py-2.5 pr-2 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openMenu(file, e.clientX, e.clientY)
+                            }}
+                            aria-label="더보기"
+                            className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                          >
+                            <MoreVerticalIcon size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {hasMore && <div ref={sentinelRef} aria-hidden className="h-8" />}
+            </div>
+          )}
         </div>
       </div>
 
-      {selectedFile && (
-        <TrashDetailPanel file={selectedFile} onClose={clearSelection} />
-      )}
+      {selectedFile && <TrashDetailPanel file={selectedFile} onClose={clearSelection} />}
 
       {menu && !menu.batch && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
