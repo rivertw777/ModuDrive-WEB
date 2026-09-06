@@ -121,12 +121,18 @@ export function FilePreview({
 
   const maxH = fullscreen ? 'max-h-[80vh]' : 'max-h-64'
 
+  // A page, not a shrink-wrapped box: fixed size regardless of how much text is in the file
+  // (Google Docs/Drive look — white paper, own scrollbar), same in both the sidebar preview and
+  // the fullscreen viewer, just at different scales.
   if (kind === 'text') {
+    // Google Drive's page doesn't fill the viewer edge-to-edge — it sits centered with a visible
+    // dark margin on all four sides (~78% of the available width/height).
+    const pageSize = fullscreen ? 'h-[78vh] w-[78%]' : 'h-64 w-full'
     return text === null ? (
       <LoadingState />
     ) : (
       <pre
-        className={`${maxH} overflow-auto rounded-lg bg-slate-50 p-3 text-left text-xs whitespace-pre-wrap text-slate-700 dark:bg-slate-900 dark:text-slate-300`}
+        className={`${pageSize} overflow-auto bg-white p-6 text-left text-sm whitespace-pre-wrap text-slate-900`}
       >
         {text}
       </pre>

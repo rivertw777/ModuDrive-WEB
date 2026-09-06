@@ -120,7 +120,7 @@ export function isImageFile(name: string) {
 const CATEGORY_EXTENSIONS: Record<Exclude<FileCategory, 'OTHER'>, Set<string>> = {
   IMAGE: IMAGE_EXTENSIONS,
   VIDEO: new Set(['mp4', 'mov', 'avi', 'mkv', 'webm']),
-  DOCUMENT: new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'hwp']),
+  DOCUMENT: new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'hwp']),
   AUDIO: new Set(['mp3', 'wav', 'flac', 'aac', 'm4a']),
 }
 
@@ -138,7 +138,10 @@ export type PreviewKind = 'text' | 'image' | 'audio' | 'video'
  * preview and falls back to a download-only detail view. */
 export function previewKind(name: string): PreviewKind | null {
   const ext = name.split('.').pop()?.toLowerCase()
-  if (ext === 'txt') return 'text'
+  // md renders as plain text in a <pre>, never as HTML. Content is attacker-controlled and
+  // reachable anonymously via public share links, so a future markdown-to-HTML renderer must
+  // sanitize (e.g. DOMPurify) — same reason svg stays download-only below.
+  if (ext === 'txt' || ext === 'md') return 'text'
   // SVG can embed <script> and browsers execute it when rendered inline — no safe preview
   // without sanitization, so it stays IMAGE for categorization but download-only for preview.
   if (ext === 'svg') return null

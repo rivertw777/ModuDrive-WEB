@@ -4,6 +4,7 @@ import { numberedName, previewKind } from './types'
 describe('previewKind', () => {
   it.each([
     ['notes.txt', 'text'],
+    ['notes.md', 'text'],
     ['photo.PNG', 'image'],
     ['song.mp3', 'audio'],
     ['clip.mp4', 'video'],
