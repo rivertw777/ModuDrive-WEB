@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { DownloadIcon, FileIcon, ShareIcon, XIcon } from '@/components/ui/icons'
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DownloadIcon,
+  FileIcon,
+  ShareIcon,
+  XIcon,
+} from '@/components/ui/icons'
 import { canPreviewFile } from '../types'
 import { downloadFile } from '../api/download-file'
 import { EntryIcon } from './entry-icon'
@@ -22,6 +29,8 @@ export function FileViewerModal({
   fileName,
   fileSize,
   canShare = true,
+  onPrev,
+  onNext,
 }: {
   open: boolean
   onClose: () => void
@@ -30,6 +39,9 @@ export function FileViewerModal({
   fileSize: number | null
   /** Off for shared-with-me files — the viewer isn't the owner. */
   canShare?: boolean
+  /** Omit to hide that side's arrow — caller decides whether there's a sibling file to jump to. */
+  onPrev?: () => void
+  onNext?: () => void
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -53,6 +65,21 @@ export function FileViewerModal({
       void queryClient.invalidateQueries({ queryKey: ['files', 'recent'] })
     }
   }, [open, canPreview, fileId, queryClient])
+
+  // ArrowLeft/Right mirror the on-screen chevrons — same as Google Drive's viewer. Skip while the
+  // share modal is stacked on top (it owns the keyboard, e.g. its scope <select>) and skip form
+  // controls inside the panel so they keep their own arrow-key behavior.
+  useEffect(() => {
+    if (!open || shareOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      const el = event.target instanceof Element ? event.target : null
+      if (el?.closest('input, textarea, select')) return
+      if (event.key === 'ArrowLeft') onPrev?.()
+      if (event.key === 'ArrowRight') onNext?.()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, shareOpen, onPrev, onNext])
 
   return (
     <dialog
@@ -102,11 +129,37 @@ export function FileViewerModal({
           </div>
         </div>
         <div
-          className="flex flex-1 items-center justify-center overflow-auto p-6"
+          className="relative flex flex-1 items-center justify-center overflow-auto p-6"
           onClick={(e) => {
             if (e.target === e.currentTarget) onClose()
           }}
         >
+          {onPrev && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPrev()
+              }}
+              aria-label="이전 파일"
+              className="absolute top-1/2 left-4 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-slate-100 hover:bg-white/20"
+            >
+              <ChevronLeftIcon size={22} />
+            </button>
+          )}
+          {onNext && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onNext()
+              }}
+              aria-label="다음 파일"
+              className="absolute top-1/2 right-4 inline-flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-slate-100 hover:bg-white/20"
+            >
+              <ChevronRightIcon size={22} />
+            </button>
+          )}
           {canPreview ? (
             <FilePreview
               fileName={fileName}

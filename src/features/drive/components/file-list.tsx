@@ -266,6 +266,13 @@ export function FileList({
     onDrop: file.directory ? (event: React.DragEvent) => onDrop(event, file) : undefined,
   })
 
+  // Viewer's ◀/▶ step through this same folder listing, previewable files only (matches what
+  // double-click can open) — `visible` so paging/windowing doesn't cut the sibling list short.
+  const previewableFiles = visible.filter((file) => !file.directory && file.status === 'UPLOADED')
+  const viewerIndex = viewerFile
+    ? previewableFiles.findIndex((file) => file.fileId === viewerFile.fileId)
+    : -1
+
   return (
     <>
       {actionError && <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
@@ -690,6 +697,14 @@ export function FileList({
           fileName={viewerFile.name}
           fileSize={viewerFile.fileSize}
           canShare={!isSharedFile(viewerFile)}
+          onPrev={
+            viewerIndex > 0 ? () => setViewerFile(previewableFiles[viewerIndex - 1]) : undefined
+          }
+          onNext={
+            viewerIndex >= 0 && viewerIndex < previewableFiles.length - 1
+              ? () => setViewerFile(previewableFiles[viewerIndex + 1])
+              : undefined
+          }
         />
       )}
     </>
