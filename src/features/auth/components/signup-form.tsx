@@ -48,8 +48,8 @@ function ValidBadge({ label }: { label: string }) {
 }
 
 const inputClass =
-  'mt-1.5 w-full rounded-xl border-0 bg-slate-100 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-1 ring-inset ring-transparent transition focus:bg-white focus:ring-2 focus:ring-brand-500 dark:bg-white/5 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-white/10'
-const labelClass = 'block text-[13px] font-medium text-slate-500 dark:text-slate-400'
+  'mt-1.5 w-full rounded-xl border-0 bg-slate-100 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-1 ring-inset ring-transparent transition focus:bg-white focus:ring-2 focus:ring-brand-500'
+const labelClass = 'block text-[13px] font-medium text-slate-500'
 
 export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   const signup = useSignup()
@@ -121,8 +121,14 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
         <label htmlFor="name" className={labelClass}>
           이름
         </label>
-        <input id="name" type="text" autoComplete="name" className={inputClass} {...register('name')} />
-        {errors.name && <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
+        <input
+          id="name"
+          type="text"
+          autoComplete="name"
+          className={inputClass}
+          {...register('name')}
+        />
+        {errors.name && <p className="mt-1.5 text-sm text-red-600">{errors.name.message}</p>}
       </div>
 
       <div>
@@ -146,15 +152,15 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
               variant="secondary"
               disabled={requestVerification.isPending || Date.now() < resendAt}
               onClick={onRequestCode}
-              className="mt-1.5 w-[4.5rem] shrink-0 whitespace-nowrap border-0 bg-slate-100 px-1.5 py-3 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
+              className="mt-1.5 w-[4.5rem] shrink-0 whitespace-nowrap border-0 bg-slate-100 px-1.5 py-3 text-slate-700 hover:bg-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-100"
             >
               {requestVerification.isPending ? '발송 중...' : isCodeSent ? '재전송' : '인증'}
             </Button>
           )}
         </div>
-        {errors.email && <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email.message}</p>}
         {requestVerification.isError && (
-          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{requestVerification.error.message}</p>
+          <p className="mt-1.5 text-sm text-red-600">{requestVerification.error.message}</p>
         )}
 
         {!isVerified && isCodeSent && !isCodeExpired && (
@@ -173,7 +179,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
                   onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
                   className={cn(inputClass, 'mt-0 pr-14')}
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium tabular-nums text-slate-400 dark:text-slate-500">
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium tabular-nums text-slate-400">
                   {formatRemaining(remainingMs)}
                 </span>
               </div>
@@ -182,18 +188,18 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
                 variant="primary"
                 disabled={code.length !== 6 || confirmVerification.isPending}
                 onClick={onConfirmCode}
-                className="w-[4.5rem] shrink-0 whitespace-nowrap px-1.5 py-3"
+                className="w-[4.5rem] shrink-0 whitespace-nowrap px-1.5 py-3 disabled:bg-slate-300 disabled:text-slate-500 disabled:opacity-100"
               >
                 {confirmVerification.isPending ? '확인 중...' : '확인'}
               </Button>
             </div>
             {confirmVerification.isError && (
-              <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{confirmVerification.error.message}</p>
+              <p className="mt-1.5 text-sm text-red-600">{confirmVerification.error.message}</p>
             )}
           </div>
         )}
         {!isVerified && isCodeExpired && (
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+          <p className="mt-2 text-sm text-red-600">
             인증 코드가 만료되었습니다. 재전송을 눌러주세요.
           </p>
         )}
@@ -211,7 +217,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
           {...register('password')}
         />
         {errors.password && (
-          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
+          <p className="mt-1.5 text-sm text-red-600">{errors.password.message}</p>
         )}
       </div>
 
@@ -230,11 +236,11 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
           {passwordsMatch && !errors.confirmPassword && <ValidBadge label="비밀번호 일치" />}
         </div>
         {errors.confirmPassword && (
-          <p className="mt-1.5 text-sm text-red-600 dark:text-red-400">{errors.confirmPassword.message}</p>
+          <p className="mt-1.5 text-sm text-red-600">{errors.confirmPassword.message}</p>
         )}
       </div>
 
-      {signup.isError && <p className="text-sm text-red-600 dark:text-red-400">{signup.error.message}</p>}
+      {signup.isError && <p className="text-sm text-red-600">{signup.error.message}</p>}
 
       <Button
         type="submit"

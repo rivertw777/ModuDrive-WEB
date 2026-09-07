@@ -69,7 +69,7 @@ export function PublicFolderView({
         </nav>
         <Link
           to="/login"
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-500"
+          className="inline-flex h-9 shrink-0 items-center rounded-full bg-brand-700 px-4 text-sm font-medium text-white hover:bg-brand-600"
         >
           로그인
         </Link>
