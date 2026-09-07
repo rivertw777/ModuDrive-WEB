@@ -40,7 +40,7 @@ export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey:
           )}
           <p className="min-w-0 truncate text-sm font-medium">{file?.name}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-4">
           {file && !file.directory && (
             <button
               type="button"
@@ -53,7 +53,7 @@ export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey:
           )}
           <Link
             to="/login"
-            className="inline-flex h-9 items-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-500"
+            className="inline-flex h-9 items-center rounded-full bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
           >
             로그인
           </Link>

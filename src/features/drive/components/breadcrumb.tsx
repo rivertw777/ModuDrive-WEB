@@ -19,7 +19,7 @@ export function Breadcrumb({ path }: { path: string }) {
           <span key={href} className="flex items-center gap-1">
             <ChevronRightIcon size={16} className="text-slate-400 dark:text-slate-600" />
             {isLast ? (
-              <span className="rounded-md px-1.5 py-0.5 font-medium text-slate-900 dark:text-slate-100">
+              <span className="rounded-md px-1.5 py-0.5 font-medium text-slate-700 dark:text-slate-300">
                 {segment}
               </span>
             ) : (
