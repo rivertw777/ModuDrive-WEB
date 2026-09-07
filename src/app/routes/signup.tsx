@@ -10,17 +10,14 @@ export default function SignupRoute() {
       <div className="absolute right-6 top-3">
         <ThemeToggle />
       </div>
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-10 shadow-2xl shadow-slate-900/5 dark:border-slate-700 dark:bg-slate-800">
         <div className="flex flex-col items-center">
-          <span className="flex size-10 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white">
-            M
-          </span>
-          <h1 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">회원가입</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100">회원가입</h1>
         </div>
-        <div className="mt-6">
+        <div className="mt-8">
           <SignupForm onSuccess={() => navigate('/login')} />
         </div>
-        <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
           이미 계정이 있으신가요?{' '}
           <Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-400">
             로그인

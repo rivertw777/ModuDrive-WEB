@@ -19,14 +19,15 @@ function renderForm() {
 }
 
 const verifyButton = () => screen.getByRole('button', { name: '인증' })
+const verifiedBadge = () => screen.queryByRole('img', { name: '인증 완료' })
 
 describe('SignupForm email verification', () => {
-  it('enables 인증 only for a valid email, then verifies and re-locks on email change', async () => {
+  it('shows 인증 only for a valid email, then verifies and re-locks on email change', async () => {
     const user = renderForm()
     const email = screen.getByLabelText('이메일')
 
     await user.type(email, 'not-an-email')
-    expect(verifyButton()).toBeDisabled()
+    expect(screen.queryByRole('button', { name: '인증' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled()
 
     await user.clear(email)
@@ -34,15 +35,16 @@ describe('SignupForm email verification', () => {
     expect(verifyButton()).toBeEnabled()
 
     await user.click(verifyButton())
+    expect(await screen.findByText(/^\d:\d{2}$/)).toBeInTheDocument()
     await user.type(await screen.findByLabelText('인증 코드'), '123456')
     await user.click(screen.getByRole('button', { name: '확인' }))
 
-    expect(await screen.findByText('인증 완료')).toBeInTheDocument()
+    expect(await screen.findByRole('img', { name: '인증 완료' })).toBeInTheDocument()
     expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '회원가입' })).toBeEnabled()
 
     await user.type(email, 'x')
-    expect(screen.queryByText('인증 완료')).not.toBeInTheDocument()
+    expect(verifiedBadge()).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled()
   })
 })
