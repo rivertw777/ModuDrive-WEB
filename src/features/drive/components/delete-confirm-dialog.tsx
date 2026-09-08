@@ -40,6 +40,12 @@ export function DeleteConfirmDialog({
     })
     .map((file) => file.name)
 
+  // A folder that isn't itself shared can still have a shared file nested somewhere inside it —
+  // trashing cascades to the whole subtree, so that needs its own heads-up too.
+  const descendantSharedNames = files
+    .filter((_, i) => shareQueries[i]?.data?.hasSharedDescendant)
+    .map((file) => file.name)
+
   const onConfirm = async () => {
     setError(null)
     setIsSubmitting(true)
@@ -76,17 +82,29 @@ export function DeleteConfirmDialog({
         휴지통으로 옮길까요? 휴지통에서 복원할 수 있습니다.
       </p>
 
-      {sharedNames.length > 0 && (
+      {(sharedNames.length > 0 || descendantSharedNames.length > 0) && (
         <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
-          {sharedNames.length === files.length ? (
-            <>현재 공유 중{onlyFolders ? '인 폴더입니다.' : '입니다.'}</>
-          ) : (
-            <>
-              <span className="font-medium">{sharedNames.join(', ')}</span> 은(는) 현재 공유 중입니다.
-            </>
-          )}{' '}
-          휴지통으로 옮기면{onlyFolders ? ' 하위 항목을 포함해' : ''} 공유된 사용자는 접근할 수
-          없게 되며, 복원하면 다시 접근할 수 있습니다.
+          {sharedNames.length > 0 && (
+            <p>
+              {sharedNames.length === files.length ? (
+                <>현재 공유 중{onlyFolders ? '인 폴더입니다.' : '인 파일입니다.'}</>
+              ) : (
+                <>
+                  <span className="font-medium">{sharedNames.join(', ')}</span> 은(는) 현재 공유 중
+                  {onlyFolders ? '인 폴더입니다.' : '인 파일입니다.'}
+                </>
+              )}
+            </p>
+          )}
+          {descendantSharedNames.length > 0 && (
+            <p className={sharedNames.length > 0 ? 'mt-1' : undefined}>
+              <span className="font-medium">{descendantSharedNames.join(', ')}</span> 안에 공유 중인 파일이 있습니다.
+            </p>
+          )}
+          <p className="mt-1">
+            휴지통으로 옮기면{onlyFolders || descendantSharedNames.length > 0 ? ' 하위 항목을 포함해' : ''} 공유된
+            사용자는 접근할 수 없게 되며, 복원하면 다시 접근할 수 있습니다.
+          </p>
         </div>
       )}
 

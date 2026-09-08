@@ -34,6 +34,16 @@ export function MemberAccessList({
   onChange: (shareId: string, change: PendingChange) => void
   disabled?: boolean
 }) {
+  // A direct grant on this file takes priority over a same-user grant inherited from an
+  // ancestor folder — the row would otherwise duplicate the same person twice. The inherited
+  // row still matters (it's why revoking the direct one alone is a no-op), so it's not gone
+  // from the data, just not listed here — see the cascade-revoke confirm in ShareModal.
+  const directUserIds = new Set(
+    shares.filter((s) => !s.inheritedFrom && s.sharedWithUserId).map((s) => s.sharedWithUserId),
+  )
+  const visibleShares = shares.filter(
+    (s) => !s.inheritedFrom || !directUserIds.has(s.sharedWithUserId),
+  )
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
@@ -43,7 +53,7 @@ export function MemberAccessList({
         </div>
         <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">소유자</span>
       </li>
-      {shares.map((share) => {
+      {visibleShares.map((share) => {
         const pending = pendingChanges[share.shareId]
         const removing = pending === REMOVE_ACCESS
         const selectValue = removing ? REMOVE_ACCESS : (pending ?? share.role)
@@ -75,8 +85,15 @@ export function MemberAccessList({
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {/* An inherited grant is changed from its own folder's dialog, never here. */}
-              {share.inheritedFrom || !isOwner ? (
+              {/* A pure-inherited row (no direct grant of its own here — see visibleShares above)
+                  picks a role the same way a direct row does; choosing one creates this file's
+                  own grant instead of updating the ancestor's (see ShareModal.onComplete) — the
+                  ancestor grant and any other direct share elsewhere are untouched.
+                  Exception: a guest row (invited by email, no member account — sharedWithUserId
+                  is null) stays read-only here. Picking a role on it would call the create-share
+                  API directly, skipping AddMemberForm's "anyone with this invite can access
+                  without logging in" confirmation for a brand-new guest link on this file. */}
+              {!isOwner || (share.inheritedFrom && !share.sharedWithUserId) ? (
                 <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
               ) : (
                 <select
