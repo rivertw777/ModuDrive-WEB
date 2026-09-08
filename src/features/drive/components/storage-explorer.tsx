@@ -48,7 +48,7 @@ export function StorageExplorer() {
     )
 
   // Tag trashed rows from their source list — don't trust `status` to come back on /files/trash.
-  const trashedFiles = (trashed ?? []).map((file): FileEntry => ({ ...file, status: 'DELETED' }))
+  const trashedFiles = (trashed ?? []).map((file): FileEntry => ({ ...file, status: 'TRASHED' }))
   const files = sortEntries(entries ?? [])
   const tableFiles = sortEntries([...(entries ?? []), ...trashedFiles])
   // Table can hold every file the user owns — window it so only 100 rows paint at a time.
@@ -71,7 +71,7 @@ export function StorageExplorer() {
     }
   }
 
-  const isTrashed = (file: FileEntry) => file.status === 'DELETED'
+  const isTrashed = (file: FileEntry) => file.status === 'TRASHED'
   const locationText = (file: FileEntry) =>
     isTrashed(file) ? '휴지통' : locationLabel(file.path)
   const openLocation = (file: FileEntry) => {
