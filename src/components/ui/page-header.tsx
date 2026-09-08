@@ -7,7 +7,7 @@ export function PageHeader({ title, children }: { title: ReactNode; children?: R
   return (
     <div className="mb-4 flex min-h-11 shrink-0 items-center justify-between gap-4">
       {typeof title === 'string' ? (
-        <h1 className="text-lg font-medium text-slate-900 dark:text-slate-100">{title}</h1>
+        <h1 className="text-lg font-medium text-slate-700 dark:text-slate-300">{title}</h1>
       ) : (
         title
       )}
