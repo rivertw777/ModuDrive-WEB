@@ -11,6 +11,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+const inputClass =
+  'mt-1.5 w-full rounded-xl border-0 bg-slate-100 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 outline-none ring-1 ring-inset ring-transparent transition focus:bg-white focus:ring-2 focus:ring-brand-500'
+const labelClass = 'block text-[13px] font-medium text-slate-500'
+
 export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const login = useLogin()
   const {
@@ -24,40 +28,45 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor="email" className={labelClass}>
           이메일
         </label>
         <input
           id="email"
           type="email"
           autoComplete="email"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+          className={inputClass}
           {...register('email')}
         />
-        {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor="password" className={labelClass}>
           비밀번호
         </label>
         <input
           id="password"
           type="password"
           autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+          className={inputClass}
           {...register('password')}
         />
         {errors.password && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password.message}</p>
+          <p className="mt-1.5 text-sm text-red-600">{errors.password.message}</p>
         )}
       </div>
 
-      {login.isError && <p className="text-sm text-red-600 dark:text-red-400">{login.error.message}</p>}
+      {login.isError && <p className="text-sm text-red-600">{login.error.message}</p>}
 
-      <Button type="submit" variant="primary" disabled={login.isPending} className="w-full">
+      <Button
+        type="submit"
+        variant="primary"
+        disabled={login.isPending}
+        className="w-full py-3 shadow-lg shadow-brand-600/20"
+      >
         {login.isPending ? '로그인 중...' : '로그인'}
       </Button>
     </form>
