@@ -38,7 +38,7 @@ export function RevokeInheritedDialog({
       <h2 className="text-lg font-semibold">상위 폴더에서 삭제하시겠습니까?</h2>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
         이 항목에서 {granteeLabel}의 권한을 삭제하면 상위 폴더 &quot;{ancestorName}&quot;에서도
-        삭제됩니다. 그러면 해당 폴더 안의 다른 항목도 더 이상 이 사용자와 공유되지 않습니다.
+        삭제됩니다. 해당 폴더 안의 다른 파일도 더 이상 이 사용자와 공유되지 않습니다.
       </p>
 
       <div className="mt-8 flex justify-end gap-6 text-base font-medium">

@@ -18,6 +18,7 @@ const emptyAccess: FileAccessList = {
   linkToken: null,
   shares: [],
   inheritedLinks: [],
+  hasSharedDescendant: false,
 }
 
 function renderDialog(files: { fileId: string; name: string; directory?: boolean }[]) {
@@ -55,6 +56,17 @@ describe('DeleteConfirmDialog', () => {
     renderDialog([{ fileId: 'f1', name: 'report.pdf' }])
 
     expect(await screen.findByText(/현재 공유 중/)).toBeInTheDocument()
+  })
+
+  it('warns when a selected folder has a shared file nested inside it', async () => {
+    vi.mocked(listFileShares).mockResolvedValue({
+      ...emptyAccess,
+      hasSharedDescendant: true,
+    })
+
+    renderDialog([{ fileId: 'f1', name: 'folder', directory: true }])
+
+    expect(await screen.findByText(/안에 공유 중인 파일이 있습니다/)).toBeInTheDocument()
   })
 
   it('shows no share warning when nothing is shared', async () => {

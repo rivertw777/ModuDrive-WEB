@@ -92,4 +92,43 @@ describe('MemberAccessList', () => {
     expect(screen.getByText('river')).toHaveClass('line-through')
     expect(screen.getByRole('combobox')).toHaveValue(REMOVE_ACCESS)
   })
+
+  describe('a pure-inherited row (no direct grant of its own on this file)', () => {
+    const inheritedShare: FileShare = {
+      ...shares[0],
+      inheritedFrom: { fileId: 'folder-1', name: '폴더 A' },
+    }
+
+    it('shows the same role/remove select a direct row gets', () => {
+      renderList({ sharesToRender: [inheritedShare] })
+
+      expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
+      expect(screen.getByRole('option', { name: '삭제' })).toBeInTheDocument()
+    })
+
+    it('stages a removal via onChange, keyed by the row (the ancestor grant)', async () => {
+      const { onChange } = renderList({ sharesToRender: [inheritedShare] })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '삭제')
+
+      expect(onChange).toHaveBeenCalledWith('share-1', REMOVE_ACCESS)
+    })
+
+    it('stages a role pick via onChange too — ShareModal turns this into a new grant on this file', async () => {
+      const { onChange } = renderList({ sharesToRender: [inheritedShare] })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '편집자')
+
+      expect(onChange).toHaveBeenCalledWith('share-1', 'EDITOR')
+    })
+
+    it('hides the select for non-owners', () => {
+      renderList({ sharesToRender: [inheritedShare], isOwner: false })
+
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      expect(screen.getByText('뷰어')).toBeInTheDocument()
+    })
+  })
 })

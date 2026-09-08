@@ -10,12 +10,14 @@ vi.mock('@/features/auth', () => ({ useCurrentMember: vi.fn() }))
 vi.mock('../api/update-file-scope', () => ({ useUpdateFileScope: vi.fn() }))
 vi.mock('../api/update-file-share-role', () => ({ useUpdateFileShareRole: vi.fn() }))
 vi.mock('../api/revoke-file-share', () => ({ useRevokeFileShare: vi.fn() }))
+vi.mock('../api/share-file', () => ({ useShareFile: vi.fn() }))
 
 const { useFileShares } = await import('../api/list-file-shares')
 const { useCurrentMember } = await import('@/features/auth')
 const { useUpdateFileScope } = await import('../api/update-file-scope')
 const { useUpdateFileShareRole } = await import('../api/update-file-share-role')
 const { useRevokeFileShare } = await import('../api/revoke-file-share')
+const { useShareFile } = await import('../api/share-file')
 
 const access: FileAccessList = {
   fileId: 'file-1',
@@ -25,10 +27,13 @@ const access: FileAccessList = {
   linkToken: null,
   shares: [],
   inheritedLinks: [],
+  hasSharedDescendant: false,
 }
 
 const scopeMutate = vi.fn()
 const revokeMutate = vi.fn()
+const updateRoleMutate = vi.fn()
+const createShareMutate = vi.fn()
 
 function renderModal(overrides: Partial<FileAccessList> = {}) {
   vi.mocked(useFileShares).mockReturnValue({
@@ -39,18 +44,22 @@ function renderModal(overrides: Partial<FileAccessList> = {}) {
   vi.mocked(useCurrentMember).mockReturnValue({
     data: { id: 'owner-1', name: 'river', email: 'river@modudrive.com' },
   } as ReturnType<typeof useCurrentMember>)
-  const idle = { mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }
   vi.mocked(useUpdateFileScope).mockReturnValue({
     mutateAsync: scopeMutate,
     isPending: false,
   } as unknown as ReturnType<typeof useUpdateFileScope>)
-  vi.mocked(useUpdateFileShareRole).mockReturnValue(
-    idle as unknown as ReturnType<typeof useUpdateFileShareRole>,
-  )
+  vi.mocked(useUpdateFileShareRole).mockReturnValue({
+    mutateAsync: updateRoleMutate,
+    isPending: false,
+  } as unknown as ReturnType<typeof useUpdateFileShareRole>)
   vi.mocked(useRevokeFileShare).mockReturnValue({
     mutateAsync: revokeMutate,
     isPending: false,
   } as unknown as ReturnType<typeof useRevokeFileShare>)
+  vi.mocked(useShareFile).mockReturnValue({
+    mutateAsync: createShareMutate,
+    isPending: false,
+  } as unknown as ReturnType<typeof useShareFile>)
   const onClose = vi.fn()
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -64,6 +73,8 @@ describe('ShareModal', () => {
   beforeEach(() => {
     scopeMutate.mockReset().mockResolvedValue(undefined)
     revokeMutate.mockReset().mockResolvedValue(undefined)
+    updateRoleMutate.mockReset().mockResolvedValue(undefined)
+    createShareMutate.mockReset().mockResolvedValue(undefined)
   })
 
   it('hides the link role badge while the scope is RESTRICTED', () => {
@@ -196,6 +207,64 @@ describe('ShareModal', () => {
 
       await user.click(screen.getByRole('button', { name: '완료' }))
       expect(revokeMutate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when a member has only an inherited grant on this file (no direct row of its own)', () => {
+    const pureInheritedShare: FileAccessList['shares'] = [
+      {
+        shareId: 'share-b',
+        fileId: 'folder-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: 'grantee-1',
+        role: 'VIEWER',
+        sharedWithEmail: 'grantee@modudrive.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-1', name: '새 폴더' },
+      },
+    ]
+
+    it('deletes only the ancestor grant on 완료, not a bogus one on this file', async () => {
+      renderModal({ shares: pureInheritedShare })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+      expect(screen.getByText('상위 폴더에서 삭제하시겠습니까?')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })
+      expect(revokeMutate).toHaveBeenCalledTimes(1)
+    })
+
+    it('leaves everything unchanged when the confirm dialog is cancelled', async () => {
+      renderModal({ shares: pureInheritedShare })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+      await user.click(screen.getByRole('button', { name: '취소' }))
+
+      // Reverts to the original inherited role, same as a direct row's select would.
+      expect(screen.getAllByRole('combobox')[1]).toHaveValue('VIEWER')
+
+      await user.click(screen.getByRole('button', { name: '완료' }))
+      expect(revokeMutate).not.toHaveBeenCalled()
+    })
+
+    it('picking a role creates a new grant on this file instead of PATCHing the ancestor share', async () => {
+      renderModal({ shares: pureInheritedShare })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '편집자')
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(createShareMutate).toHaveBeenCalledWith({
+        fileId: 'file-1',
+        email: 'grantee@modudrive.com',
+        role: 'EDITOR',
+      })
+      expect(updateRoleMutate).not.toHaveBeenCalled()
     })
   })
 })
