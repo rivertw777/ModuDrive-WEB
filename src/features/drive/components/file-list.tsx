@@ -148,7 +148,7 @@ export function FileList({
     }
   }
 
-  const nonDeleted = files.filter((file) => file.status !== 'DELETED')
+  const nonDeleted = files.filter((file) => file.status !== 'DELETED' && file.status !== 'TRASHED')
   // preserveOrder holds the server's order only until the user clicks a header; serverPagination
   // means the server is already sorting/paging, so client sort never applies there.
   const unsortedPreserve = preserveOrder && !userSorted
