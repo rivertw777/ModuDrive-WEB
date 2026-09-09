@@ -17,8 +17,10 @@ export function useShareFile() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: shareFile,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['file-shares', variables.fileId] })
+    onSuccess: () => {
+      // Not scoped to this fileId — sharing a folder also changes what its descendants show as
+      // "inherited" access (see update-file-scope.ts's onSuccess for the full reasoning).
+      queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
   })
 }

@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { FileIcon, FolderIcon } from '@/components/ui/icons'
 import type { InheritedLink } from '../types'
+import { AccessChangeTree } from './access-change-tree'
+
+// Every row shown here uniformly loses "anyone with the link" — unlike RevokeInheritedDialog's
+// per-person role, there's no per-row value to look up (turning a link off isn't about any one
+// grantee's role).
+const LINK_LABEL = '링크가 있는 모든 사용자'
 
 /**
  * Shown when the owner tries to set a file to RESTRICTED but its "anyone with the link" access
@@ -10,17 +15,15 @@ import type { InheritedLink } from '../types'
  */
 export function RestrictParentDialog({
   open,
-  fileName,
   folders,
-  includesThisItem,
+  fileName,
   onConfirm,
   onCancel,
 }: {
   open: boolean
-  fileName: string
+  /** Root-most first — only `folders[0]` is shown by name in the tree (see AccessChangeTree). */
   folders: InheritedLink[]
-  /** The file also has its own link, so it's one more row that goes RESTRICTED. */
-  includesThisItem: boolean
+  fileName: string
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -37,36 +40,19 @@ export function RestrictParentDialog({
     <dialog
       ref={ref}
       onCancel={(e) => e.preventDefault()}
-      className="m-auto w-full max-w-[31.92rem] rounded-2xl border border-slate-200 bg-white p-8 text-slate-900 shadow-xl backdrop:bg-black/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+      className="m-auto w-full max-w-[33.6rem] rounded-2xl border border-slate-200 bg-white p-8 text-slate-900 shadow-xl backdrop:bg-black/40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
     >
       <h2 className="text-lg font-semibold">상위 폴더의 액세스 권한을 삭제하시겠습니까?</h2>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-        이 항목의 링크를 제한하려면 상위 폴더의 링크도 함께 삭제됩니다. 그러면 해당 폴더 안의 다른
-        항목도 더 이상 링크로 공유되지 않습니다.
+        이 항목 링크를 삭제하면 상위 폴더의 링크도 삭제됩니다. 또는 액세스가 제한된 폴더를
+        만드세요.
       </p>
 
-      <ul className="mt-5 space-y-1">
-        {folders.map((folder, index) => (
-          <li
-            key={folder.fileId}
-            style={{ marginLeft: index * 20 }}
-            className="flex items-center gap-2 text-sm"
-          >
-            <FolderIcon size={18} className="shrink-0 text-brand-500" />
-            <TransitionRow name={folder.name} />
-          </li>
-        ))}
-        <li
-          style={{ marginLeft: folders.length * 20 }}
-          className="flex items-center gap-2 text-sm"
-        >
-          <FileIcon size={18} className="shrink-0 text-slate-400 dark:text-slate-500" />
-          <TransitionRow
-            name={fileName}
-            note={includesThisItem ? undefined : '상위 폴더에서 상속됨'}
-          />
-        </li>
-      </ul>
+      <AccessChangeTree
+        ancestors={folders.map((folder) => ({ name: folder.name, before: LINK_LABEL }))}
+        file={{ name: fileName, before: LINK_LABEL }}
+        after="제한됨"
+      />
 
       <div className="mt-8 flex justify-end gap-6 text-base font-medium">
         <button
@@ -85,16 +71,5 @@ export function RestrictParentDialog({
         </button>
       </div>
     </dialog>
-  )
-}
-
-function TransitionRow({ name, note }: { name: string; note?: string }) {
-  return (
-    <span className="min-w-0">
-      <span className="block truncate font-medium text-slate-800 dark:text-slate-100">{name}</span>
-      <span className="block text-xs text-slate-500 dark:text-slate-400">
-        {note ?? '링크가 있는 모든 사용자'} → 제한됨
-      </span>
-    </span>
   )
 }

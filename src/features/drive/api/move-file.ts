@@ -21,6 +21,10 @@ export function useMoveFile() {
       queryClient.invalidateQueries({ queryKey: ['search'] })
       queryClient.invalidateQueries({ queryKey: ['favorites'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
+      // Moving a folder changes the ancestor chain for its entire subtree — every descendant's
+      // ShareModal (inheritedLinks/inheritedShares, computed from live ancestor state) can go
+      // stale. Not scoped to variables.fileId; see update-file-scope.ts's onSuccess.
+      queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
   })
 }
