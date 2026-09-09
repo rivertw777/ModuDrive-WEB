@@ -47,11 +47,12 @@ export function MemberAccessList({
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
   // see ListFileSharesService), so without this the same person would appear once per ancestor.
-  // Only the most generous one is shown (ties go to the nearest ancestor, since the server lists
-  // ancestors root-most first) — that's the actual effective access (FileAccessGuard.effectiveRole
-  // resolves the same way), not just whichever grant happened to list first. ShareModal's
-  // cascade-revoke still finds and clears all of them via the full `shares` array regardless of
-  // which one renders here.
+  // Only the most generous one is shown — that's the role FileAccessGuard.resolveRole computes
+  // for a pure-inherited grantee (no direct grant to override it with). Ties go to the nearest
+  // ancestor (the server lists ancestors root-most first), which is a display-only choice —
+  // resolveRole only returns a Role, not which grant it came from, so a tie has no server-side
+  // "winner" to match. ShareModal's cascade-revoke still finds and clears all of them via the
+  // full `shares` array regardless of which one renders here.
   const bestPureInheritedByGrantee = new Map<string, FileShare>()
   for (const s of shares) {
     if (!s.inheritedFrom || (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId))) continue

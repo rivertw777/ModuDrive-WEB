@@ -134,8 +134,9 @@ describe('MemberAccessList', () => {
 
   describe('the same member inherited from two independent ancestors', () => {
     // Server lists ancestors root-most first and never collapses them (see ListFileSharesService)
-    // — the far ancestor grants VIEWER, the near one EDITOR. Effective access is the more
-    // generous role (FileAccessGuard.effectiveRole), so only that row should render.
+    // — the far ancestor grants VIEWER, the near one EDITOR. For a grantee with no direct share,
+    // FileAccessGuard.resolveRole resolves to the more generous role, so only that row should
+    // render.
     const farAncestorGrant: FileShare = {
       ...shares[0],
       shareId: 'share-far',
