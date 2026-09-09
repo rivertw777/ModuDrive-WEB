@@ -5,6 +5,9 @@ import { ROLE_LABELS } from './role-select'
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'
 export type PendingChange = Role | typeof REMOVE_ACCESS
 
+/** Matches FileAccessGuard.moreGenerous on the server — EDITOR outranks VIEWER. */
+const ROLE_RANK: Record<Role, number> = { VIEWER: 0, EDITOR: 1 }
+
 /** Display label for an access row with no name enrichment: a shortened UUID, or
  * 초대됨 when `id` is null (pending guest share — invited by email, not yet a member). */
 function accessorLabel(id: string | null) {
@@ -44,16 +47,25 @@ export function MemberAccessList({
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
   // see ListFileSharesService), so without this the same person would appear once per ancestor.
-  // Only the first is shown; ShareModal's cascade-revoke still finds and clears all of them via
-  // the full `shares` array, not just whichever one renders here.
-  const seenPureInheritedGrantees = new Set<string>()
+  // Only the most generous one is shown (ties go to the nearest ancestor, since the server lists
+  // ancestors root-most first) — that's the actual effective access (FileAccessGuard.effectiveRole
+  // resolves the same way), not just whichever grant happened to list first. ShareModal's
+  // cascade-revoke still finds and clears all of them via the full `shares` array regardless of
+  // which one renders here.
+  const bestPureInheritedByGrantee = new Map<string, FileShare>()
+  for (const s of shares) {
+    if (!s.inheritedFrom || (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId))) continue
+    const key = s.sharedWithUserId ?? s.shareId
+    const current = bestPureInheritedByGrantee.get(key)
+    if (!current || ROLE_RANK[s.role] >= ROLE_RANK[current.role]) {
+      bestPureInheritedByGrantee.set(key, s)
+    }
+  }
   const visibleShares = shares.filter((s) => {
     if (!s.inheritedFrom) return true
     if (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId)) return false
     const key = s.sharedWithUserId ?? s.shareId
-    if (seenPureInheritedGrantees.has(key)) return false
-    seenPureInheritedGrantees.add(key)
-    return true
+    return bestPureInheritedByGrantee.get(key) === s
   })
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
