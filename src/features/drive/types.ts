@@ -66,6 +66,10 @@ export type InheritedLink = {
   fileId: string
   name: string
   role: Role
+  /** The ancestor's own capability, not this file's — build this file's public link as
+   * `/public/{thisFileId}?key={linkToken}` (this file has no linkToken of its own while merely
+   * inheriting LINK access through this ancestor). */
+  linkToken: string
 }
 
 export type FileAccessList = {
@@ -176,14 +180,25 @@ export function canPreviewFile(name: string, fileSize: number | null): boolean {
 export type SortField = 'name' | 'size' | 'date' | 'sharedBy'
 export type SortDir = 'asc' | 'desc'
 
+/** The subset of fields sortFiles actually reads — narrow enough that PublicFile (the anonymous
+ * link browser's row type, with no sharedBy*) satisfies it as-is via its optional fields. */
+type SortableEntry = {
+  directory: boolean
+  name: string
+  fileSize: number | null
+  updatedAt?: string | null
+  sharedByName?: string | null
+  sharedByEmail?: string | null
+}
+
 /** Folders always sort above files. Within each group, entries order by `field`/`dir`. */
-export function sortFiles(
-  files: FileEntry[],
+export function sortFiles<T extends SortableEntry>(
+  files: T[],
   field: SortField,
   dir: SortDir,
   // Which timestamp "date" sorts by — defaults to updatedAt, but 즐겨찾기/최근 문서함 sort by
   // whatever they display instead (favoritedAt/accessedAt) so the header stays honest.
-  dateValue: (file: FileEntry) => string | null | undefined = (file) => file.updatedAt,
+  dateValue: (file: T) => string | null | undefined = (file) => file.updatedAt,
 ) {
   const sign = dir === 'asc' ? 1 : -1
   return [...files].sort((a, b) => {
@@ -191,7 +206,7 @@ export function sortFiles(
     if (field === 'name') return sign * a.name.localeCompare(b.name, 'ko')
     if (field === 'size') return sign * ((a.fileSize ?? 0) - (b.fileSize ?? 0))
     if (field === 'sharedBy') {
-      const label = (f: FileEntry) => f.sharedByName ?? f.sharedByEmail ?? ''
+      const label = (f: T) => f.sharedByName ?? f.sharedByEmail ?? ''
       return sign * label(a).localeCompare(label(b), 'ko')
     }
     return sign * (new Date(dateValue(a) ?? 0).getTime() - new Date(dateValue(b) ?? 0).getTime())

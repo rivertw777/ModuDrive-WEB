@@ -11,7 +11,7 @@ import {
 import { canPreviewFile } from '../types'
 import { downloadFile } from '../api/download-file'
 import { EntryIcon } from './entry-icon'
-import { FilePreview } from './file-preview'
+import { FilePreview, type Source } from './file-preview'
 import { ShareModal } from './share-modal'
 
 /** Shared with PublicFileView so both full-screen viewer chromes stay visually in sync. */
@@ -21,7 +21,11 @@ export const VIEWER_BACKDROP = 'bg-slate-900/90'
  * still just selects). Dark overlay over the whole viewport, a header bar (file icon + name on
  * the left, share/download/close on the right) with file content centered below. Reuses
  * FilePreview's fetch/render and ShareModal — this component only adds the chrome and the
- * "can't preview this" fallback FilePreview itself stays silent on. */
+ * "can't preview this" fallback FilePreview itself stays silent on.
+ *
+ * `source`/`onDownload` default to the authenticated fetch/download — pass the public
+ * equivalents (see PublicFolderView) to reuse this same chrome for an anonymous link visitor
+ * instead of hand-rolling it again; `canShare={false}` already hides ShareModal for that case. */
 export function FileViewerModal({
   open,
   onClose,
@@ -31,6 +35,8 @@ export function FileViewerModal({
   canShare = true,
   onPrev,
   onNext,
+  source,
+  onDownload,
 }: {
   open: boolean
   onClose: () => void
@@ -42,6 +48,8 @@ export function FileViewerModal({
   /** Omit to hide that side's arrow — caller decides whether there's a sibling file to jump to. */
   onPrev?: () => void
   onNext?: () => void
+  source?: Source
+  onDownload?: () => void
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const [shareOpen, setShareOpen] = useState(false)
@@ -102,7 +110,7 @@ export function FileViewerModal({
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => downloadFile(fileId, fileName)}
+              onClick={onDownload ?? (() => downloadFile(fileId, fileName))}
               aria-label="다운로드"
               className="inline-flex size-9 items-center justify-center rounded-full hover:bg-white/10"
             >
@@ -164,7 +172,7 @@ export function FileViewerModal({
             <FilePreview
               fileName={fileName}
               fileSize={fileSize}
-              source={{ type: 'auth', fileId }}
+              source={source ?? { type: 'auth', fileId }}
               fullscreen
             />
           ) : (

@@ -6,7 +6,9 @@ import { viewFile } from '../api/view-file'
 import { viewPublicFile } from '../api/view-public-file'
 import { issueStreamToken } from '../api/issue-stream-token'
 
-type Source =
+// Exported so FileViewerModal can accept an override source (see PublicFolderView, which reuses
+// that chrome for the anonymous viewer instead of hand-rolling its own).
+export type Source =
   | { type: 'auth'; fileId: string }
   /** `fileId` is the shared file or one nested under a shared folder; `shareKey` is the
    * capability (the file's linkToken or a guest invite token). */

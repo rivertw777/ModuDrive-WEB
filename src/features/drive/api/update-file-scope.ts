@@ -19,8 +19,13 @@ export function useUpdateFileScope() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: updateFileScope,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['file-shares', variables.fileId] })
+    onSuccess: () => {
+      // Not scoped to this fileId: a folder's scope change changes every descendant's *inherited*
+      // access too (see PublicFileResolver/ListFileSharesService), and the client has no way to
+      // know which cached ['file-shares', <other id>] queries that reaches — invalidate the whole
+      // family so a ShareModal reopened on any of them (e.g. a child within the 60s staleTime
+      // window) doesn't act on stale inheritedLinks/scope.
+      queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
   })
 }

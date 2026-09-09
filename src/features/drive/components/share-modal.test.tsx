@@ -128,13 +128,30 @@ describe('ShareModal', () => {
   })
 
   it('shows LINK as the effective scope when a parent folder link is inherited', () => {
-    renderModal({ inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }] })
+    renderModal({
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+    })
 
     expect(screen.getByRole('combobox')).toHaveValue('LINK')
   })
 
+  it('builds an inherited-link file\'s public link from the ancestor\'s token, not this file\'s (null) one', async () => {
+    renderModal({
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+    })
+    const user = userEvent.setup()
+
+    await user.click(screen.getByRole('button', { name: '링크 복사' }))
+
+    expect(await navigator.clipboard.readText()).toBe(
+      'http://localhost:3000/public/file-1?key=tok-1',
+    )
+  })
+
   it('restricting an inherited-link file turns the parent folder link off instead', async () => {
-    renderModal({ inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }] })
+    renderModal({
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+    })
     const user = userEvent.setup()
 
     await user.selectOptions(screen.getByRole('combobox'), 'RESTRICTED')
@@ -210,6 +227,67 @@ describe('ShareModal', () => {
     })
   })
 
+  describe('when a member has *two* independent grants on ancestors above this file', () => {
+    // b (folder-1, root-most/topmost) and a (folder-2, nearer to the file) each separately
+    // shared the same person, on top of this file's own direct share — three independent
+    // grants for one person, matching the b > a > file nesting from the design doc's example.
+    const sharesWithTwoAncestors: FileAccessList['shares'] = [
+      {
+        shareId: 'share-file',
+        fileId: 'file-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: 'grantee-1',
+        role: 'EDITOR',
+        sharedWithEmail: 'grantee@modudrive.com',
+        sharedWithName: null,
+        inheritedFrom: null,
+      },
+      {
+        shareId: 'share-b',
+        fileId: 'folder-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: 'grantee-1',
+        role: 'VIEWER',
+        sharedWithEmail: 'grantee@modudrive.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-1', name: 'b' },
+      },
+      {
+        shareId: 'share-a',
+        fileId: 'folder-2',
+        ownerId: 'owner-1',
+        sharedWithUserId: 'grantee-1',
+        role: 'VIEWER',
+        sharedWithEmail: 'grantee@modudrive.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-2', name: 'a' },
+      },
+    ]
+
+    it('cascades to every ancestor grant, not just one — but only names the topmost in the dialog', async () => {
+      renderModal({ shares: sharesWithTwoAncestors })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+
+      // Only the topmost ancestor (b) is named — the nearer one (a) folds into the "···"
+      // connector, matching Drive's own dialog. Both still get revoked below regardless.
+      expect(screen.getByText('b')).toBeInTheDocument()
+      expect(screen.queryByText('a')).not.toBeInTheDocument()
+      // The "···" only appears because there IS something folded into it here (a) — see the
+      // single-ancestor case below, where it must not show at all.
+      expect(screen.getByText('•••')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'file-1', shareId: 'share-file' })
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-2', shareId: 'share-a' })
+      expect(revokeMutate).toHaveBeenCalledTimes(3)
+    })
+  })
+
   describe('when a member has only an inherited grant on this file (no direct row of its own)', () => {
     const pureInheritedShare: FileAccessList['shares'] = [
       {
@@ -230,8 +308,16 @@ describe('ShareModal', () => {
 
       await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
       expect(screen.getByText('상위 폴더에서 삭제하시겠습니까?')).toBeInTheDocument()
+      // Exactly one ancestor here — nothing is folded into an ellipsis, so none should show.
+      expect(screen.queryByText('•••')).not.toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      // The row's own select must reflect the staged removal right away — pendingRoleChanges is
+      // keyed by this row's own shareId regardless of it being a pure-inherited row, not a
+      // genuine direct one (a prior bug skipped staging it for this case, leaving the select
+      // showing the old role even though the cascade delete was correctly queued).
+      expect(screen.getAllByRole('combobox')[1]).toHaveValue('REMOVE_ACCESS')
+
       await user.click(screen.getByRole('button', { name: '완료' }))
 
       expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })

@@ -13,8 +13,9 @@ export function useRevokeFileShare() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: revokeFileShare,
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['file-shares', variables.fileId] })
+    onSuccess: () => {
+      // Not scoped to this fileId — see update-file-scope.ts's onSuccess for the full reasoning.
+      queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
   })
 }

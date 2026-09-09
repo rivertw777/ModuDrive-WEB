@@ -1,22 +1,32 @@
 import { useEffect, useRef } from 'react'
+import type { Role } from '../types'
+import { AccessChangeTree } from './access-change-tree'
+import { ROLE_LABELS } from './role-select'
 
 /**
  * Shown when removing someone's direct access to a file would be a no-op: they also have a
- * separate grant on a directory above it, which keeps letting them in regardless. Mirrors Google
- * Drive's "상위 폴더에서 삭제하시겠습니까?" — removing access here also removes it from that
- * ancestor, so anything else only reachable through that ancestor stops being shared with them
- * too (that's a client-side simplification, not something this dialog spells out further).
+ * separate grant on one or more directories above it, which keep letting them in regardless.
+ * Mirrors Google Drive's "상위 폴더에서 삭제하시겠습니까?" — removing access here also removes it
+ * from every one of those ancestors (not just the nearest — two independent ancestors can each
+ * separately share the same person, see ListFileSharesService), so anything else only reachable
+ * through them stops being shared with them too.
  */
 export function RevokeInheritedDialog({
   open,
   granteeLabel,
-  ancestorName,
+  ancestors,
+  fileName,
+  fileRole,
   onConfirm,
   onCancel,
 }: {
   open: boolean
   granteeLabel: string
-  ancestorName: string
+  /** Root-most first (see ShareModal.onMemberChange) — only `ancestors[0]` is shown by name in
+   * the tree (see AccessChangeTree). */
+  ancestors: { name: string; role: Role }[]
+  fileName: string
+  fileRole: Role
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -37,9 +47,15 @@ export function RevokeInheritedDialog({
     >
       <h2 className="text-lg font-semibold">상위 폴더에서 삭제하시겠습니까?</h2>
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-        이 항목에서 {granteeLabel}의 권한을 삭제하면 상위 폴더 &quot;{ancestorName}&quot;에서도
-        삭제됩니다. 해당 폴더 안의 다른 파일도 더 이상 이 사용자와 공유되지 않습니다.
+        이 항목에서 {granteeLabel}의 권한을 삭제하면 상위 폴더에서도 삭제됩니다. 또는 액세스가
+        제한된 폴더를 만드세요.
       </p>
+
+      <AccessChangeTree
+        ancestors={ancestors.map((a) => ({ name: a.name, before: ROLE_LABELS[a.role] }))}
+        file={{ name: fileName, before: ROLE_LABELS[fileRole] }}
+        after="삭제"
+      />
 
       <div className="mt-8 flex justify-end gap-6 text-base font-medium">
         <button

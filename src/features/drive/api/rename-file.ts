@@ -24,6 +24,11 @@ export function useRenameFile() {
       queryClient.invalidateQueries({ queryKey: ['shared-with-me'] })
       queryClient.invalidateQueries({ queryKey: ['shared-directory'] })
       queryClient.invalidateQueries({ queryKey: ['file', variables.fileId] })
+      // A renamed folder's new name is what every descendant's ShareModal shows as "상속됨: ___"
+      // (inheritedFrom.name / inheritedLinks) — not scoped to variables.fileId, since it's every
+      // *other* file's cache that goes stale here, not this one's own (see update-file-scope.ts's
+      // onSuccess for the full reasoning).
+      queryClient.invalidateQueries({ queryKey: ['file-shares'] })
     },
   })
 }

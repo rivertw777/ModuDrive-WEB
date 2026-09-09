@@ -41,9 +41,20 @@ export function MemberAccessList({
   const directUserIds = new Set(
     shares.filter((s) => !s.inheritedFrom && s.sharedWithUserId).map((s) => s.sharedWithUserId),
   )
-  const visibleShares = shares.filter(
-    (s) => !s.inheritedFrom || !directUserIds.has(s.sharedWithUserId),
-  )
+  // Two (or more) independent ancestors can separately grant the same person with no direct
+  // share on this file at all — the server lists every one of those grants (never collapsed,
+  // see ListFileSharesService), so without this the same person would appear once per ancestor.
+  // Only the first is shown; ShareModal's cascade-revoke still finds and clears all of them via
+  // the full `shares` array, not just whichever one renders here.
+  const seenPureInheritedGrantees = new Set<string>()
+  const visibleShares = shares.filter((s) => {
+    if (!s.inheritedFrom) return true
+    if (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId)) return false
+    const key = s.sharedWithUserId ?? s.shareId
+    if (seenPureInheritedGrantees.has(key)) return false
+    seenPureInheritedGrantees.add(key)
+    return true
+  })
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
