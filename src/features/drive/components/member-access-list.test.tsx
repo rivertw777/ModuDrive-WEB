@@ -131,4 +131,39 @@ describe('MemberAccessList', () => {
       expect(screen.getByText('뷰어')).toBeInTheDocument()
     })
   })
+
+  describe('the same member inherited from two independent ancestors', () => {
+    // Server lists ancestors root-most first and never collapses them (see ListFileSharesService)
+    // — the far ancestor grants VIEWER, the near one EDITOR. Effective access is the more
+    // generous role (FileAccessGuard.effectiveRole), so only that row should render.
+    const farAncestorGrant: FileShare = {
+      ...shares[0],
+      shareId: 'share-far',
+      role: 'VIEWER',
+      inheritedFrom: { fileId: 'folder-far', name: '먼 폴더' },
+    }
+    const nearAncestorGrant: FileShare = {
+      ...shares[0],
+      shareId: 'share-near',
+      role: 'EDITOR',
+      inheritedFrom: { fileId: 'folder-near', name: '가까운 폴더' },
+    }
+
+    it('shows only the more generous role, not whichever ancestor listed first', () => {
+      renderList({ sharesToRender: [farAncestorGrant, nearAncestorGrant] })
+
+      expect(screen.getAllByRole('combobox')).toHaveLength(1)
+      expect(screen.getByRole('combobox')).toHaveValue('EDITOR')
+      expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
+    })
+
+    it('breaks a tie between equally generous grants by keeping the nearest ancestor', () => {
+      const nearAncestorSameRole: FileShare = { ...nearAncestorGrant, role: 'VIEWER' }
+
+      renderList({ sharesToRender: [farAncestorGrant, nearAncestorSameRole] })
+
+      expect(screen.getAllByRole('combobox')).toHaveLength(1)
+      expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
+    })
+  })
 })
