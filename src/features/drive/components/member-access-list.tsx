@@ -5,9 +5,6 @@ import { ROLE_LABELS } from './role-select'
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'
 export type PendingChange = Role | typeof REMOVE_ACCESS
 
-/** Matches FileAccessGuard.moreGenerous on the server — EDITOR outranks VIEWER. */
-const ROLE_RANK: Record<Role, number> = { VIEWER: 0, EDITOR: 1 }
-
 /** Display label for an access row with no name enrichment: a shortened UUID, or
  * 초대됨 when `id` is null (pending guest share — invited by email, not yet a member). */
 function accessorLabel(id: string | null) {
@@ -47,26 +44,23 @@ export function MemberAccessList({
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
   // see ListFileSharesService), so without this the same person would appear once per ancestor.
-  // Only the most generous one is shown — that's the role FileAccessGuard.resolveRole computes
-  // for a pure-inherited grantee (no direct grant to override it with). Ties go to the nearest
-  // ancestor (the server lists ancestors root-most first), which is a display-only choice —
-  // resolveRole only returns a Role, not which grant it came from, so a tie has no server-side
-  // "winner" to match. ShareModal's cascade-revoke still finds and clears all of them via the
-  // full `shares` array regardless of which one renders here.
-  const bestPureInheritedByGrantee = new Map<string, FileShare>()
+  // Only the nearest one is shown — that's the role FileAccessGuard.resolveRole computes for a
+  // pure-inherited grantee (no direct grant to override it with): the nearest ancestor wins
+  // outright, regardless of which grant is more generous. The server lists ancestors root-most
+  // first, so overwriting on every match and keeping whatever's last leaves the nearest one.
+  // ShareModal's cascade-revoke still finds and clears all of them via the full `shares` array
+  // regardless of which one renders here.
+  const nearestPureInheritedByGrantee = new Map<string, FileShare>()
   for (const s of shares) {
     if (!s.inheritedFrom || (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId))) continue
     const key = s.sharedWithUserId ?? s.shareId
-    const current = bestPureInheritedByGrantee.get(key)
-    if (!current || ROLE_RANK[s.role] >= ROLE_RANK[current.role]) {
-      bestPureInheritedByGrantee.set(key, s)
-    }
+    nearestPureInheritedByGrantee.set(key, s)
   }
   const visibleShares = shares.filter((s) => {
     if (!s.inheritedFrom) return true
     if (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId)) return false
     const key = s.sharedWithUserId ?? s.shareId
-    return bestPureInheritedByGrantee.get(key) === s
+    return nearestPureInheritedByGrantee.get(key) === s
   })
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
