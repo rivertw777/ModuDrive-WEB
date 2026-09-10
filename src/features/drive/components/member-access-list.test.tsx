@@ -134,36 +134,27 @@ describe('MemberAccessList', () => {
 
   describe('the same member inherited from two independent ancestors', () => {
     // Server lists ancestors root-most first and never collapses them (see ListFileSharesService)
-    // — the far ancestor grants VIEWER, the near one EDITOR. For a grantee with no direct share,
-    // FileAccessGuard.resolveRole resolves to the more generous role, so only that row should
-    // render.
+    // — the far ancestor grants EDITOR, the near one VIEWER. For a grantee with no direct share,
+    // FileAccessGuard.resolveRole resolves to the nearest ancestor's role regardless of which is
+    // more generous, so only that row should render.
     const farAncestorGrant: FileShare = {
       ...shares[0],
       shareId: 'share-far',
-      role: 'VIEWER',
+      role: 'EDITOR',
       inheritedFrom: { fileId: 'folder-far', name: '먼 폴더' },
     }
     const nearAncestorGrant: FileShare = {
       ...shares[0],
       shareId: 'share-near',
-      role: 'EDITOR',
+      role: 'VIEWER',
       inheritedFrom: { fileId: 'folder-near', name: '가까운 폴더' },
     }
 
-    it('shows only the more generous role, not whichever ancestor listed first', () => {
+    it('shows only the nearest ancestor (listed last), even when a farther one is more generous', () => {
       renderList({ sharesToRender: [farAncestorGrant, nearAncestorGrant] })
 
       expect(screen.getAllByRole('combobox')).toHaveLength(1)
-      expect(screen.getByRole('combobox')).toHaveValue('EDITOR')
-      expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
-    })
-
-    it('breaks a tie between equally generous grants by keeping the nearest ancestor', () => {
-      const nearAncestorSameRole: FileShare = { ...nearAncestorGrant, role: 'VIEWER' }
-
-      renderList({ sharesToRender: [farAncestorGrant, nearAncestorSameRole] })
-
-      expect(screen.getAllByRole('combobox')).toHaveLength(1)
+      expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
       expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
     })
   })
