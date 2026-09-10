@@ -15,7 +15,6 @@ const emptyAccess: FileAccessList = {
   ownerId: 'owner-1',
   scope: 'RESTRICTED',
   role: null,
-  linkToken: null,
   shares: [],
   inheritedLinks: [],
   hasSharedDescendant: false,

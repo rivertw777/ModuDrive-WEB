@@ -66,10 +66,6 @@ export type InheritedLink = {
   fileId: string
   name: string
   role: Role
-  /** The ancestor's own capability, not this file's — build this file's public link as
-   * `/public/{thisFileId}?key={linkToken}` (this file has no linkToken of its own while merely
-   * inheriting LINK access through this ancestor). */
-  linkToken: string
 }
 
 export type FileAccessList = {
@@ -78,7 +74,6 @@ export type FileAccessList = {
   scope: ShareScope
   /** Role applied to anonymous link visitors. Null when scope is RESTRICTED. */
   role: Role | null
-  linkToken: string | null
   shares: FileShare[]
   inheritedLinks: InheritedLink[]
   /** True when this is a directory and something nested under it (at any depth) is shared —

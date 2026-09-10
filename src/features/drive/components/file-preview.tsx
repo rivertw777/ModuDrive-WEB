@@ -10,8 +10,8 @@ import { issueStreamToken } from '../api/issue-stream-token'
 // that chrome for the anonymous viewer instead of hand-rolling its own).
 export type Source =
   | { type: 'auth'; fileId: string }
-  /** `fileId` is the shared file or one nested under a shared folder; `shareKey` is the
-   * capability (the file's linkToken or a guest invite token). */
+  /** `fileId` is the shared file or one nested under a shared folder. `shareKey` only ever
+   * matters for a guest invite token now — a LINK-scoped entry needs none (issue #303). */
   | { type: 'public'; fileId: string; shareKey: string | null }
 
 function isStreamed(kind: PreviewKind | null) {

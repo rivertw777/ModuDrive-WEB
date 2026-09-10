@@ -24,7 +24,6 @@ const access: FileAccessList = {
   ownerId: 'owner-1',
   scope: 'RESTRICTED',
   role: null,
-  linkToken: null,
   shares: [],
   inheritedLinks: [],
   hasSharedDescendant: false,
@@ -103,7 +102,7 @@ describe('ShareModal', () => {
   })
 
   it('omits the role when the scope goes back to RESTRICTED', async () => {
-    renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
+    renderModal({ scope: 'LINK', role: 'VIEWER' })
     const user = userEvent.setup()
 
     await user.selectOptions(screen.getByRole('combobox'), 'RESTRICTED')
@@ -117,7 +116,7 @@ describe('ShareModal', () => {
   })
 
   it('builds the share link as /files/:fileId for a LINK scope, no key needed', async () => {
-    renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
+    renderModal({ scope: 'LINK', role: 'VIEWER' })
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('button', { name: '링크 복사' }))
@@ -136,7 +135,7 @@ describe('ShareModal', () => {
 
   it('shows LINK as the effective scope when a parent folder link is inherited', () => {
     renderModal({
-      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }],
     })
 
     expect(screen.getByRole('combobox')).toHaveValue('LINK')
@@ -144,7 +143,7 @@ describe('ShareModal', () => {
 
   it('builds an inherited-link file\'s share link from its own fileId, not the ancestor\'s', async () => {
     renderModal({
-      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }],
     })
     const user = userEvent.setup()
 
@@ -155,7 +154,7 @@ describe('ShareModal', () => {
 
   it('restricting an inherited-link file turns the parent folder link off instead', async () => {
     renderModal({
-      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
+      inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }],
     })
     const user = userEvent.setup()
 
