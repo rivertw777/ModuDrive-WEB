@@ -61,7 +61,12 @@ export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey:
       </div>
       <div className="flex flex-1 items-center justify-center overflow-auto p-6">
         {isLoading && <LoadingState />}
-        {isError && <ErrorState message="파일을 찾을 수 없습니다" />}
+        {/* file-service returns the same 404 whether this fileId doesn't exist, the key is wrong,
+            or it's simply a RESTRICTED share this visitor needs to log in to see (issue #303) —
+            deliberately, so a stranger can't tell those apart. This copy stays equally true either
+            way and points at the 로그인 button already in the header above, rather than asserting
+            the file doesn't exist. */}
+        {isError && <ErrorState message="이 파일에 접근할 수 없습니다. 로그인 후 다시 확인해보세요" />}
         {file && canPreview && (
           <FilePreview
             fileName={file.name}
