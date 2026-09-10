@@ -77,6 +77,30 @@ describe('PublicFileView', () => {
     expect(downloadPublicFile).toHaveBeenCalledWith('child-1', 'key-1', 'nested.txt')
   })
 
+  it('nudges toward login on a failed fetch instead of asserting the file is missing', () => {
+    // file-service 404s identically whether fileId is bogus, the key is wrong, or this is a
+    // RESTRICTED share the visitor just needs to log in to see (issue #303) — the copy here must
+    // stay true in every case, so it points at login rather than claiming non-existence.
+    vi.mocked(usePublicFile).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    } as ReturnType<typeof usePublicFile>)
+    vi.mocked(usePublicChildren).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+    } as ReturnType<typeof usePublicChildren>)
+    render(
+      <MemoryRouter>
+        <PublicFileView fileId="file-1" shareKey={null} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('이 파일에 접근할 수 없습니다. 로그인 후 다시 확인해보세요')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '로그인' })).toBeInTheDocument()
+  })
+
   it('lists a nested folder by its own id, keeping the root link key', async () => {
     const sub: PublicFile = {
       fileId: 'sub-1',
