@@ -193,17 +193,11 @@ export function ShareModal({
     setCascadeTarget(null)
   }
 
-  // The API resolves a LINK-scoped entry (or one under a LINK-scoped ancestor) by fileId alone —
-  // no token needed (file-service FileAccessGuard.linkRole / PublicFileResolver, issue #303) — so
-  // this address is stable across toggling link sharing off/on, unlike the old ?key=<linkToken>
-  // one. RESTRICTED shares have no public link at all — point invited members at the login-gated
-  // deep link instead of the anonymous /public/:fileId route. Deliberately reflects the server's
-  // current scope, not a staged pending one: an uncommitted scope has no valid link yet.
-  const shareLink = access
-    ? access.scope === 'LINK' || inheritedLinks.length > 0
-      ? `${window.location.origin}/public/${encodeURIComponent(fileId)}`
-      : `${window.location.origin}/files/${encodeURIComponent(fileId)}`
-    : null
+  // One address regardless of access scope or who follows it (issue #303): /files/:fileId routes
+  // an anonymous visitor to the read-only view when this file (or an ancestor) is LINK-scoped,
+  // and a signed-in one straight into the real app when they have actual access — see file.tsx.
+  // No token in the URL, so it never changes when link sharing is toggled off/on.
+  const shareLink = access ? `${window.location.origin}/files/${encodeURIComponent(fileId)}` : null
 
   const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
   // A link is a bearer credential anyone who obtains it can use, so it only ever grants

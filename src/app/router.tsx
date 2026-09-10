@@ -34,9 +34,11 @@ const router = createBrowserRouter([
     element: <PublicFileRoute />,
   },
   {
+    // Not nested under AppLayoutRoute (unlike every route below) — FileRoute must handle an
+    // anonymous LINK visitor itself, and AppLayoutRoute's guard would otherwise force login
+    // before any API call gets the chance to say "this is public" (see file.tsx, issue #303).
     path: '/files/:fileId',
-    element: <AppLayoutRoute />,
-    children: [{ index: true, element: <FileRoute /> }],
+    element: <FileRoute />,
   },
   {
     path: '/drive',
