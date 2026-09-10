@@ -10,7 +10,7 @@ export type UpdateFileScopeInput = {
 }
 
 export const updateFileScope = ({ fileId, scope, role }: UpdateFileScopeInput) =>
-  apiClient.put<Pick<FileAccessList, 'fileId' | 'scope' | 'role' | 'linkToken'>>(
+  apiClient.put<Pick<FileAccessList, 'fileId' | 'scope' | 'role'>>(
     `/api/v1/files/${encodeURIComponent(fileId)}/scope`,
     { scope, role },
   )

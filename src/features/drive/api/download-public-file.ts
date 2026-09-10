@@ -8,8 +8,8 @@ import { env } from '@/config/env'
 // api-client.ts's AxiosInstance type augmentation applies module-wide, so cast
 // back to the real runtime shape (AxiosResponse) since no interceptor runs here.
 //
-// `fileId` is the shared file or one nested under a shared folder; `key` is the
-// capability (the file's linkToken or a guest invite token).
+// `fileId` is the shared file or one nested under a shared folder. `key` only ever matters for a
+// guest invite token now — a LINK-scoped entry needs none (issue #303).
 export async function downloadPublicFile(fileId: string, key: string | null, fileName: string) {
   const url = `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(fileId)}/download`
   const response = (await axios.get(url, {

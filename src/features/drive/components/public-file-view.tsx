@@ -18,8 +18,8 @@ import { VIEWER_BACKDROP } from './file-viewer-modal'
 // has nothing to share from — and minus the close button: there's no app
 // underneath to return to, this page *is* the destination.
 //
-// `shareKey` is the capability from the link's `?key=` (the file's linkToken or a
-// guest invite token); null when the link carried none.
+// `shareKey` is the capability from the link's `?key=`, a guest invite token — only ever needed
+// for that case (issue #303); null when the link carried none.
 export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey: string | null }) {
   const { data: file, isLoading, isError } = usePublicFile(fileId, shareKey)
   const canPreview = !!file && !file.directory && canPreviewFile(file.name, file.fileSize)
