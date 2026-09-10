@@ -193,20 +193,16 @@ export function ShareModal({
     setCascadeTarget(null)
   }
 
-  // RESTRICTED shares have no link token — point invited members at the
-  // login-gated deep link instead of the anonymous /public/:fileId route.
-  // Deliberately reflects the server's current scope, not a staged pending one:
-  // an uncommitted scope has no valid link yet. A file that only inherits LINK access from an
-  // ancestor has no linkToken of its own either — its public link is this file's id plus the
-  // ancestor's token (see InheritedLink.linkToken and PublicFileResolver.unlocks).
+  // The API resolves a LINK-scoped entry (or one under a LINK-scoped ancestor) by fileId alone —
+  // no token needed (file-service FileAccessGuard.linkRole / PublicFileResolver, issue #303) — so
+  // this address is stable across toggling link sharing off/on, unlike the old ?key=<linkToken>
+  // one. RESTRICTED shares have no public link at all — point invited members at the login-gated
+  // deep link instead of the anonymous /public/:fileId route. Deliberately reflects the server's
+  // current scope, not a staged pending one: an uncommitted scope has no valid link yet.
   const shareLink = access
-    ? access.scope === 'LINK'
-      ? access.linkToken
-        ? `${window.location.origin}/public/${encodeURIComponent(fileId)}?key=${encodeURIComponent(access.linkToken)}`
-        : null
-      : inheritedLinks[0]
-        ? `${window.location.origin}/public/${encodeURIComponent(fileId)}?key=${encodeURIComponent(inheritedLinks[0].linkToken)}`
-        : `${window.location.origin}/files/${encodeURIComponent(fileId)}`
+    ? access.scope === 'LINK' || inheritedLinks.length > 0
+      ? `${window.location.origin}/public/${encodeURIComponent(fileId)}`
+      : `${window.location.origin}/files/${encodeURIComponent(fileId)}`
     : null
 
   const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon

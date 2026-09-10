@@ -12,9 +12,9 @@ import type { PublicFile } from '../types'
 const publicClient = axios.create({ baseURL: env.API_BASE_URL })
 publicClient.interceptors.response.use((res: AxiosResponse<ApiResponse<unknown>>) => res.data.data as AxiosResponse)
 
-// Google-Drive-style stable link: fileId in the path, `key` (the file's linkToken or a guest
-// invite token) as the capability that authorizes it. `key` may be absent — file-service then
-// 404s, which is the right result for an anonymous visitor with no capability.
+// Google-Drive-style stable link: fileId in the path, `key` (a guest invite token) as an optional
+// capability. `key` may be absent — file-service still resolves a LINK-scoped entry (or one under
+// a LINK-scoped ancestor) by fileId alone (issue #303); absent `key` on anything else 404s.
 const keyParams = (key: string | null) => (key ? { key } : undefined)
 
 export const getPublicFile = (fileId: string, key: string | null) =>
