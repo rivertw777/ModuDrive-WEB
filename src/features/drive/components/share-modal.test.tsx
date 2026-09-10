@@ -116,15 +116,13 @@ describe('ShareModal', () => {
     })
   })
 
-  it('builds the anonymous link as /public/:fileId?key=<linkToken>', async () => {
+  it('builds the anonymous link as /public/:fileId, no key needed', async () => {
     renderModal({ scope: 'LINK', role: 'VIEWER', linkToken: 'tok-1' })
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('button', { name: '링크 복사' }))
 
-    expect(await navigator.clipboard.readText()).toBe(
-      'http://localhost:3000/public/file-1?key=tok-1',
-    )
+    expect(await navigator.clipboard.readText()).toBe('http://localhost:3000/public/file-1')
   })
 
   it('shows LINK as the effective scope when a parent folder link is inherited', () => {
@@ -135,7 +133,7 @@ describe('ShareModal', () => {
     expect(screen.getByRole('combobox')).toHaveValue('LINK')
   })
 
-  it('builds an inherited-link file\'s public link from the ancestor\'s token, not this file\'s (null) one', async () => {
+  it('builds an inherited-link file\'s public link from its own fileId, not the ancestor\'s', async () => {
     renderModal({
       inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER', linkToken: 'tok-1' }],
     })
@@ -143,9 +141,7 @@ describe('ShareModal', () => {
 
     await user.click(screen.getByRole('button', { name: '링크 복사' }))
 
-    expect(await navigator.clipboard.readText()).toBe(
-      'http://localhost:3000/public/file-1?key=tok-1',
-    )
+    expect(await navigator.clipboard.readText()).toBe('http://localhost:3000/public/file-1')
   })
 
   it('restricting an inherited-link file turns the parent folder link off instead', async () => {

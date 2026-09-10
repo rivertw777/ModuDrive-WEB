@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { LinkIcon } from '@/components/ui/icons'
 
-/** Bottom-row "링크 복사" button. `link` is null while it can't be computed yet
- * (e.g. LINK scope whose linkToken hasn't come back from the server). */
+/** Bottom-row "링크 복사" button. `link` is null only while access info hasn't
+ * loaded yet at all (see ShareModal's `shareLink`). */
 export function CopyLinkButton({ link }: { link: string | null }) {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState(false)
