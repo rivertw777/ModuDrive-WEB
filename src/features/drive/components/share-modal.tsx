@@ -11,7 +11,7 @@ import { useUpdateFileScope } from '../api/update-file-scope'
 import { useUpdateFileShareRole } from '../api/update-file-share-role'
 import { useRevokeFileShare } from '../api/revoke-file-share'
 import { useShareFile } from '../api/share-file'
-import type { Role, ShareScope } from '../types'
+import { granteeKey, type Role, type ShareScope } from '../types'
 import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
 import { ROLE_LABELS } from './role-select'
 import { AddMemberForm } from './add-member-form'
@@ -141,13 +141,16 @@ export function ShareModal({
   // found and cascaded, not just the nearest.
   const onMemberChange = (shareId: string, change: PendingChange) => {
     const target = access?.shares.find((s) => s.shareId === shareId)
-    const granteeId = target?.sharedWithUserId
+    // userId for a member, invited email for a guest (see granteeKey's doc comment) — a guest's
+    // userId is always null, so matching on that alone would never find their other ancestor
+    // grants.
+    const grantee = target ? granteeKey(target) : null
     // Every ancestor that also grants this same person access, root-most first (matches
     // access.shares' own order — see ListFileSharesService, never collapsed to one). If `target`
     // itself is a pure-inherited row it's naturally included here too, in its correct position —
     // its own shareId already IS that ancestor's real share id.
     const ancestorGrants = (access?.shares ?? []).filter(
-      (s) => granteeId != null && s.sharedWithUserId === granteeId && s.inheritedFrom,
+      (s) => grantee !== null && granteeKey(s) === grantee && s.inheritedFrom,
     )
 
     if (change !== REMOVE_ACCESS) {

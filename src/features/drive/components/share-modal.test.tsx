@@ -141,7 +141,7 @@ describe('ShareModal', () => {
     expect(screen.getByRole('combobox')).toHaveValue('LINK')
   })
 
-  it('builds an inherited-link file\'s share link from its own fileId, not the ancestor\'s', async () => {
+  it("builds an inherited-link file's share link from its own fileId, not the ancestor's", async () => {
     renderModal({
       inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }],
     })
@@ -228,6 +228,50 @@ describe('ShareModal', () => {
 
       await user.click(screen.getByRole('button', { name: '완료' }))
       expect(revokeMutate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when a guest (sharedWithUserId is always null) also has a grant on an ancestor folder', () => {
+    // Same shape as the member case above, but identified by email since a guest's
+    // sharedWithUserId is always null — a prior bug matched ancestors by sharedWithUserId alone,
+    // so it never found these and silently left the ancestor grant (and access) in place.
+    const sharesWithInheritedGuest: FileAccessList['shares'] = [
+      {
+        shareId: 'share-a',
+        fileId: 'file-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: null,
+        role: 'EDITOR',
+        sharedWithEmail: 'guest@example.com',
+        sharedWithName: null,
+        inheritedFrom: null,
+      },
+      {
+        shareId: 'share-b',
+        fileId: 'folder-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: null,
+        role: 'VIEWER',
+        sharedWithEmail: 'guest@example.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-1', name: '새 폴더' },
+      },
+    ]
+
+    it('warns before removing the direct guest share and cascades to the ancestor grant on confirm', async () => {
+      renderModal({ shares: sharesWithInheritedGuest })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+
+      expect(screen.getByText('상위 폴더에서 삭제하시겠습니까?')).toBeInTheDocument()
+      expect(revokeMutate).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'file-1', shareId: 'share-a' })
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })
     })
   })
 
@@ -352,6 +396,56 @@ describe('ShareModal', () => {
       expect(createShareMutate).toHaveBeenCalledWith({
         fileId: 'file-1',
         email: 'grantee@modudrive.com',
+        role: 'EDITOR',
+      })
+      expect(updateRoleMutate).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('when a guest has only an inherited grant on this file (no direct row of its own)', () => {
+    // Same shape as the member-only-inherited case above, but a guest (sharedWithUserId always
+    // null). Unlocking the role/remove select on this row (member-access-list.tsx) also unlocked
+    // 삭제 on it — this pins that it goes through the same ancestor-cascade confirm a member's
+    // pure-inherited row gets, not a revoke scoped to this file's id (which 404s: this row has no
+    // share of its own here, its shareId already IS the ancestor's).
+    const pureInheritedGuestShare: FileAccessList['shares'] = [
+      {
+        shareId: 'share-b',
+        fileId: 'folder-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: null,
+        role: 'VIEWER',
+        sharedWithEmail: 'guest@example.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-1', name: '새 폴더' },
+      },
+    ]
+
+    it('deletes only the ancestor grant on 완료, not a bogus one scoped to this file', async () => {
+      renderModal({ shares: pureInheritedGuestShare })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+      expect(screen.getByText('상위 폴더에서 삭제하시겠습니까?')).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })
+      expect(revokeMutate).toHaveBeenCalledTimes(1)
+    })
+
+    it('picking a role creates a new guest share on this file instead of PATCHing the ancestor', async () => {
+      renderModal({ shares: pureInheritedGuestShare })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '편집자')
+      await user.click(screen.getByRole('button', { name: '무시하고 공유' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(createShareMutate).toHaveBeenCalledWith({
+        fileId: 'file-1',
+        email: 'guest@example.com',
         role: 'EDITOR',
       })
       expect(updateRoleMutate).not.toHaveBeenCalled()

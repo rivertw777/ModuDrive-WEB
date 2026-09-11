@@ -70,6 +70,18 @@ describe('MemberAccessList', () => {
     expect(screen.getByText('river@modudrive.com')).toBeInTheDocument()
   })
 
+  it('stages a role pick on a guest DIRECT share via onChange with no confirmation — it already has a no-login link', async () => {
+    const { onChange } = renderList({
+      sharesToRender: [{ ...shares[0], sharedWithUserId: null, sharedWithName: null }],
+    })
+    const user = userEvent.setup()
+
+    await user.selectOptions(screen.getByRole('combobox'), '편집자')
+
+    expect(onChange).toHaveBeenCalledWith('share-1', 'EDITOR')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('hides the role/remove select and shows a read-only role label for non-owners', () => {
     renderList({ isOwner: false })
 
@@ -184,6 +196,9 @@ describe('MemberAccessList', () => {
       expect(
         screen.queryByText('ModuDrive 이외의 계정과 공유하시겠습니까?'),
       ).not.toBeInTheDocument()
+      // Nothing staged, so the controlled select reverts to the row's actual role — it must not
+      // keep showing 편집자 as if the pick had gone through.
+      expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
     })
 
     it('hides the select for non-owners', () => {
@@ -218,6 +233,52 @@ describe('MemberAccessList', () => {
       expect(screen.getAllByRole('combobox')).toHaveLength(1)
       expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
       expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
+    })
+  })
+
+  describe('a guest (sharedWithUserId is always null) inherited from two ancestors', () => {
+    const farGuestGrant: FileShare = {
+      ...shares[0],
+      shareId: 'share-guest-far',
+      sharedWithUserId: null,
+      sharedWithName: null,
+      sharedWithEmail: 'guest@example.com',
+      role: 'EDITOR',
+      inheritedFrom: { fileId: 'folder-far', name: '먼 폴더' },
+    }
+    const nearGuestGrant: FileShare = {
+      ...farGuestGrant,
+      shareId: 'share-guest-near',
+      role: 'VIEWER',
+      inheritedFrom: { fileId: 'folder-near', name: '가까운 폴더' },
+    }
+
+    it('collapses the same guest email to the nearest ancestor, not one row per ancestor', () => {
+      renderList({ sharesToRender: [farGuestGrant, nearGuestGrant] })
+
+      expect(screen.getAllByText('guest@example.com')).toHaveLength(1)
+      expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
+      expect(screen.queryByText('먼 폴더에서 상속됨')).not.toBeInTheDocument()
+    })
+
+    it('keeps two different guest emails from two ancestors as separate rows', () => {
+      const otherGuestGrant: FileShare = { ...farGuestGrant, sharedWithEmail: 'other@example.com' }
+      renderList({ sharesToRender: [otherGuestGrant, nearGuestGrant] })
+
+      expect(screen.getByText('other@example.com')).toBeInTheDocument()
+      expect(screen.getByText('guest@example.com')).toBeInTheDocument()
+    })
+
+    it('hides the inherited row once the same guest email also has a direct share on this file', () => {
+      const directGuestShare: FileShare = {
+        ...farGuestGrant,
+        shareId: 'share-guest-direct',
+        inheritedFrom: null,
+      }
+      renderList({ sharesToRender: [directGuestShare, nearGuestGrant] })
+
+      expect(screen.getAllByText('guest@example.com')).toHaveLength(1)
+      expect(screen.queryByText('가까운 폴더에서 상속됨')).not.toBeInTheDocument()
     })
   })
 })
