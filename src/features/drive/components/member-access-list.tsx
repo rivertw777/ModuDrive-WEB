@@ -42,7 +42,7 @@ export function MemberAccessList({
   // shareId so a guest with both a direct share and an ancestor grant is deduped the same way
   // a member is.
   const directGranteeKeys = new Set(
-    shares.filter((s) => !s.inheritedFrom).map(granteeKey).filter((k): k is string => k !== null),
+    shares.flatMap((s) => (s.inheritedFrom ? [] : (granteeKey(s) ?? []))),
   )
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
@@ -56,21 +56,24 @@ export function MemberAccessList({
   const nearestPureInheritedByGrantee = new Map<string, FileShare>()
   for (const s of shares) {
     const key = granteeKey(s)
-    if (!s.inheritedFrom || (key && directGranteeKeys.has(key))) continue
+    if (!s.inheritedFrom || (key != null && directGranteeKeys.has(key))) continue
     nearestPureInheritedByGrantee.set(key ?? s.shareId, s)
   }
-  const visibleShares = shares.filter((s) => {
-    if (!s.inheritedFrom) return true
-    const key = granteeKey(s)
-    if (key && directGranteeKeys.has(key)) return false
-    return nearestPureInheritedByGrantee.get(key ?? s.shareId) === s
-  })
+  // The directGranteeKeys shadow check above already excludes a shadowed row from the map, so
+  // a plain identity check against it is enough here — no need to repeat that check.
+  const visibleShares = shares.filter(
+    (s) => !s.inheritedFrom || nearestPureInheritedByGrantee.get(granteeKey(s) ?? s.shareId) === s,
+  )
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
         <div className="min-w-0">
-          <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? accessorLabel(ownerId)}</p>
-          {ownerEmail && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>}
+          <p className="truncate font-medium text-slate-800 dark:text-slate-200">
+            {ownerName ?? accessorLabel(ownerId)}
+          </p>
+          {ownerEmail && (
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>
+          )}
         </div>
         <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">소유자</span>
       </li>
@@ -79,7 +82,10 @@ export function MemberAccessList({
         const removing = pending === REMOVE_ACCESS
         const selectValue = removing ? REMOVE_ACCESS : (pending ?? share.role)
         return (
-          <li key={share.shareId} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+          <li
+            key={share.shareId}
+            className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+          >
             <div className="min-w-0">
               <p
                 className={cn(
@@ -115,7 +121,9 @@ export function MemberAccessList({
                   API directly, skipping AddMemberForm's "anyone with this invite can access
                   without logging in" confirmation for a brand-new guest link on this file. */}
               {!isOwner || (share.inheritedFrom && !share.sharedWithUserId) ? (
-                <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {ROLE_LABELS[share.role]}
+                </span>
               ) : (
                 <select
                   value={selectValue}
