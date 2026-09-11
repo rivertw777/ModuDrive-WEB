@@ -23,6 +23,7 @@ export function MemberAccessList({
   ownerEmail,
   shares,
   isOwner,
+  directory,
   pendingChanges,
   onChange,
   disabled,
@@ -34,6 +35,8 @@ export function MemberAccessList({
   shares: FileShare[]
   /** Role edit / revoke are owner-only actions (also enforced server-side). */
   isOwner: boolean
+  /** For the guest role-pick confirm's wording ("이 파일에" vs "이 폴더에") below. */
+  directory: boolean
   pendingChanges: Record<string, PendingChange>
   onChange: (shareId: string, change: PendingChange) => void
   disabled?: boolean
@@ -176,7 +179,7 @@ export function MemberAccessList({
         <ConfirmDialog
           open
           title="ModuDrive 이외의 계정과 공유하시겠습니까?"
-          message={`${guestRoleConfirm.email ?? '이 사용자'}님에게 이 파일에 대한 개별 공유를 만들려고 합니다. 이 이메일 계정과 연결된 ModuDrive 계정이 없기 때문에, 이 초대 링크를 전달받은 사람은 누구나 로그인 없이 액세스할 수 있습니다.`}
+          message={`${guestRoleConfirm.email ?? '이 사용자'}님에게 이 ${directory ? '폴더' : '파일'}에 대한 개별 공유를 만들려고 합니다. 이 이메일 계정과 연결된 ModuDrive 계정이 없기 때문에, 이 초대 링크를 전달받은 사람은 누구나 로그인 없이 액세스할 수 있습니다.`}
           confirmLabel="무시하고 공유"
           cancelLabel="취소"
           onConfirm={() => {

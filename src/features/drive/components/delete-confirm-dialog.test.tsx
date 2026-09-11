@@ -18,6 +18,7 @@ const emptyAccess: FileAccessList = {
   shares: [],
   inheritedLinks: [],
   hasSharedDescendant: false,
+  directory: false,
 }
 
 function renderDialog(files: { fileId: string; name: string; directory?: boolean }[]) {
