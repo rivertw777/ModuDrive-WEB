@@ -158,4 +158,50 @@ describe('MemberAccessList', () => {
       expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
     })
   })
+
+  describe('a guest (sharedWithUserId is always null) inherited from two ancestors', () => {
+    const farGuestGrant: FileShare = {
+      ...shares[0],
+      shareId: 'share-guest-far',
+      sharedWithUserId: null,
+      sharedWithName: null,
+      sharedWithEmail: 'guest@example.com',
+      role: 'EDITOR',
+      inheritedFrom: { fileId: 'folder-far', name: '먼 폴더' },
+    }
+    const nearGuestGrant: FileShare = {
+      ...farGuestGrant,
+      shareId: 'share-guest-near',
+      role: 'VIEWER',
+      inheritedFrom: { fileId: 'folder-near', name: '가까운 폴더' },
+    }
+
+    it('collapses the same guest email to the nearest ancestor, not one row per ancestor', () => {
+      renderList({ sharesToRender: [farGuestGrant, nearGuestGrant] })
+
+      expect(screen.getAllByText('guest@example.com')).toHaveLength(1)
+      expect(screen.getByText('가까운 폴더에서 상속됨')).toBeInTheDocument()
+      expect(screen.queryByText('먼 폴더에서 상속됨')).not.toBeInTheDocument()
+    })
+
+    it('keeps two different guest emails from two ancestors as separate rows', () => {
+      const otherGuestGrant: FileShare = { ...farGuestGrant, sharedWithEmail: 'other@example.com' }
+      renderList({ sharesToRender: [otherGuestGrant, nearGuestGrant] })
+
+      expect(screen.getByText('other@example.com')).toBeInTheDocument()
+      expect(screen.getByText('guest@example.com')).toBeInTheDocument()
+    })
+
+    it('hides the inherited row once the same guest email also has a direct share on this file', () => {
+      const directGuestShare: FileShare = {
+        ...farGuestGrant,
+        shareId: 'share-guest-direct',
+        inheritedFrom: null,
+      }
+      renderList({ sharesToRender: [directGuestShare, nearGuestGrant] })
+
+      expect(screen.getAllByText('guest@example.com')).toHaveLength(1)
+      expect(screen.queryByText('가까운 폴더에서 상속됨')).not.toBeInTheDocument()
+    })
+  })
 })

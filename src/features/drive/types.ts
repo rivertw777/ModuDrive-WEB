@@ -60,6 +60,13 @@ export type FileShare = {
   inheritedFrom: { fileId: string; name: string } | null
 }
 
+/** Identifies who a share's grantee is, for dedup/matching across rows: a registered member's
+ * userId when there is one, otherwise their invited email — the only stable identifier a guest
+ * has, since sharedWithUserId is always null for a guest regardless of which ancestor granted it. */
+export function granteeKey(share: Pick<FileShare, 'sharedWithUserId' | 'sharedWithEmail'>) {
+  return share.sharedWithUserId ?? share.sharedWithEmail
+}
+
 /** A directory above the listed file that is currently "anyone with the link" — the file is
  * reachable through it. To restrict the file you turn these links off (no inheritance break). */
 export type InheritedLink = {

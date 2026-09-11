@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import type { FileShare, Role } from '../types'
+import { granteeKey, type FileShare, type Role } from '../types'
 import { ROLE_LABELS } from './role-select'
 
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'
@@ -34,12 +34,15 @@ export function MemberAccessList({
   onChange: (shareId: string, change: PendingChange) => void
   disabled?: boolean
 }) {
-  // A direct grant on this file takes priority over a same-user grant inherited from an
+  // A direct grant on this file takes priority over a same-grantee grant inherited from an
   // ancestor folder — the row would otherwise duplicate the same person twice. The inherited
   // row still matters (it's why revoking the direct one alone is a no-op), so it's not gone
   // from the data, just not listed here — see the cascade-revoke confirm in ShareModal.
-  const directUserIds = new Set(
-    shares.filter((s) => !s.inheritedFrom && s.sharedWithUserId).map((s) => s.sharedWithUserId),
+  // Keyed by granteeKey (userId, or email for a guest — see its doc comment) rather than raw
+  // shareId so a guest with both a direct share and an ancestor grant is deduped the same way
+  // a member is.
+  const directGranteeKeys = new Set(
+    shares.flatMap((s) => (s.inheritedFrom ? [] : (granteeKey(s) ?? []))),
   )
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
@@ -52,22 +55,25 @@ export function MemberAccessList({
   // regardless of which one renders here.
   const nearestPureInheritedByGrantee = new Map<string, FileShare>()
   for (const s of shares) {
-    if (!s.inheritedFrom || (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId))) continue
-    const key = s.sharedWithUserId ?? s.shareId
-    nearestPureInheritedByGrantee.set(key, s)
+    const key = granteeKey(s)
+    if (!s.inheritedFrom || (key != null && directGranteeKeys.has(key))) continue
+    nearestPureInheritedByGrantee.set(key ?? s.shareId, s)
   }
-  const visibleShares = shares.filter((s) => {
-    if (!s.inheritedFrom) return true
-    if (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId)) return false
-    const key = s.sharedWithUserId ?? s.shareId
-    return nearestPureInheritedByGrantee.get(key) === s
-  })
+  // The directGranteeKeys shadow check above already excludes a shadowed row from the map, so
+  // a plain identity check against it is enough here — no need to repeat that check.
+  const visibleShares = shares.filter(
+    (s) => !s.inheritedFrom || nearestPureInheritedByGrantee.get(granteeKey(s) ?? s.shareId) === s,
+  )
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
       <li className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
         <div className="min-w-0">
-          <p className="truncate font-medium text-slate-800 dark:text-slate-200">{ownerName ?? accessorLabel(ownerId)}</p>
-          {ownerEmail && <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>}
+          <p className="truncate font-medium text-slate-800 dark:text-slate-200">
+            {ownerName ?? accessorLabel(ownerId)}
+          </p>
+          {ownerEmail && (
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">{ownerEmail}</p>
+          )}
         </div>
         <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">소유자</span>
       </li>
@@ -76,7 +82,10 @@ export function MemberAccessList({
         const removing = pending === REMOVE_ACCESS
         const selectValue = removing ? REMOVE_ACCESS : (pending ?? share.role)
         return (
-          <li key={share.shareId} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+          <li
+            key={share.shareId}
+            className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
+          >
             <div className="min-w-0">
               <p
                 className={cn(
@@ -112,7 +121,9 @@ export function MemberAccessList({
                   API directly, skipping AddMemberForm's "anyone with this invite can access
                   without logging in" confirmation for a brand-new guest link on this file. */}
               {!isOwner || (share.inheritedFrom && !share.sharedWithUserId) ? (
-                <span className="text-slate-500 dark:text-slate-400">{ROLE_LABELS[share.role]}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {ROLE_LABELS[share.role]}
+                </span>
               ) : (
                 <select
                   value={selectValue}
