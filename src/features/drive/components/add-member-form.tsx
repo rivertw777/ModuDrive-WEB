@@ -30,6 +30,7 @@ export function AddMemberForm({
   const [emails, setEmails] = useState<string[]>([])
   const [input, setInput] = useState('')
   const [role, setRole] = useState<Role>('VIEWER')
+  const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
   // Set when commitInput's emails include one or more addresses with no ModuDrive account —
   // holds the submit until the user acknowledges they'll be invited as a no-login guest link.
@@ -67,8 +68,11 @@ export function AddMemberForm({
 
   const doShare = async (targetEmails: string[]) => {
     setError(null)
+    const trimmedMessage = message.trim() || undefined
     const results = await Promise.allSettled(
-      targetEmails.map((email) => shareFile.mutateAsync({ fileId, email, role })),
+      targetEmails.map((email) =>
+        shareFile.mutateAsync({ fileId, email, role, message: trimmedMessage }),
+      ),
     )
     const failures = targetEmails
       .map((email, i) => ({ email, result: results[i] }))
@@ -146,6 +150,16 @@ export function AddMemberForm({
             <RoleSelect value={role} onChange={setRole} className="min-h-[2.875rem]" />
           )}
         </div>
+        {emails.length > 0 && (
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="메시지"
+            rows={5}
+            maxLength={1000}
+            className="w-full resize-none rounded-lg border border-slate-300 p-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+          />
+        )}
         {error && (
           <p className="whitespace-pre-line text-sm text-red-600 dark:text-red-400">{error}</p>
         )}
