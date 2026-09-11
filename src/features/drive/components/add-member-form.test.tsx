@@ -77,6 +77,29 @@ describe('AddMemberForm', () => {
     expect(onDone).toHaveBeenCalled()
   })
 
+  it('sends a trimmed optional message along with the share', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(null)
+    vi.mocked(useShareFile).mockReturnValue({
+      mutateAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useShareFile>)
+    renderForm()
+    const user = userEvent.setup()
+
+    await user.type(screen.getByPlaceholderText('이메일 입력 후 Enter'), 'river@modudrive.com{Enter}')
+    await user.type(screen.getByPlaceholderText('메시지'), '  확인 부탁드려요  ')
+    await user.click(screen.getByRole('button', { name: '전송' }))
+
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith({
+        fileId: 'file-1',
+        email: 'river@modudrive.com',
+        role: 'VIEWER',
+        message: '확인 부탁드려요',
+      }),
+    )
+  })
+
   it('warns before sharing to an email with no ModuDrive account, and shares on confirm', async () => {
     vi.mocked(memberExistsByEmail).mockResolvedValue(false)
     const mutateAsync = vi.fn().mockResolvedValue(null)
