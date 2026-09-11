@@ -22,6 +22,7 @@ import { cn } from '@/utils/cn'
 import { useFileViewStore } from '@/stores/file-view-store'
 import { ROLE_LABELS } from './role-select'
 import {
+  DRAG_MIME,
   formatDate,
   formatFileSize,
   joinPath,
@@ -43,10 +44,6 @@ import { MoveDialog } from './move-dialog'
 import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { FileViewerModal } from './file-viewer-modal'
-
-// Private MIME type for in-list drags (moving files between folders) — keeps them from being
-// mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
-const DRAG_MIME = 'application/x-modudrive-file-ids'
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
@@ -107,6 +104,10 @@ export function FileList({
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [viewerFile, setViewerFile] = useState<FileEntry | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  // Ids currently being dragged (set from this same list's onDragStart) — lets onDragOver reject
+  // a target that is itself part of the drag before it ever reaches onDrop (Google Drive-style:
+  // dropping a selection onto one of its own members is refused outright, not partially applied).
+  const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set())
   const [actionError, setActionError] = useState<string | null>(null)
   const viewMode = useFileViewStore((state) => state.mode)
   const toggleFavorite = useToggleFavorite()
@@ -179,6 +180,9 @@ export function FileList({
     onClearSelection,
   )
   const selectedFiles = shown.filter((file) => selected.has(file.fileId))
+  const downloadableSelected = selectedFiles.filter(
+    (file) => !file.directory && file.status === 'UPLOADED',
+  )
 
   const openMenu = (file: FileEntry, x: number, y: number) => {
     const batch = selected.has(file.fileId) && selected.size > 1
@@ -189,6 +193,7 @@ export function FileList({
   const onDragStart = (event: React.DragEvent, file: FileEntry) => {
     const ids = selected.has(file.fileId) && selected.size > 1 ? [...selected] : [file.fileId]
     if (ids.length === 1) setSelected(new Set(ids))
+    setDraggingIds(new Set(ids))
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData(DRAG_MIME, JSON.stringify(ids))
     setDragPreview(event, file.name, ids.length)
@@ -204,6 +209,9 @@ export function FileList({
       return
     }
     if (!Array.isArray(parsed)) return
+    // The target is itself one of the dragged items (e.g. a file + folder selected together,
+    // dropped on that same folder) — refuse the whole drop rather than moving just the rest.
+    if (parsed.includes(target.fileId)) return
 
     // Only ids this list actually rendered, excluding the drop target itself and any dragged
     // directory that the target sits inside of (would otherwise move a folder into its own subtree).
@@ -235,27 +243,35 @@ export function FileList({
     onDragStart: (event: React.DragEvent) => onDragStart(event, file),
     onMouseDown: (event: React.MouseEvent) => onRowMouseDown(file.fileId, event),
     onClick: (event: React.MouseEvent) => {
+      // Single click only selects — entering a folder or previewing a file is a double-click
+      // (below), so a click-and-hold is free to start a drag instead of jumping the folder.
       if (event.shiftKey || event.metaKey || event.ctrlKey) return
-      if (file.directory && navigable) {
-        setSelected(new Set())
-        onNavigate(joinPath(file.path, file.name))
-      } else {
-        setSelected(new Set([file.fileId]))
-      }
+      setSelected(new Set([file.fileId]))
     },
     onDoubleClick: (event: React.MouseEvent) => {
       // Row buttons (star, more, location) stop propagation on click, not dblclick — the
       // second click of a double-click on one of them would otherwise still bubble up here.
       if ((event.target as HTMLElement).closest('button')) return
-      if (!file.directory && file.status === 'UPLOADED') setViewerFile(file)
+      if (file.directory) {
+        if (!navigable) return
+        setSelected(new Set())
+        onNavigate(joinPath(file.path, file.name))
+      } else if (file.status === 'UPLOADED') {
+        setViewerFile(file)
+      }
     },
     onContextMenu: (event: React.MouseEvent) => {
       event.preventDefault()
       openMenu(file, event.clientX, event.clientY)
     },
+    onDragEnd: () => setDraggingIds(new Set()),
     onDragOver: file.directory
       ? (event: React.DragEvent) => {
           if (!event.dataTransfer.types.includes(DRAG_MIME)) return
+          // This row is itself part of the drag (e.g. file + folder selected together, hovering
+          // that same folder) — leave preventDefault uncalled so the browser shows "no drop"
+          // instead of highlighting it as a valid target.
+          if (draggingIds.has(file.fileId)) return
           event.preventDefault()
           setDragOverId(file.fileId)
         }
@@ -295,7 +311,7 @@ export function FileList({
                   className={cn(
                     'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
                     (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                      'border-brand-200 bg-brand-50 hover:bg-brand-50 dark:border-brand-700 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                      'border-brand-300 bg-brand-100 hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-700/40 dark:hover:bg-brand-700/40',
                     dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
                   )}
                 >
@@ -420,7 +436,7 @@ export function FileList({
                     className={cn(
                       'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
                       (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                        'bg-brand-50 hover:bg-brand-50 dark:bg-brand-700/25 dark:hover:bg-brand-700/25',
+                        'bg-brand-100 hover:bg-brand-100 dark:bg-brand-700/40 dark:hover:bg-brand-700/40',
                       dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
                     )}
                   >
@@ -590,16 +606,14 @@ export function FileList({
 
       {menu?.batch && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
-          {selectedFiles.some((file) => !file.directory && file.status === 'UPLOADED') && (
+          {downloadableSelected.length > 0 && (
             <ContextMenuItem
               onClick={() => {
-                selectedFiles
-                  .filter((file) => !file.directory && file.status === 'UPLOADED')
-                  .forEach((file) => downloadFile(file.fileId, file.name))
+                downloadableSelected.forEach((file) => downloadFile(file.fileId, file.name))
                 setMenu(null)
               }}
             >
-              <DownloadIcon size={16} /> 다운로드
+              <DownloadIcon size={16} /> 다운로드 ({downloadableSelected.length}개)
             </ContextMenuItem>
           )}
           {!selectedFiles.some(isSharedFile) && (
