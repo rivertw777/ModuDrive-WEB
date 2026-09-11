@@ -98,6 +98,10 @@ export type PublicFile = {
   updatedAt: string | null
 }
 
+// Private MIME type for in-list drags (moving files between folders) — keeps them from being
+// mistaken for (or matched by) an OS file drag, and from being read by a foreign drop target.
+export const DRAG_MIME = 'application/x-modudrive-file-ids'
+
 export function joinPath(path: string, name: string) {
   return path === '/' ? `/${name}` : `${path}/${name}`
 }

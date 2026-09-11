@@ -112,7 +112,9 @@ describe('PublicFileView', () => {
     renderView({ ...file, directory: true, name: 'photos' }, [sub])
     const user = userEvent.setup()
 
-    await user.click(screen.getByRole('button', { name: 'inner' }))
+    // Single click only selects a row now — entering a folder takes a double-click. The row is
+    // no longer a name-only button (that click-through moved to the whole <tr>).
+    await user.dblClick(screen.getByRole('row', { name: /inner/ }))
 
     expect(usePublicChildren).toHaveBeenCalledWith('sub-1', 'key-1')
   })

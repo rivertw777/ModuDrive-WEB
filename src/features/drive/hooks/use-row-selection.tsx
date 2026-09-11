@@ -146,15 +146,11 @@ export function useRowSelection(
       // Leave an already-selected row alone (a native drag may be starting, and it should
       // carry the whole group) — collapsing to just this row happens in onClick instead.
       if (selected.has(id)) return
-      // Not selected yet: a plain click will just select this row (onClick below), but if the
-      // mouse moves instead, treat it as the start of a rectangle-select rather than the
-      // browser's native text-select or a single-item drag — rows fill the whole list once it
-      // gets long, so blank space to start a marquee from may not exist otherwise.
-      event.preventDefault()
+      // Not selected yet: select it immediately (not deferred to onClick) so a press-and-hold
+      // goes straight into a native drag of this row without a separate prior click first.
       setSelected(new Set([id]))
-      startMarquee(event)
     },
-    [orderedIds, selected, startMarquee],
+    [orderedIds, selected],
   )
 
   const onContainerMouseDown = useCallback(
@@ -214,12 +210,20 @@ export function MarqueeOverlay({ box }: { box: MarqueeBox | null }) {
   )
 }
 
-/** Small floating card used as the native drag image so dragging shows what/how many is moving. */
+/** Small floating card used as the native drag image so dragging shows what's moving — a
+ * Google Drive-style round count badge in the corner when more than one item is held. */
 export function setDragPreview(event: React.DragEvent, label: string, count: number) {
   const el = document.createElement('div')
   el.className =
     'fixed -left-[999px] -top-[999px] flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-lg'
   el.textContent = count > 1 ? `${label} 외 ${count - 1}개` : label
+  if (count > 1) {
+    const badge = document.createElement('span')
+    badge.className =
+      'absolute -right-1.5 -top-1.5 flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold leading-4 text-white'
+    badge.textContent = String(count)
+    el.appendChild(badge)
+  }
   document.body.appendChild(el)
   event.dataTransfer.setDragImage(el, 12, 16)
   requestAnimationFrame(() => el.remove())
