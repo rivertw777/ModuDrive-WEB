@@ -231,6 +231,50 @@ describe('ShareModal', () => {
     })
   })
 
+  describe('when a guest (sharedWithUserId is always null) also has a grant on an ancestor folder', () => {
+    // Same shape as the member case above, but identified by email since a guest's
+    // sharedWithUserId is always null — a prior bug matched ancestors by sharedWithUserId alone,
+    // so it never found these and silently left the ancestor grant (and access) in place.
+    const sharesWithInheritedGuest: FileAccessList['shares'] = [
+      {
+        shareId: 'share-a',
+        fileId: 'file-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: null,
+        role: 'EDITOR',
+        sharedWithEmail: 'guest@example.com',
+        sharedWithName: null,
+        inheritedFrom: null,
+      },
+      {
+        shareId: 'share-b',
+        fileId: 'folder-1',
+        ownerId: 'owner-1',
+        sharedWithUserId: null,
+        role: 'VIEWER',
+        sharedWithEmail: 'guest@example.com',
+        sharedWithName: null,
+        inheritedFrom: { fileId: 'folder-1', name: '새 폴더' },
+      },
+    ]
+
+    it('warns before removing the direct guest share and cascades to the ancestor grant on confirm', async () => {
+      renderModal({ shares: sharesWithInheritedGuest })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getAllByRole('combobox')[1], '삭제')
+
+      expect(screen.getByText('상위 폴더에서 삭제하시겠습니까?')).toBeInTheDocument()
+      expect(revokeMutate).not.toHaveBeenCalled()
+
+      await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+      await user.click(screen.getByRole('button', { name: '완료' }))
+
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'file-1', shareId: 'share-a' })
+      expect(revokeMutate).toHaveBeenCalledWith({ fileId: 'folder-1', shareId: 'share-b' })
+    })
+  })
+
   describe('when a member has *two* independent grants on ancestors above this file', () => {
     // b (folder-1, root-most/topmost) and a (folder-2, nearer to the file) each separately
     // shared the same person, on top of this file's own direct share — three independent

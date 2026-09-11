@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import type { FileShare, Role } from '../types'
+import { granteeKey, type FileShare, type Role } from '../types'
 import { ROLE_LABELS } from './role-select'
 
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'
@@ -34,12 +34,15 @@ export function MemberAccessList({
   onChange: (shareId: string, change: PendingChange) => void
   disabled?: boolean
 }) {
-  // A direct grant on this file takes priority over a same-user grant inherited from an
+  // A direct grant on this file takes priority over a same-grantee grant inherited from an
   // ancestor folder — the row would otherwise duplicate the same person twice. The inherited
   // row still matters (it's why revoking the direct one alone is a no-op), so it's not gone
   // from the data, just not listed here — see the cascade-revoke confirm in ShareModal.
-  const directUserIds = new Set(
-    shares.filter((s) => !s.inheritedFrom && s.sharedWithUserId).map((s) => s.sharedWithUserId),
+  // Keyed by granteeKey (userId, or email for a guest — see its doc comment) rather than raw
+  // shareId so a guest with both a direct share and an ancestor grant is deduped the same way
+  // a member is.
+  const directGranteeKeys = new Set(
+    shares.filter((s) => !s.inheritedFrom).map(granteeKey).filter((k): k is string => k !== null),
   )
   // Two (or more) independent ancestors can separately grant the same person with no direct
   // share on this file at all — the server lists every one of those grants (never collapsed,
@@ -52,15 +55,15 @@ export function MemberAccessList({
   // regardless of which one renders here.
   const nearestPureInheritedByGrantee = new Map<string, FileShare>()
   for (const s of shares) {
-    if (!s.inheritedFrom || (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId))) continue
-    const key = s.sharedWithUserId ?? s.shareId
-    nearestPureInheritedByGrantee.set(key, s)
+    const key = granteeKey(s)
+    if (!s.inheritedFrom || (key && directGranteeKeys.has(key))) continue
+    nearestPureInheritedByGrantee.set(key ?? s.shareId, s)
   }
   const visibleShares = shares.filter((s) => {
     if (!s.inheritedFrom) return true
-    if (s.sharedWithUserId && directUserIds.has(s.sharedWithUserId)) return false
-    const key = s.sharedWithUserId ?? s.shareId
-    return nearestPureInheritedByGrantee.get(key) === s
+    const key = granteeKey(s)
+    if (key && directGranteeKeys.has(key)) return false
+    return nearestPureInheritedByGrantee.get(key ?? s.shareId) === s
   })
   return (
     <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-brand-100 bg-brand-50/50 dark:border-brand-900/40 dark:bg-brand-950/20">
