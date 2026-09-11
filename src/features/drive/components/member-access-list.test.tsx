@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
@@ -70,6 +70,18 @@ describe('MemberAccessList', () => {
     expect(screen.getByText('river@modudrive.com')).toBeInTheDocument()
   })
 
+  it('stages a role pick on a guest DIRECT share via onChange with no confirmation — it already has a no-login link', async () => {
+    const { onChange } = renderList({
+      sharesToRender: [{ ...shares[0], sharedWithUserId: null, sharedWithName: null }],
+    })
+    const user = userEvent.setup()
+
+    await user.selectOptions(screen.getByRole('combobox'), '편집자')
+
+    expect(onChange).toHaveBeenCalledWith('share-1', 'EDITOR')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('hides the role/remove select and shows a read-only role label for non-owners', () => {
     renderList({ isOwner: false })
 
@@ -126,6 +138,71 @@ describe('MemberAccessList', () => {
 
     it('hides the select for non-owners', () => {
       renderList({ sharesToRender: [inheritedShare], isOwner: false })
+
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+      expect(screen.getByText('뷰어')).toBeInTheDocument()
+    })
+  })
+
+  describe("a guest's (no member account) inherited row", () => {
+    const guestInheritedShare: FileShare = {
+      ...shares[0],
+      sharedWithUserId: null,
+      sharedWithName: null,
+      sharedWithEmail: 'guest@example.com',
+      inheritedFrom: { fileId: 'folder-1', name: '폴더 A' },
+    }
+
+    it('shows the same role/remove select a member inherited row gets, not a read-only label', () => {
+      renderList({ sharesToRender: [guestInheritedShare] })
+
+      expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
+      expect(screen.getByRole('option', { name: '삭제' })).toBeInTheDocument()
+    })
+
+    it('stages a removal via onChange directly, no confirmation needed', async () => {
+      const { onChange } = renderList({ sharesToRender: [guestInheritedShare] })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '삭제')
+
+      expect(onChange).toHaveBeenCalledWith('share-1', REMOVE_ACCESS)
+    })
+
+    it('asks for no-login-access confirmation before staging a role pick', async () => {
+      const { onChange } = renderList({ sharesToRender: [guestInheritedShare] })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '편집자')
+
+      expect(onChange).not.toHaveBeenCalled()
+      const dialog = within(screen.getByRole('dialog'))
+      expect(dialog.getByText('ModuDrive 이외의 계정과 공유하시겠습니까?')).toBeInTheDocument()
+      expect(dialog.getByText(/guest@example.com/)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: '무시하고 공유' }))
+
+      expect(onChange).toHaveBeenCalledWith('share-1', 'EDITOR')
+    })
+
+    it('stages nothing when the confirmation is cancelled', async () => {
+      const { onChange } = renderList({ sharesToRender: [guestInheritedShare] })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '편집자')
+      await user.click(screen.getByRole('button', { name: '취소' }))
+
+      expect(onChange).not.toHaveBeenCalled()
+      expect(
+        screen.queryByText('ModuDrive 이외의 계정과 공유하시겠습니까?'),
+      ).not.toBeInTheDocument()
+      // Nothing staged, so the controlled select reverts to the row's actual role — it must not
+      // keep showing 편집자 as if the pick had gone through.
+      expect(screen.getByRole('combobox')).toHaveValue('VIEWER')
+    })
+
+    it('hides the select for non-owners', () => {
+      renderList({ sharesToRender: [guestInheritedShare], isOwner: false })
 
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
       expect(screen.getByText('뷰어')).toBeInTheDocument()
