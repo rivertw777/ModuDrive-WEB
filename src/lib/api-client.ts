@@ -90,8 +90,15 @@ apiClient.interceptors.response.use(
     }
 
     const message = error.response?.data?.message ?? error.message
-    // status carried through so callers can branch on "not found" vs. other failures
-    // without re-parsing the (locale-specific) message text — see check-member-email.ts.
-    return Promise.reject(Object.assign(new Error(message), { status: error.response?.status }))
+    // status carried through so callers can branch on "not found" vs. other failures without
+    // re-parsing the (locale-specific) message text — see check-member-email.ts. `data` is the
+    // backend's optional ApiResponse.error(..., data) payload (e.g. FileAccessGuard attaching
+    // isDirectory to a FILE_ACCESS_DENIED) — see file.tsx's access-denied alert.
+    return Promise.reject(
+      Object.assign(new Error(message), {
+        status: error.response?.status,
+        data: error.response?.data?.data,
+      }),
+    )
   },
 )

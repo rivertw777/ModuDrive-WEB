@@ -12,7 +12,6 @@ import NotificationsRoute from '@/app/routes/notifications'
 import SearchRoute from '@/app/routes/search'
 import CategoryRoute from '@/app/routes/category'
 import StorageRoute from '@/app/routes/storage'
-import PublicFileRoute from '@/app/routes/public-file'
 import FileRoute from '@/app/routes/file'
 import NotFoundRoute from '@/app/routes/not-found'
 
@@ -28,10 +27,6 @@ const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupRoute />,
-  },
-  {
-    path: '/public/:fileId',
-    element: <PublicFileRoute />,
   },
   {
     // Not nested under AppLayoutRoute (unlike every route below) — FileRoute must handle an

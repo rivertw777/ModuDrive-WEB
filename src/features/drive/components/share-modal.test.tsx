@@ -27,6 +27,7 @@ const access: FileAccessList = {
   shares: [],
   inheritedLinks: [],
   hasSharedDescendant: false,
+  directory: false,
 }
 
 const scopeMutate = vi.fn()
@@ -152,7 +153,7 @@ describe('ShareModal', () => {
     expect(await navigator.clipboard.readText()).toBe('http://localhost:3000/files/file-1')
   })
 
-  it('restricting an inherited-link file turns the parent folder link off instead', async () => {
+  it('restricting an inherited-link file stages the parent folder link off, applied only on 완료', async () => {
     renderModal({
       inheritedLinks: [{ fileId: 'folder-1', name: '새 폴더', role: 'VIEWER' }],
     })
@@ -164,6 +165,11 @@ describe('ShareModal', () => {
     expect(scopeMutate).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: '상위 항목에서 삭제' }))
+    // Staged like every other edit here — confirming the dialog must not hit the server by itself.
+    expect(scopeMutate).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox')).toHaveValue('RESTRICTED')
+
+    await user.click(screen.getByRole('button', { name: '완료' }))
 
     expect(scopeMutate).toHaveBeenCalledWith({
       fileId: 'folder-1',

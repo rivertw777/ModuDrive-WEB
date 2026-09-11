@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import FileRoute from './file'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAlertStore } from '@/stores/alert-store'
 
 const useFile = vi.fn()
 const usePublicFile = vi.fn()
@@ -114,14 +115,50 @@ describe('FileRoute', () => {
       expect(screen.getByText('anonymous view f-1 / k-1')).toBeInTheDocument()
     })
 
-    it('shows access-denied, not a login redirect, when neither check finds any access', () => {
-      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined })
+    it('sends to /drive and queues a 파일-worded alert when the denied target is a file', () => {
+      useAlertStore.setState({ message: null })
+      useFile.mockReturnValue({
+        isLoading: false,
+        isError: true,
+        data: undefined,
+        error: { data: { isDirectory: false } },
+      })
       usePublicFile.mockReturnValue({ isLoading: false, isError: true })
 
       renderAt('/files/f-1')
 
-      expect(screen.getByText('이 파일에 접근할 권한이 없습니다')).toBeInTheDocument()
+      // GlobalAlert itself renders at the app root (outside this test's tree) — here we only
+      // pin that the navigate happens and the store it reads is queued, in that order.
+      expect(screen.getByText('drive explorer')).toBeInTheDocument()
+      expect(useAlertStore.getState().message).toBe('이 파일에 접근할 권한이 없습니다')
       expect(screen.queryByText('login page')).not.toBeInTheDocument()
+    })
+
+    it('queues a 폴더-worded alert when the denied target is a directory', () => {
+      useAlertStore.setState({ message: null })
+      useFile.mockReturnValue({
+        isLoading: false,
+        isError: true,
+        data: undefined,
+        error: { data: { isDirectory: true } },
+      })
+      usePublicFile.mockReturnValue({ isLoading: false, isError: true })
+
+      renderAt('/files/f-1')
+
+      expect(useAlertStore.getState().message).toBe('이 폴더에 접근할 권한이 없습니다')
+    })
+
+    it('falls back to a type-agnostic 항목 wording when the file genuinely does not exist', () => {
+      useAlertStore.setState({ message: null })
+      // A real FILE_NOT_FOUND carries no isDirectory (see FileAccessGuard) — this pins the
+      // fallback wording rather than defaulting to either 파일 or 폴더.
+      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined, error: new Error('not found') })
+      usePublicFile.mockReturnValue({ isLoading: false, isError: true })
+
+      renderAt('/files/f-1')
+
+      expect(useAlertStore.getState().message).toBe('이 항목에 접근할 권한이 없습니다')
     })
   })
 })

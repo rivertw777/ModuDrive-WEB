@@ -86,6 +86,7 @@ export type FileAccessList = {
   /** True when this is a directory and something nested under it (at any depth) is shared —
    * trashing this directory cascades to that descendant too, cutting off its access. */
   hasSharedDescendant: boolean
+  directory: boolean
 }
 
 /** Deliberately narrow — an anonymous link visitor gets no path/owner/version info. */

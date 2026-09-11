@@ -20,11 +20,13 @@ const shares: FileShare[] = [
 function renderList({
   sharesToRender = shares,
   isOwner = true,
+  directory = false,
   pendingChanges = {},
   onChange = vi.fn(),
 }: {
   sharesToRender?: FileShare[]
   isOwner?: boolean
+  directory?: boolean
   pendingChanges?: Record<string, PendingChange>
   onChange?: (shareId: string, change: PendingChange) => void
 } = {}) {
@@ -33,6 +35,7 @@ function renderList({
       ownerId="owner-1"
       shares={sharesToRender}
       isOwner={isOwner}
+      directory={directory}
       pendingChanges={pendingChanges}
       onChange={onChange}
     />,
@@ -179,10 +182,21 @@ describe('MemberAccessList', () => {
       const dialog = within(screen.getByRole('dialog'))
       expect(dialog.getByText('ModuDrive 이외의 계정과 공유하시겠습니까?')).toBeInTheDocument()
       expect(dialog.getByText(/guest@example.com/)).toBeInTheDocument()
+      expect(dialog.getByText(/이 파일에 대한 개별 공유/)).toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: '무시하고 공유' }))
 
       expect(onChange).toHaveBeenCalledWith('share-1', 'EDITOR')
+    })
+
+    it('words the confirmation as 폴더 when this row belongs to a directory', async () => {
+      renderList({ sharesToRender: [guestInheritedShare], directory: true })
+      const user = userEvent.setup()
+
+      await user.selectOptions(screen.getByRole('combobox'), '편집자')
+
+      const dialog = within(screen.getByRole('dialog'))
+      expect(dialog.getByText(/이 폴더에 대한 개별 공유/)).toBeInTheDocument()
     })
 
     it('stages nothing when the confirmation is cancelled', async () => {

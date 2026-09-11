@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -50,7 +49,6 @@ export function ShareModal({
 }) {
   const { data: access, isLoading, isError } = useFileShares(fileId, open)
   const { data: member } = useCurrentMember(open)
-  const queryClient = useQueryClient()
   const updateScope = useUpdateFileScope()
   const updateRole = useUpdateFileShareRole()
   const revoke = useRevokeFileShare()
@@ -74,6 +72,10 @@ export function ShareModal({
     fileRole: Role
     ancestors: { fileId: string; shareId: string; name: string; role: Role }[]
   } | null>(null)
+  // Ancestor folders (see RestrictParentDialog) whose own "anyone with the link" also has to be
+  // turned off for this file's RESTRICTED pick to mean anything — staged here rather than applied
+  // on confirm, same as every other edit, and only sent to the server on 완료.
+  const [pendingParentRestrict, setPendingParentRestrict] = useState<string[]>([])
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   const [restrictOpen, setRestrictOpen] = useState(false)
@@ -86,6 +88,7 @@ export function ShareModal({
       setPendingRoleChanges({})
       setCascadeRevokes({})
       setCascadeTarget(null)
+      setPendingParentRestrict([])
       setCommitError(null)
       setConfirmCloseOpen(false)
       setRestrictOpen(false)
@@ -115,21 +118,12 @@ export function ShareModal({
     setPendingScope(next)
   }
 
-  const onRestrictConfirm = async () => {
+  // Stages the restrict, same as every other edit here — actually turning the ancestors' links
+  // off happens in onComplete, not here (see pendingParentRestrict's doc comment).
+  const onRestrictConfirm = () => {
     setRestrictOpen(false)
-    setCommitError(null)
-    const targets = [
-      ...inheritedLinks.map((link) => link.fileId),
-      ...(access?.scope === 'LINK' ? [fileId] : []),
-    ]
-    try {
-      for (const targetId of targets) {
-        await updateScope.mutateAsync({ fileId: targetId, scope: 'RESTRICTED', role: undefined })
-      }
-      await queryClient.invalidateQueries({ queryKey: ['file-shares', fileId] })
-    } catch {
-      setCommitError('상위 폴더의 링크를 해제하지 못했습니다. 다시 시도해주세요.')
-    }
+    setPendingScope('RESTRICTED')
+    setPendingParentRestrict(inheritedLinks.map((link) => link.fileId))
   }
 
   // A member's row here can be shadowed by a separate grant on an ancestor folder (this file
@@ -208,7 +202,8 @@ export function ShareModal({
   const hasPendingChanges =
     pendingScope !== null ||
     Object.keys(pendingRoleChanges).length > 0 ||
-    Object.keys(cascadeRevokes).length > 0
+    Object.keys(cascadeRevokes).length > 0 ||
+    pendingParentRestrict.length > 0
 
   const onComplete = async () => {
     const roleEntries = Object.entries(pendingRoleChanges)
@@ -261,6 +256,12 @@ export function ShareModal({
         tasks.push(revoke.mutateAsync({ fileId: cascade.fileId, shareId: cascade.shareId }))
       }
     }
+    // Ancestor folders whose own link-sharing has to turn off too for this file's RESTRICTED
+    // pick to mean anything (see RestrictParentDialog / pendingParentRestrict's doc comment).
+    for (const targetId of pendingParentRestrict) {
+      keys.push(`parent-restrict:${targetId}`)
+      tasks.push(updateScope.mutateAsync({ fileId: targetId, scope: 'RESTRICTED', role: undefined }))
+    }
     const results = await Promise.allSettled(tasks)
     const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
     if (failedKeys.size > 0) {
@@ -287,12 +288,16 @@ export function ShareModal({
         }
         return next
       })
+      setPendingParentRestrict((prev) =>
+        prev.filter((targetId) => failedKeys.has(`parent-restrict:${targetId}`)),
+      )
       setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해주세요.')
       return
     }
     setPendingScope(null)
     setPendingRoleChanges({})
     setCascadeRevokes({})
+    setPendingParentRestrict([])
     onClose()
   }
 
@@ -396,6 +401,7 @@ export function ShareModal({
                 ownerEmail={isOwner ? (member?.email ?? null) : null}
                 shares={access.shares}
                 isOwner={isOwner}
+                directory={access.directory}
                 pendingChanges={pendingRoleChanges}
                 onChange={onMemberChange}
                 disabled={isCommitting}
