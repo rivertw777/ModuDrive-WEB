@@ -6,6 +6,8 @@ export type ShareFileInput = {
   fileId: string
   email: string
   role: Role
+  /** Optional note shown in the invite mail (Drive-style share message). Never persisted. */
+  message?: string
 }
 
 // Response data is null for a guest invite (no ModuDrive member owns the email) — the backend
