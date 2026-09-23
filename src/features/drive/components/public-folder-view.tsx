@@ -10,6 +10,7 @@ import { useForceLightMode } from '@/hooks/use-force-light-mode'
 import { useWindowedList } from '@/hooks/use-windowed-list'
 import { usePublicChildren } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
+import { alertDownloadFailure, downloadPublicArchive } from '../api/download-archive'
 import { formatDate, formatFileSize, sortFiles, type PublicFile, type SortDir, type SortField } from '../types'
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
 import { EntryIcon } from './entry-icon'
@@ -86,14 +87,21 @@ export function PublicFolderView({
     visible.map((entry) => entry.fileId),
   )
   const selectedEntries = visible.filter((entry) => selected.has(entry.fileId))
-  const downloadableSelected = selectedEntries.filter((entry) => !entry.directory)
+  // One plain file downloads as itself; a folder or several items come down as one zip.
+  const download = (picked: PublicFile[]) => {
+    if (picked.length === 1 && !picked[0].directory) {
+      downloadPublicFile(picked[0].fileId, shareKey, picked[0].name)
+      return
+    }
+    downloadPublicArchive(
+      picked.map((entry) => entry.fileId),
+      shareKey,
+    ).catch(alertDownloadFailure)
+  }
 
   const openMenu = (entry: PublicFile, event: React.MouseEvent) => {
     const batch = selected.has(entry.fileId) && selected.size > 1
-    if (!batch) {
-      if (entry.directory) return
-      setSelected(new Set([entry.fileId]))
-    }
+    if (!batch) setSelected(new Set([entry.fileId]))
     event.preventDefault()
     setMenu({ entry, x: event.clientX, y: event.clientY, batch })
   }
@@ -132,12 +140,21 @@ export function PublicFolderView({
             </span>
           ))}
         </nav>
-        <Link
-          to="/login"
-          className="inline-flex h-9 shrink-0 items-center rounded-full bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
-        >
-          로그인
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => downloadPublicArchive([currentId], shareKey).catch(alertDownloadFailure)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
+          >
+            <DownloadIcon size={16} /> 폴더 다운로드
+          </button>
+          <Link
+            to="/login"
+            className="inline-flex h-9 items-center rounded-full bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
+          >
+            로그인
+          </Link>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -242,19 +259,17 @@ export function PublicFolderView({
                         {entry.directory ? '-' : formatFileSize(entry.fileSize)}
                       </td>
                       <td className="py-2.5 pr-2 text-right">
-                        {!entry.directory && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              downloadPublicFile(entry.fileId, shareKey, entry.name)
-                            }}
-                            aria-label={`${entry.name} 다운로드`}
-                            className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700"
-                          >
-                            <DownloadIcon size={16} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            download([entry])
+                          }}
+                          aria-label={`${entry.name} 다운로드`}
+                          className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+                        >
+                          <DownloadIcon size={16} />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -270,7 +285,7 @@ export function PublicFolderView({
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
           <ContextMenuItem
             onClick={() => {
-              downloadPublicFile(menu.entry.fileId, shareKey, menu.entry.name)
+              download([menu.entry])
               setMenu(null)
             }}
           >
@@ -279,17 +294,15 @@ export function PublicFolderView({
         </ContextMenu>
       )}
 
-      {menu?.batch && downloadableSelected.length > 0 && (
+      {menu?.batch && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
           <ContextMenuItem
             onClick={() => {
-              downloadableSelected.forEach((entry) =>
-                downloadPublicFile(entry.fileId, shareKey, entry.name),
-              )
+              download(selectedEntries)
               setMenu(null)
             }}
           >
-            <DownloadIcon size={16} /> 다운로드 ({downloadableSelected.length}개)
+            <DownloadIcon size={16} /> 다운로드 ({selectedEntries.length}개)
           </ContextMenuItem>
         </ContextMenu>
       )}

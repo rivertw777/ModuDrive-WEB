@@ -8,11 +8,20 @@ import type { FileEntry } from '../types'
 
 vi.mock('../api/toggle-favorite', () => ({ useToggleFavorite: vi.fn() }))
 vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))
+vi.mock('../api/download-file', () => ({ downloadFile: vi.fn() }))
+vi.mock('../api/download-archive', () => ({
+  downloadArchive: vi.fn(() => Promise.resolve()),
+  alertDownloadFailure: vi.fn(),
+}))
 
 const { useToggleFavorite } = await import('../api/toggle-favorite')
 const { useMoveFile } = await import('../api/move-file')
+const { downloadFile } = await import('../api/download-file')
+const { downloadArchive } = await import('../api/download-archive')
 
 beforeEach(() => {
+  vi.mocked(downloadFile).mockClear()
+  vi.mocked(downloadArchive).mockClear()
   vi.mocked(useToggleFavorite).mockReturnValue({ mutate: vi.fn() } as unknown as ReturnType<
     typeof useToggleFavorite
   >)
@@ -80,5 +89,38 @@ describe('FileList server pagination mode', () => {
   it('shows the loading-more indicator while the next page is fetching', () => {
     renderList({ hasMore: true, isLoadingMore: true })
     expect(screen.getByText('불러오는 중…')).toBeInTheDocument()
+  })
+})
+
+describe('FileList download', () => {
+  const files = [entry('a.txt'), entry('photos', { directory: true, fileSize: null })]
+
+  it('downloads a single plain file as itself', async () => {
+    renderList({}, files)
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByText('a.txt') })
+    await userEvent.click(screen.getByRole('button', { name: '다운로드' }))
+    expect(downloadFile).toHaveBeenCalledWith('a.txt', 'a.txt')
+    expect(downloadArchive).not.toHaveBeenCalled()
+  })
+
+  it('offers download on a folder and fetches it as a zip', async () => {
+    renderList({}, files)
+    await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByText('photos') })
+    await userEvent.click(screen.getByRole('button', { name: '다운로드' }))
+    expect(downloadArchive).toHaveBeenCalledWith(['photos'])
+  })
+
+  it('zips a multi-selection of files and folders together', async () => {
+    renderList({}, files)
+    // One instance so the held Control carries over to the next click.
+    const user = userEvent.setup()
+    await user.click(screen.getByText('a.txt'))
+    await user.keyboard('{Control>}')
+    await user.click(screen.getByText('photos'))
+    await user.keyboard('{/Control}')
+    await user.pointer({ keys: '[MouseRight]', target: screen.getByText('photos') })
+    await user.click(screen.getByRole('button', { name: '다운로드 (2개)' }))
+    expect(downloadArchive).toHaveBeenCalledWith(expect.arrayContaining(['a.txt', 'photos']))
+    expect(downloadFile).not.toHaveBeenCalled()
   })
 })

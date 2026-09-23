@@ -33,6 +33,7 @@ import {
   type SortField,
 } from '../types'
 import { downloadFile } from '../api/download-file'
+import { alertDownloadFailure, downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
 import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
@@ -181,8 +182,16 @@ export function FileList({
   )
   const selectedFiles = shown.filter((file) => selected.has(file.fileId))
   const downloadableSelected = selectedFiles.filter(
-    (file) => !file.directory && file.status === 'UPLOADED',
+    (file) => file.directory || file.status === 'UPLOADED',
   )
+  // One plain file downloads as itself; a folder or several items come down as one zip.
+  const download = (files: FileEntry[]) => {
+    if (files.length === 1 && !files[0].directory) {
+      downloadFile(files[0].fileId, files[0].name)
+      return
+    }
+    downloadArchive(files.map((file) => file.fileId)).catch(alertDownloadFailure)
+  }
 
   const openMenu = (file: FileEntry, x: number, y: number) => {
     const batch = selected.has(file.fileId) && selected.size > 1
@@ -541,10 +550,10 @@ export function FileList({
           >
             <InfoIcon size={16} /> 상세보기
           </ContextMenuItem>
-          {!menu.file.directory && menu.file.status === 'UPLOADED' && (
+          {(menu.file.directory || menu.file.status === 'UPLOADED') && (
             <ContextMenuItem
               onClick={() => {
-                downloadFile(menu.file.fileId, menu.file.name)
+                download([menu.file])
                 setMenu(null)
               }}
             >
@@ -609,7 +618,7 @@ export function FileList({
           {downloadableSelected.length > 0 && (
             <ContextMenuItem
               onClick={() => {
-                downloadableSelected.forEach((file) => downloadFile(file.fileId, file.name))
+                download(downloadableSelected)
                 setMenu(null)
               }}
             >
