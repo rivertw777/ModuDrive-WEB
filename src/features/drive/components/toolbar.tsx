@@ -4,15 +4,16 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Breadcrumb } from './breadcrumb'
 import { UploadButton } from './upload-button'
 import { ViewToggle } from './view-toggle'
+import type { UploadEntry } from '../utils/collect-upload-entries'
 
 export function Toolbar({
   path,
   onNewFolder,
-  onFilesSelected,
+  onUpload,
 }: {
   path: string
   onNewFolder: () => void
-  onFilesSelected: (files: File[]) => void
+  onUpload: (entries: UploadEntry[]) => void
 }) {
   return (
     <PageHeader title={<Breadcrumb path={path} />}>
@@ -21,7 +22,7 @@ export function Toolbar({
           <FolderPlusIcon size={16} />
           새 폴더
         </Button>
-        <UploadButton onFilesSelected={onFilesSelected} />
+        <UploadButton onUpload={onUpload} />
         <ViewToggle />
       </div>
     </PageHeader>

@@ -26,7 +26,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
   const { data: files, isLoading, isError } = useFilesByCategory(category)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   // Category views span every folder, so uploads here land in the drive root.
-  const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
+  const { onUpload, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
     useFileUpload('/')
 
   const onSelect = (file: FileEntry) => setSelectedFileId(file.fileId)
@@ -36,7 +36,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
       <div className="flex min-w-0 flex-1 flex-col p-6">
         <PageHeader title={label}>
           <div className="flex items-center gap-2">
-            <UploadButton onFilesSelected={onFilesSelected} />
+            <UploadButton onUpload={onUpload} />
             <ViewToggle />
           </div>
         </PageHeader>

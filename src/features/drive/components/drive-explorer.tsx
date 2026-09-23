@@ -21,8 +21,15 @@ export function DriveExplorer({ path }: { path: string }) {
     dir: 'desc',
   })
   const query = useDirectoryListing(path, sort.field, sort.dir)
-  const { onFilesSelected, uploads, clearUploads, uploadError, conflictName, resolveConflict } =
-    useFileUpload(path)
+  const {
+    onUpload,
+    uploads,
+    clearUploads,
+    uploadError,
+    showUploadError,
+    conflictName,
+    resolveConflict,
+  } = useFileUpload(path)
 
   // `?file=<id>` deep link — a "위치" link lands here with the file pre-selected.
   const { selectedFileId, setSelectedFileId, clearSelection } = useFileDeeplink()
@@ -50,7 +57,7 @@ export function DriveExplorer({ path }: { path: string }) {
         <Toolbar
           path={path}
           onNewFolder={() => setNewFolderOpen(true)}
-          onFilesSelected={onFilesSelected}
+          onUpload={onUpload}
         />
 
         {uploadError && (
@@ -61,7 +68,7 @@ export function DriveExplorer({ path }: { path: string }) {
           {query.isLoading && <LoadingState />}
           {query.isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
           {query.data && (
-            <UploadDropzone onFilesSelected={onFilesSelected}>
+            <UploadDropzone onUpload={onUpload} onError={showUploadError}>
               <FileList
                 files={files}
                 selectedFileId={selectedFileId}

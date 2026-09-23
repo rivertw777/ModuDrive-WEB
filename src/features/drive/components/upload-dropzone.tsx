@@ -1,11 +1,14 @@
 import { useState, type DragEvent, type ReactNode } from 'react'
 import { UploadIcon } from '@/components/ui/icons'
+import { entriesFromDataTransfer, type UploadEntry } from '../utils/collect-upload-entries'
 
 export function UploadDropzone({
-  onFilesSelected,
+  onUpload,
+  onError,
   children,
 }: {
-  onFilesSelected: (files: File[]) => void
+  onUpload: (entries: UploadEntry[]) => void
+  onError: (message: string) => void
   children: ReactNode
 }) {
   const [isDragging, setIsDragging] = useState(false)
@@ -14,8 +17,14 @@ export function UploadDropzone({
     if (!event.dataTransfer.types.includes('Files')) return
     event.preventDefault()
     setIsDragging(false)
-    const files = Array.from(event.dataTransfer.files)
-    if (files.length > 0) onFilesSelected(files)
+    // Read synchronously here — the browser empties dataTransfer once this handler returns.
+    entriesFromDataTransfer(event.dataTransfer).then(
+      (entries) => {
+        if (entries.length > 0) onUpload(entries)
+      },
+      // e.g. a subfolder the OS won't let the browser read, or a file deleted mid-drag.
+      () => onError('놓은 폴더를 읽지 못했습니다. 다시 시도해 주세요.'),
+    )
   }
 
   return (
@@ -33,7 +42,7 @@ export function UploadDropzone({
       {isDragging && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-brand-400 bg-brand-50/90 text-brand-700 dark:bg-brand-950/90 dark:text-brand-300">
           <UploadIcon size={28} />
-          <p className="text-sm font-medium">여기에 파일을 놓아 업로드</p>
+          <p className="text-sm font-medium">여기에 파일이나 폴더를 놓아 업로드</p>
         </div>
       )}
       {children}

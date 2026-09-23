@@ -4,6 +4,11 @@ import { cn } from '@/utils/cn'
 import type { UploadItem } from '../hooks/use-file-upload'
 import { EntryIcon } from './entry-icon'
 
+/** Bytes sent over bytes picked — a folder row sums every file under it. */
+function percentOf(item: UploadItem) {
+  return item.totalBytes > 0 ? Math.floor((item.sentBytes / item.totalBytes) * 100) : 0
+}
+
 export function UploadStatusPanel({
   uploads,
   onDismiss,
@@ -56,14 +61,31 @@ export function UploadStatusPanel({
         <ul className="max-h-64 overflow-y-auto">
           {uploads.map((item) => (
             <li key={item.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-              <EntryIcon name={item.name} size={20} />
-              <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-300">
-                {item.name}
+              <EntryIcon name={item.name} directory={item.directory} size={20} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-slate-700 dark:text-slate-300">{item.name}</span>
+                {!item.directory && item.errorReason && (
+                  <span className="block text-xs text-red-600 dark:text-red-400">
+                    {item.errorReason}
+                  </span>
+                )}
+                {item.directory && item.fileCount > 0 && (
+                  <span className="block text-xs text-slate-400 dark:text-slate-500">
+                    {item.doneCount}/{item.fileCount}개 파일
+                    {item.errorCount > 0 && (
+                      <span className="text-red-600 dark:text-red-400">
+                        {' · '}
+                        {item.errorCount}개 실패
+                        {item.errorReason && ` (${item.errorReason})`}
+                      </span>
+                    )}
+                  </span>
+                )}
               </span>
               {item.status === 'uploading' && (
                 <>
                   <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
-                    {item.percent}%
+                    {percentOf(item)}%
                   </span>
                   <LoaderIcon size={16} className="shrink-0 animate-spin text-slate-400" />
                 </>
