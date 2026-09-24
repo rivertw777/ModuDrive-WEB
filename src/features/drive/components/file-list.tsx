@@ -308,7 +308,7 @@ export function FileList({
         <div
           ref={containerRef}
           onMouseDown={onContainerMouseDown}
-          className="relative min-h-[50vh]"
+          className="relative min-h-full flex-1"
         >
           <MarqueeOverlay box={box} />
           {viewMode === 'grid' ? (
