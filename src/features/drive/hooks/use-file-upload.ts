@@ -12,8 +12,11 @@ import {
 } from '../api/upload-file'
 import type { UploadEntry } from '../utils/collect-upload-entries'
 
-/** How the user resolved a same-name conflict; `null` (from 취소) skips just that file. */
+/** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
 export type ConflictChoice = 'replace' | 'keep-both'
+
+/** The top-level item a conflict dialog is asking about. */
+export type UploadConflict = { name: string; directory: boolean }
 
 /** One row in the upload status panel — one per top-level item the user picked, so a folder
  * is a single row however many files it holds. */
@@ -42,14 +45,14 @@ const topLevelName = (relativePath: string) => relativePath.split('/')[0]
 /**
  * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2, §9): the
  * whole tree is registered with one batch request, then each file's bytes go up one at a time.
- * A file-name conflict pauses on that one name (`conflictName`) until the caller answers via
+ * A name conflict pauses on that one item (`conflict`) until the caller answers via
  * `resolveConflict`; a failed file only fails itself, never the rest of the selection.
  */
 export function useFileUpload(path: string) {
   const queryClient = useQueryClient()
   const [uploads, setUploads] = useState<UploadItem[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [conflictName, setConflictName] = useState<string | null>(null)
+  const [conflict, setConflict] = useState<UploadConflict | null>(null)
   const decide = useRef<((choice: ConflictChoice | null) => void) | null>(null)
   const nextId = useRef(0)
   // A pick made while another is still uploading shows its rows right away but waits its turn:
@@ -58,15 +61,15 @@ export function useFileUpload(path: string) {
   const queue = useRef<Promise<void>>(Promise.resolve())
 
   const resolveConflict = (choice: ConflictChoice | null) => {
-    setConflictName(null)
+    setConflict(null)
     decide.current?.(choice)
     decide.current = null
   }
 
-  const askConflict = (name: string) =>
+  const askConflict = (next: UploadConflict) =>
     new Promise<ConflictChoice | null>((resolve) => {
       decide.current = resolve
-      setConflictName(name)
+      setConflict(next)
     })
 
   /** Pushes the local row's current counters into state. */
@@ -148,7 +151,7 @@ export function useFileUpload(path: string) {
             const unanswered = conflicts?.filter((name) => !(name in resolutions)) ?? []
             if (unanswered.length === 0) throw error
             for (const name of unanswered) {
-              const choice = await askConflict(name)
+              const choice = await askConflict({ name, directory: rows.get(name)?.directory ?? false })
               resolutions[name] = choice ? RESOLUTION[choice] : 'SKIP'
             }
           }
@@ -165,10 +168,10 @@ export function useFileUpload(path: string) {
       void queryClient.invalidateQueries({ queryKey: ['directory'] })
     }
 
-    // A skipped conflict is always a top-level file — its row just goes away.
+    // A skipped conflict is always a whole top-level item — its row just goes away.
     const skippedIds = new Set(
       Array.from(rows.values())
-        .filter((row) => !row.directory && resolutions[row.name] === 'SKIP')
+        .filter((row) => resolutions[row.name] === 'SKIP')
         .map((row) => row.id),
     )
     if (skippedIds.size > 0) {
@@ -237,7 +240,7 @@ export function useFileUpload(path: string) {
     uploadError,
     /** For failures outside the hook's own flow, e.g. a dropped folder that couldn't be read. */
     showUploadError: setUploadError,
-    conflictName,
+    conflict,
     resolveConflict,
   }
 }
