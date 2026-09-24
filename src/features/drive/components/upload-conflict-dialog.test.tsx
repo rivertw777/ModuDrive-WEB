@@ -19,6 +19,7 @@ describe('UploadConflictDialog', () => {
 
   it('offers folder wording for a clashing folder', () => {
     setup({ name: '사진', directory: true })
+    expect(screen.getByText(/폴더를 대체해도 공유 설정은 변경되지 않습니다/)).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /기존 폴더 대체/ })).toBeChecked()
     expect(screen.getByRole('radio', { name: /두 폴더 모두 유지/ })).toBeInTheDocument()
   })
