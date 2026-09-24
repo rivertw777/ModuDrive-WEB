@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { XIcon } from '@/components/ui/icons'
@@ -16,15 +16,22 @@ function parseCandidates(text: string) {
     .filter(Boolean)
 }
 
-/** Chip-based multi-email invite form, shown as the share modal's "사용자 추가" sub-view. */
+/** Chip-based multi-email invite form, shown as the share modal's "사용자 추가" sub-view.
+ * Each bump of `closeRequest` (a backdrop click / ESC on the modal) closes via `onClose` right
+ * away when nothing's been typed, and otherwise asks first — 저장 sends then closes, 취소 drops
+ * the draft and closes. */
 export function AddMemberForm({
   fileId,
   onCancel,
   onDone,
+  closeRequest = 0,
+  onClose = onCancel,
 }: {
   fileId: string
   onCancel: () => void
   onDone: () => void
+  closeRequest?: number
+  onClose?: () => void
 }) {
   const shareFile = useShareFile()
   const [emails, setEmails] = useState<string[]>([])
@@ -37,6 +44,21 @@ export function AddMemberForm({
   const [guestWarning, setGuestWarning] = useState<string[] | null>(null)
   const [pendingEmails, setPendingEmails] = useState<string[]>([])
   const [checkingEmails, setCheckingEmails] = useState(false)
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
+  // Where a successful send goes: back to the member list normally, or closed after 저장.
+  const afterShare = useRef(onDone)
+
+  const dirty = emails.length > 0 || input.trim() !== '' || message.trim() !== ''
+  // A count already reached before this form mounted is an old request, not a new one.
+  const seenCloseRequest = useRef(closeRequest)
+  useEffect(() => {
+    if (closeRequest === seenCloseRequest.current) return
+    seenCloseRequest.current = closeRequest
+    if (dirty) setConfirmCloseOpen(true)
+    else onClose()
+    // Only a new request should ask — not every keystroke that changes `dirty`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closeRequest])
 
   // Commits any text still sitting in the input as chips. Returns the resulting
   // list, or null if the text doesn't parse as email(s) (leaves it uncommitted).
@@ -85,7 +107,7 @@ export function AddMemberForm({
       setError(failures.map((f) => `${f.email}: ${(f.result.reason as Error)?.message}`).join('\n'))
       return
     }
-    onDone()
+    afterShare.current()
   }
 
   const onSubmit = async () => {
@@ -171,13 +193,31 @@ export function AddMemberForm({
           <Button
             type="button"
             variant="primary"
-            onClick={onSubmit}
+            onClick={() => {
+              afterShare.current = onDone
+              void onSubmit()
+            }}
             disabled={shareFile.isPending || checkingEmails}
           >
             {checkingEmails ? '확인 중...' : '전송'}
           </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmCloseOpen}
+        message="변경사항을 저장하시겠습니까?"
+        confirmLabel="저장"
+        onConfirm={() => {
+          setConfirmCloseOpen(false)
+          afterShare.current = onClose
+          void onSubmit()
+        }}
+        onCancel={() => {
+          setConfirmCloseOpen(false)
+          onClose()
+        }}
+      />
 
       {guestWarning !== null && (
         <ConfirmDialog

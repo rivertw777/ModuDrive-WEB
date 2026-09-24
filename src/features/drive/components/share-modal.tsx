@@ -78,6 +78,8 @@ export function ShareModal({
   const [pendingParentRestrict, setPendingParentRestrict] = useState<string[]>([])
   const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
+  // Bumped to hand a close attempt to the invite form, which knows whether it holds a draft.
+  const [inviteCloseRequest, setInviteCloseRequest] = useState(0)
   const [restrictOpen, setRestrictOpen] = useState(false)
 
   // Land back on the list view, with no staged edits, each time the modal is (re)opened for a file.
@@ -306,6 +308,14 @@ export function ShareModal({
   // 저장 saves the pending edits then closes (same as 완료); 취소 discards them and
   // closes anyway — either choice closes the modal, it never just cancels back to it.
   const requestClose = () => {
+    if (view === 'invite') {
+      setInviteCloseRequest((n) => n + 1)
+      return
+    }
+    closeList()
+  }
+
+  const closeList = () => {
     if (!hasPendingChanges) {
       onClose()
       return
@@ -332,6 +342,11 @@ export function ShareModal({
             fileId={fileId}
             onCancel={() => setView('list')}
             onDone={() => setView('list')}
+            closeRequest={inviteCloseRequest}
+            onClose={() => {
+              setView('list')
+              closeList()
+            }}
           />
         )}
 
