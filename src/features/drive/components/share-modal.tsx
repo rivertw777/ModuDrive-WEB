@@ -305,8 +305,7 @@ export function ShareModal({
 
   // Backdrop click / ESC / any other non-완료 close attempt goes through here —
   // ask once before silently dropping a scope or role/remove edit on the floor.
-  // 저장 saves the pending edits then closes (same as 완료); 취소 discards them and
-  // closes anyway — either choice closes the modal, it never just cancels back to it.
+  // 삭제 discards them and closes; 취소 goes back to the modal with the edits intact.
   const requestClose = () => {
     if (view === 'invite') {
       setInviteCloseRequest((n) => n + 1)
@@ -444,16 +443,14 @@ export function ShareModal({
       </Dialog>
       <ConfirmDialog
         open={confirmCloseOpen}
-        message="변경사항을 저장하시겠습니까?"
-        confirmLabel="저장"
+        message="저장되지 않은 변경사항을 삭제하시겠습니까?"
+        confirmLabel="삭제"
+        danger
         onConfirm={() => {
-          setConfirmCloseOpen(false)
-          onComplete()
-        }}
-        onCancel={() => {
           setConfirmCloseOpen(false)
           onClose()
         }}
+        onCancel={() => setConfirmCloseOpen(false)}
       />
       <RestrictParentDialog
         open={restrictOpen}
