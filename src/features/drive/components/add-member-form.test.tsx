@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -49,6 +49,81 @@ describe('AddMemberForm', () => {
 
     await user.click(screen.getByRole('button', { name: 'river@modudrive.com 제거' }))
     expect(screen.queryByText('river@modudrive.com')).not.toBeInTheDocument()
+  })
+
+  describe('when the modal asks to close', () => {
+    function renderWithClose() {
+      const onClose = vi.fn()
+      const onDone = vi.fn()
+      const queryClient = new QueryClient()
+      const view = render(
+        <QueryClientProvider client={queryClient}>
+          <AddMemberForm
+            fileId="file-1"
+            onCancel={vi.fn()}
+            onDone={onDone}
+            closeRequest={0}
+            onClose={onClose}
+          />
+        </QueryClientProvider>,
+      )
+      const requestClose = (n: number) =>
+        view.rerender(
+          <QueryClientProvider client={queryClient}>
+            <AddMemberForm
+              fileId="file-1"
+              onCancel={vi.fn()}
+              onDone={onDone}
+              closeRequest={n}
+              onClose={onClose}
+            />
+          </QueryClientProvider>,
+        )
+      return { onClose, onDone, requestClose }
+    }
+
+    it('closes right away with nothing typed', () => {
+      const { onClose, requestClose } = renderWithClose()
+      requestClose(1)
+      expect(onClose).toHaveBeenCalled()
+    })
+
+    it('asks with a draft, and 취소 drops it and closes without sending', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue(null)
+      vi.mocked(useShareFile).mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      } as unknown as ReturnType<typeof useShareFile>)
+      const { onClose, requestClose } = renderWithClose()
+      const user = userEvent.setup()
+      await user.type(
+        screen.getByPlaceholderText('이메일 입력 후 Enter'),
+        'river@modudrive.com{Enter}',
+      )
+
+      requestClose(1)
+      expect(onClose).not.toHaveBeenCalled()
+      const confirm = screen.getByText('변경사항을 저장하시겠습니까?').closest('dialog') as HTMLElement
+      await user.click(within(confirm).getByRole('button', { name: '취소' }))
+
+      expect(onClose).toHaveBeenCalled()
+      expect(mutateAsync).not.toHaveBeenCalled()
+    })
+
+    it('저장 sends the draft, then closes instead of going back to the list', async () => {
+      const { onClose, onDone, requestClose } = renderWithClose()
+      const user = userEvent.setup()
+      await user.type(
+        screen.getByPlaceholderText('이메일 입력 후 Enter'),
+        'river@modudrive.com{Enter}',
+      )
+
+      requestClose(1)
+      await user.click(screen.getByRole('button', { name: '저장', hidden: true }))
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(onDone).not.toHaveBeenCalled()
+    })
   })
 
   it('calls onCancel when 취소 is clicked', async () => {
