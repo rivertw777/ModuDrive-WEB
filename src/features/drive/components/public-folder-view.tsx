@@ -157,7 +157,7 @@ export function PublicFolderView({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex flex-1 flex-col overflow-y-auto px-6 py-4">
         <div className="mb-3 flex justify-end">
           <ViewToggle />
         </div>
@@ -169,7 +169,7 @@ export function PublicFolderView({
           <div
             ref={containerRef}
             onMouseDown={onContainerMouseDown}
-            className="relative min-h-[50vh]"
+            className="relative flex-1"
           >
             <MarqueeOverlay box={box} />
             {viewMode === 'grid' && (
