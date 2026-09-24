@@ -26,7 +26,7 @@ export function UploadConflictDialog({
   }, [conflict])
 
   return (
-    <Dialog open={conflict !== null} onClose={() => onResolve(null)} title="업로드 옵션">
+    <Dialog open={conflict !== null} onClose={() => onResolve(null)} title="업로드 옵션" size="lg">
       <p className="text-sm text-slate-600 dark:text-slate-400">
         이 위치에{' '}
         <span className="font-medium text-slate-900 dark:text-slate-100">{conflict?.name}</span>{' '}
