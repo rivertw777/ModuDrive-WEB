@@ -99,7 +99,7 @@ export function TrashExplorer() {
           </div>
         )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {actionError && (
             <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
           )}
@@ -113,7 +113,7 @@ export function TrashExplorer() {
             <div
               ref={containerRef}
               onMouseDown={onContainerMouseDown}
-              className="relative min-h-[50vh]"
+              className="relative flex-1"
             >
               <MarqueeOverlay box={box} />
               {viewMode === 'grid' ? (
