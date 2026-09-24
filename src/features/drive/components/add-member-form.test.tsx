@@ -88,41 +88,50 @@ describe('AddMemberForm', () => {
       expect(onClose).toHaveBeenCalled()
     })
 
-    it('asks with a draft, and 취소 drops it and closes without sending', async () => {
+    async function typeDraftAndRequestClose(requestClose: (n: number) => void) {
+      const user = userEvent.setup()
+      await user.type(
+        screen.getByPlaceholderText('이메일 입력 후 Enter'),
+        'river@modudrive.com{Enter}',
+      )
+      requestClose(1)
+      const confirm = screen
+        .getByText('저장되지 않은 변경사항을 삭제하시겠습니까?')
+        .closest('dialog') as HTMLElement
+      return { user, confirm }
+    }
+
+    it('asks with a draft, and 삭제 drops it and closes without sending', async () => {
       const mutateAsync = vi.fn().mockResolvedValue(null)
       vi.mocked(useShareFile).mockReturnValue({
         mutateAsync,
         isPending: false,
       } as unknown as ReturnType<typeof useShareFile>)
       const { onClose, requestClose } = renderWithClose()
-      const user = userEvent.setup()
-      await user.type(
-        screen.getByPlaceholderText('이메일 입력 후 Enter'),
-        'river@modudrive.com{Enter}',
-      )
-
-      requestClose(1)
+      const { user, confirm } = await typeDraftAndRequestClose(requestClose)
       expect(onClose).not.toHaveBeenCalled()
-      const confirm = screen.getByText('변경사항을 저장하시겠습니까?').closest('dialog') as HTMLElement
-      await user.click(within(confirm).getByRole('button', { name: '취소' }))
+
+      await user.click(within(confirm).getByRole('button', { name: '삭제' }))
 
       expect(onClose).toHaveBeenCalled()
       expect(mutateAsync).not.toHaveBeenCalled()
     })
 
-    it('저장 sends the draft, then closes instead of going back to the list', async () => {
+    it('취소 keeps the draft open and sends nothing', async () => {
+      const mutateAsync = vi.fn().mockResolvedValue(null)
+      vi.mocked(useShareFile).mockReturnValue({
+        mutateAsync,
+        isPending: false,
+      } as unknown as ReturnType<typeof useShareFile>)
       const { onClose, onDone, requestClose } = renderWithClose()
-      const user = userEvent.setup()
-      await user.type(
-        screen.getByPlaceholderText('이메일 입력 후 Enter'),
-        'river@modudrive.com{Enter}',
-      )
+      const { user, confirm } = await typeDraftAndRequestClose(requestClose)
 
-      requestClose(1)
-      await user.click(screen.getByRole('button', { name: '저장', hidden: true }))
+      await user.click(within(confirm).getByRole('button', { name: '취소' }))
 
-      await waitFor(() => expect(onClose).toHaveBeenCalled())
+      expect(onClose).not.toHaveBeenCalled()
       expect(onDone).not.toHaveBeenCalled()
+      expect(mutateAsync).not.toHaveBeenCalled()
+      expect(screen.getByText('river@modudrive.com')).toBeInTheDocument()
     })
   })
 

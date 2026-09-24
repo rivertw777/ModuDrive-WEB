@@ -18,8 +18,8 @@ function parseCandidates(text: string) {
 
 /** Chip-based multi-email invite form, shown as the share modal's "사용자 추가" sub-view.
  * Each bump of `closeRequest` (a backdrop click / ESC on the modal) closes via `onClose` right
- * away when nothing's been typed, and otherwise asks first — 저장 sends then closes, 취소 drops
- * the draft and closes. */
+ * away when nothing's been typed, and otherwise asks first — 삭제 drops the draft and closes,
+ * 취소 goes back to it. Never sends. */
 export function AddMemberForm({
   fileId,
   onCancel,
@@ -45,8 +45,6 @@ export function AddMemberForm({
   const [pendingEmails, setPendingEmails] = useState<string[]>([])
   const [checkingEmails, setCheckingEmails] = useState(false)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
-  // Where a successful send goes: back to the member list normally, or closed after 저장.
-  const afterShare = useRef(onDone)
 
   const dirty = emails.length > 0 || input.trim() !== '' || message.trim() !== ''
   // A count already reached before this form mounted is an old request, not a new one.
@@ -107,7 +105,7 @@ export function AddMemberForm({
       setError(failures.map((f) => `${f.email}: ${(f.result.reason as Error)?.message}`).join('\n'))
       return
     }
-    afterShare.current()
+    onDone()
   }
 
   const onSubmit = async () => {
@@ -193,10 +191,7 @@ export function AddMemberForm({
           <Button
             type="button"
             variant="primary"
-            onClick={() => {
-              afterShare.current = onDone
-              void onSubmit()
-            }}
+            onClick={onSubmit}
             disabled={shareFile.isPending || checkingEmails}
           >
             {checkingEmails ? '확인 중...' : '전송'}
@@ -206,17 +201,14 @@ export function AddMemberForm({
 
       <ConfirmDialog
         open={confirmCloseOpen}
-        message="변경사항을 저장하시겠습니까?"
-        confirmLabel="저장"
+        message="저장되지 않은 변경사항을 삭제하시겠습니까?"
+        confirmLabel="삭제"
+        danger
         onConfirm={() => {
-          setConfirmCloseOpen(false)
-          afterShare.current = onClose
-          void onSubmit()
-        }}
-        onCancel={() => {
           setConfirmCloseOpen(false)
           onClose()
         }}
+        onCancel={() => setConfirmCloseOpen(false)}
       />
 
       {guestWarning !== null && (
