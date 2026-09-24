@@ -37,7 +37,7 @@ export function UploadDropzone({
       }}
       onDragLeave={() => setIsDragging(false)}
       onDrop={onDrop}
-      className="relative min-h-full rounded-lg"
+      className="relative flex min-h-full flex-col rounded-lg"
     >
       {isDragging && (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-brand-400 bg-brand-50/90 text-brand-700 dark:bg-brand-950/90 dark:text-brand-300">
