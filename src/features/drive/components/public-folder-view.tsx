@@ -141,13 +141,6 @@ export function PublicFolderView({
           ))}
         </nav>
         <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => downloadPublicArchive([currentId], shareKey).catch(alertDownloadFailure)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-slate-300 px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
-            <DownloadIcon size={16} /> 폴더 다운로드
-          </button>
           <Link
             to="/login"
             className="inline-flex h-9 items-center rounded-full bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-700"
