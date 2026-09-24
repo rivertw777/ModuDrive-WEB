@@ -2,10 +2,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { UploadConflictDialog } from './upload-conflict-dialog'
+import type { UploadConflict } from '../hooks/use-file-upload'
 
-function setup(name: string | null = 'report.pdf') {
+function setup(conflict: UploadConflict | null = { name: 'report.pdf', directory: false }) {
   const onResolve = vi.fn()
-  const view = render(<UploadConflictDialog name={name} onResolve={onResolve} />)
+  const view = render(<UploadConflictDialog conflict={conflict} onResolve={onResolve} />)
   return { onResolve, rerender: view.rerender }
 }
 
@@ -14,6 +15,12 @@ describe('UploadConflictDialog', () => {
     setup()
     expect(screen.getByText('report.pdf')).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /기존 파일 대체/ })).toBeChecked()
+  })
+
+  it('offers folder wording for a clashing folder', () => {
+    setup({ name: '사진', directory: true })
+    expect(screen.getByRole('radio', { name: /기존 폴더 대체/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /두 폴더 모두 유지/ })).toBeInTheDocument()
   })
 
   it('resolves with "replace" on 업로드 without changing the selection', async () => {
@@ -39,8 +46,10 @@ describe('UploadConflictDialog', () => {
     const { onResolve, rerender } = setup()
     await userEvent.click(screen.getByRole('radio', { name: /두 파일 모두 유지/ }))
 
-    rerender(<UploadConflictDialog name={null} onResolve={onResolve} />)
-    rerender(<UploadConflictDialog name="other.pdf" onResolve={onResolve} />)
+    rerender(<UploadConflictDialog conflict={null} onResolve={onResolve} />)
+    rerender(
+      <UploadConflictDialog conflict={{ name: 'other.pdf', directory: false }} onResolve={onResolve} />,
+    )
 
     expect(screen.getByRole('radio', { name: /기존 파일 대체/ })).toBeChecked()
   })

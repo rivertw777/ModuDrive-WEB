@@ -130,9 +130,9 @@ describe('useFileUpload', () => {
       pending = result.current.onUpload([entry('a.txt'), entry('b.txt')])
     })
 
-    await waitFor(() => expect(result.current.conflictName).toBe('a.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('a.txt'))
     act(() => result.current.resolveConflict('replace'))
-    await waitFor(() => expect(result.current.conflictName).toBe('b.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('b.txt'))
     act(() => result.current.resolveConflict('keep-both'))
     await act(async () => {
       await pending
@@ -159,7 +159,7 @@ describe('useFileUpload', () => {
       pending = result.current.onUpload([entry('a.txt'), entry('b.txt')])
     })
 
-    await waitFor(() => expect(result.current.conflictName).toBe('a.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('a.txt'))
     act(() => result.current.resolveConflict(null))
     await act(async () => {
       await pending
@@ -167,6 +167,27 @@ describe('useFileUpload', () => {
 
     expect((vi.mocked(createUploadBatch).mock.calls[1] as BatchCall)[2]).toEqual({ 'a.txt': 'SKIP' })
     expect(vi.mocked(uploadBytes).mock.calls.map((call) => call[0])).toEqual(['id:b.txt'])
+    expect(rows(result).map((row) => row.name)).toEqual(['b.txt'])
+  })
+
+  it('asks about a clashing folder as a folder, and a cancel drops its whole row', async () => {
+    vi.mocked(createUploadBatch).mockImplementation((_path, items, resolutions) => {
+      if (!('사진' in resolutions)) return Promise.reject(conflict('사진'))
+      return Promise.resolve(created(items.filter((item) => !item.relativePath.startsWith('사진'))))
+    })
+    const { result } = renderUpload()
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.onUpload([entry('사진/a.jpg'), entry('b.txt')])
+    })
+
+    await waitFor(() => expect(result.current.conflict).toEqual({ name: '사진', directory: true }))
+    act(() => result.current.resolveConflict(null))
+    await act(async () => {
+      await pending
+    })
+
+    expect((vi.mocked(createUploadBatch).mock.calls[1] as BatchCall)[2]).toEqual({ 사진: 'SKIP' })
     expect(rows(result).map((row) => row.name)).toEqual(['b.txt'])
   })
 
@@ -198,7 +219,7 @@ describe('useFileUpload', () => {
 
     const { result } = await upload([entry('a.txt')])
 
-    expect(result.current.conflictName).toBeNull()
+    expect(result.current.conflict).toBeNull()
     expect(result.current.uploadError).toBe('업로드 항목의 경로나 크기가 올바르지 않습니다.')
     expect(rows(result).map((row) => row.status)).toEqual(['error'])
     expect(uploadBytes).not.toHaveBeenCalled()
@@ -212,7 +233,7 @@ describe('useFileUpload', () => {
       pending = result.current.onUpload([entry('a.txt')])
     })
 
-    await waitFor(() => expect(result.current.conflictName).toBe('a.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('a.txt'))
     act(() => result.current.resolveConflict('replace'))
     await act(async () => {
       await pending
@@ -286,9 +307,9 @@ describe('useFileUpload', () => {
       pending = result.current.onUpload([entry('a.txt'), entry('b.txt')])
     })
 
-    await waitFor(() => expect(result.current.conflictName).toBe('a.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('a.txt'))
     act(() => result.current.resolveConflict('replace'))
-    await waitFor(() => expect(result.current.conflictName).toBe('b.txt'))
+    await waitFor(() => expect(result.current.conflict?.name).toBe('b.txt'))
     act(() => result.current.resolveConflict('keep-both'))
     await act(async () => {
       await pending

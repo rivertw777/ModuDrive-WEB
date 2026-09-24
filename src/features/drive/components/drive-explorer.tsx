@@ -27,7 +27,7 @@ export function DriveExplorer({ path }: { path: string }) {
     clearUploads,
     uploadError,
     showUploadError,
-    conflictName,
+    conflict,
     resolveConflict,
   } = useFileUpload(path)
 
@@ -100,7 +100,7 @@ export function DriveExplorer({ path }: { path: string }) {
 
       <NewFolderDialog open={newFolderOpen} onClose={() => setNewFolderOpen(false)} path={path} />
 
-      <UploadConflictDialog name={conflictName} onResolve={resolveConflict} />
+      <UploadConflictDialog conflict={conflict} onResolve={resolveConflict} />
 
       <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} />
     </div>
