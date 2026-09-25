@@ -4,16 +4,13 @@ import { FilePreview } from './file-preview'
 
 vi.mock('../api/view-file', () => ({ viewFile: vi.fn() }))
 vi.mock('../api/view-public-file', () => ({ viewPublicFile: vi.fn() }))
-vi.mock('../api/issue-stream-token', () => ({ issueStreamToken: vi.fn() }))
 
 const { viewFile } = await import('../api/view-file')
 const { viewPublicFile } = await import('../api/view-public-file')
-const { issueStreamToken } = await import('../api/issue-stream-token')
 
 beforeEach(() => {
   vi.mocked(viewFile).mockReset()
   vi.mocked(viewPublicFile).mockReset()
-  vi.mocked(issueStreamToken).mockReset()
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 })
 
@@ -75,8 +72,6 @@ describe('FilePreview', () => {
   })
 
   it('previews an audio file with no size cap (streamed, not blob-fetched)', async () => {
-    vi.mocked(issueStreamToken).mockResolvedValue('tok-stream')
-
     const { container } = render(
       <FilePreview
         fileName="song.mp3"
@@ -107,9 +102,7 @@ describe('FilePreview', () => {
     expect(viewPublicFile).not.toHaveBeenCalled()
   })
 
-  it('issues a stream token and points audio at the authenticated view URL', async () => {
-    vi.mocked(issueStreamToken).mockResolvedValue('tok-stream')
-
+  it('points audio straight at the authenticated view URL — the session cookie is the credential', async () => {
     const { container } = render(
       <FilePreview fileName="song.mp3" fileSize={1024} source={{ type: 'auth', fileId: 'f-1' }} />,
     )
@@ -117,10 +110,9 @@ describe('FilePreview', () => {
     await waitFor(() =>
       expect(container.querySelector('audio')).toHaveAttribute(
         'src',
-        'http://localhost:10001/api/v1/storage/view/f-1?fileName=song.mp3&streamToken=tok-stream',
+        'http://localhost:10001/api/v1/storage/view/f-1?fileName=song.mp3',
       ),
     )
-    expect(issueStreamToken).toHaveBeenCalledWith('f-1')
     expect(viewFile).not.toHaveBeenCalled()
   })
 

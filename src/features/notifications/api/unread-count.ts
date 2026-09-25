@@ -6,7 +6,7 @@ import { NOTIFICATION_POLL_INTERVAL_MS, listNotifications } from './list-notific
 export function useUnreadNotificationCount(enabled = true) {
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
-    queryFn: () => listNotifications({ unreadOnly: true, page: 0, size: 1 }),
+    queryFn: () => listNotifications({ unreadOnly: true, page: 0, size: 1, background: true }),
     select: (page) => page.totalElements,
     refetchInterval: NOTIFICATION_POLL_INTERVAL_MS,
     enabled,

@@ -4,7 +4,6 @@ import { env } from '@/config/env'
 import { canPreviewFile, previewKind, type PreviewKind } from '../types'
 import { viewFile } from '../api/view-file'
 import { viewPublicFile } from '../api/view-public-file'
-import { issueStreamToken } from '../api/issue-stream-token'
 
 // Exported so FileViewerModal can accept an override source (see PublicFolderView, which reuses
 // that chrome for the anonymous viewer instead of hand-rolling its own).
@@ -22,7 +21,6 @@ function streamUrl(
   sourceType: Source['type'],
   sourceId: string,
   fileName: string,
-  streamToken?: string,
   shareKey?: string | null,
 ) {
   const params = new URLSearchParams({ fileName })
@@ -30,7 +28,6 @@ function streamUrl(
     if (shareKey) params.set('key', shareKey)
     return `${env.API_BASE_URL}/api/v1/storage/public/${encodeURIComponent(sourceId)}/view?${params}`
   }
-  if (streamToken) params.set('streamToken', streamToken)
   return `${env.API_BASE_URL}/api/v1/storage/view/${encodeURIComponent(sourceId)}?${params}`
 }
 
@@ -44,8 +41,8 @@ function streamUrl(
  * text/image are small enough to just blob-fetch (revoked on unmount/file change so repeated
  * opens don't leak memory). audio/video instead point straight at the Range/206-backed view
  * endpoint — the element pulls its own bytes and seeks natively; a public link's `key` already
- * is the credential (it goes in the URL), an authenticated view needs a short-lived stream token
- * first (see issueStreamToken) since the element can't attach an Authorization header. */
+ * is the credential (it goes in the URL), and an authenticated view needs nothing extra — the
+ * element's own request carries the session cookie. */
 export function FilePreview({
   fileName,
   fileSize,
@@ -72,21 +69,8 @@ export function FilePreview({
     setUrl(null)
 
     if (isStreamed(kind)) {
-      if (sourceType === 'public') {
-        setUrl(streamUrl(sourceType, sourceId, fileName, undefined, shareKey))
-        return
-      }
-      let cancelled = false
-      issueStreamToken(sourceId)
-        .then((streamToken) => {
-          if (!cancelled) setUrl(streamUrl(sourceType, sourceId, fileName, streamToken))
-        })
-        .catch(() => {
-          if (!cancelled) setError(true)
-        })
-      return () => {
-        cancelled = true
-      }
+      setUrl(streamUrl(sourceType, sourceId, fileName, shareKey))
+      return
     }
 
     let cancelled = false

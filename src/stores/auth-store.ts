@@ -1,20 +1,20 @@
 import { create } from 'zustand'
-import { ACCESS_TOKEN_STORAGE_KEY } from '@/lib/api-client'
+
+/**
+ * Whether the browser holds a live session. The session itself is an HttpOnly cookie the page
+ * can't read (API spec 004), so this is all the client knows: `checking` until the startup
+ * `GET /api/v1/auth/session` answers, then `authenticated` or `anonymous`.
+ */
+export type AuthStatus = 'checking' | 'authenticated' | 'anonymous'
 
 type AuthState = {
-  accessToken: string | null
-  login: (accessToken: string) => void
-  logout: () => void
+  status: AuthStatus
+  setAuthenticated: () => void
+  setAnonymous: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY),
-  login: (accessToken) => {
-    localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken)
-    set({ accessToken })
-  },
-  logout: () => {
-    localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY)
-    set({ accessToken: null })
-  },
+  status: 'checking',
+  setAuthenticated: () => set({ status: 'authenticated' }),
+  setAnonymous: () => set({ status: 'anonymous' }),
 }))
