@@ -37,8 +37,18 @@ function renderAt(path: string) {
 
 describe('FileRoute', () => {
   beforeEach(() => {
-    useAuthStore.setState({ accessToken: null })
+    useAuthStore.setState({ status: 'anonymous' })
     usePublicFile.mockReturnValue({ isLoading: false, isError: true })
+  })
+
+  it('waits for the startup session check before deciding who is asking', () => {
+    useAuthStore.setState({ status: 'checking' })
+
+    renderAt('/files/f-1')
+
+    expect(screen.queryByText('login page')).not.toBeInTheDocument()
+    expect(useFile).not.toHaveBeenCalled()
+    expect(usePublicFile).not.toHaveBeenCalled()
   })
 
   describe('signed out', () => {
@@ -71,7 +81,7 @@ describe('FileRoute', () => {
 
   describe('signed in', () => {
     beforeEach(() => {
-      useAuthStore.setState({ accessToken: 'token' })
+      useAuthStore.setState({ status: 'authenticated' })
     })
 
     it('shows loading while the file or the current member is still resolving', () => {

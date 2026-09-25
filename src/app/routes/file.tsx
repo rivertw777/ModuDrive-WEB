@@ -12,7 +12,7 @@ import { PublicFileView, useFile, usePublicFile } from '@/features/drive'
  * LINK-scoped entry (this file's own scope, or an ancestor's) needs none, see file-service
  * `FileAccessGuard.linkRole` / `PublicFileResolver`. Deliberately not nested under
  * `AppLayoutRoute` (unlike every other authenticated route) — that guard redirects to /login on
- * `accessToken == null` alone, before any API call, which would wrongly gate an anonymous LINK
+ * an anonymous session alone, before any file lookup, which would wrongly gate an anonymous LINK
  * visitor behind a login screen.
  *
  * What renders depends on who's asking, resolved in this order:
@@ -32,10 +32,11 @@ export default function FileRoute() {
   const { fileId } = useParams<{ fileId: string }>()
   const [searchParams] = useSearchParams()
   const shareKey = searchParams.get('key')
-  const isAuthenticated = useAuthStore((s) => s.accessToken != null)
+  const authStatus = useAuthStore((s) => s.status)
 
   if (!fileId) return <Navigate to="/drive" replace />
-  if (isAuthenticated) return <AuthenticatedFileRoute fileId={fileId} shareKey={shareKey} />
+  if (authStatus === 'checking') return <LoadingState />
+  if (authStatus === 'authenticated') return <AuthenticatedFileRoute fileId={fileId} shareKey={shareKey} />
   return <AnonymousFileRoute fileId={fileId} shareKey={shareKey} />
 }
 

@@ -7,23 +7,18 @@ export type LoginInput = {
   password: string
 }
 
-type LoginResponse = {
-  accessToken: string
-  grantType: string
-  issuedAt: string
-}
-
-export const login = (input: LoginInput) => apiClient.post<LoginResponse>('/api/v1/auth/login', input)
+// No body back: the session id arrives only as an HttpOnly cookie.
+export const login = (input: LoginInput) => apiClient.post<void>('/api/v1/auth/login', input)
 
 export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: login,
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Drop any cached data from a previously logged-in account so a
       // switched-account session doesn't briefly show the old user's files.
       queryClient.clear()
-      useAuthStore.getState().login(data.accessToken)
+      useAuthStore.getState().setAuthenticated()
     },
   })
 }

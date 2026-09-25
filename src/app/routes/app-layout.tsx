@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
 import { useCurrentMember, useLogout } from '@/features/auth'
+import { LoadingState } from '@/components/ui/state'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import {
   ClockIcon,
@@ -36,8 +37,8 @@ const NAV_LINK_INACTIVE_CLASS =
   'text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
 
 export default function AppLayoutRoute() {
-  const accessToken = useAuthStore((state) => state.accessToken)
-  const { data: member } = useCurrentMember(accessToken !== null)
+  const authStatus = useAuthStore((state) => state.status)
+  const { data: member } = useCurrentMember(authStatus === 'authenticated')
   const logoutMutation = useLogout()
   const navigate = useNavigate()
   const location = useLocation()
@@ -49,7 +50,9 @@ export default function AppLayoutRoute() {
   const isSharedActive = location.pathname.startsWith('/shared')
   const sidebar = useResizableWidth('modudrive.sidebarWidth', 240, 200, 400, 'right')
 
-  if (!accessToken) {
+  // Don't render the shell (or bounce to /login) until the startup session check has answered.
+  if (authStatus === 'checking') return <LoadingState />
+  if (authStatus === 'anonymous') {
     // Preserve where the user was headed (e.g. a shared-file deep link) so login can
     // send them back instead of always landing on /drive.
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
@@ -186,11 +189,10 @@ export default function AppLayoutRoute() {
               </div>
               <button
                 onClick={() => {
-                  // Navigate first so the unauthenticated route guard above (which
-                  // sends to /login) never gets a render in between — logout always
-                  // lands on the public landing page instead.
-                  navigate('/')
-                  logoutMutation.mutate()
+                  // Leave only once the server has ended the session; navigating in the
+                  // same tick as the state flip keeps the /login guard above from
+                  // rendering in between, so logout lands on the landing page.
+                  logoutMutation.mutate(undefined, { onSuccess: () => navigate('/') })
                 }}
                 aria-label="로그아웃"
                 className="inline-flex size-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
