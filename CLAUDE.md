@@ -42,7 +42,7 @@ src/
   lib/
     api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
-  stores/             # zustand: auth-store (access token), theme-store (light/dark)
+  stores/             # zustand: auth-store (session status), theme-store (light/dark)
   testing/
     setup-tests.ts
   types/
@@ -65,9 +65,10 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
 - The gateway's CORS config expects the frontend origin at `http://localhost:3000`, which is why `vite.config.ts` hardcodes `server.port = 3000` — do not change this without also updating the gateway's allowed origin.
 - `src/types/api.ts` (`ApiResponse<T>`) mirrors `com.moduDrive.common.core.web.ApiResponse<T>` in the backend's `common:core` module exactly — keep them in sync if the backend shape changes.
 - `src/lib/api-client.ts` is the single axios instance for all requests:
-  - Request interceptor attaches `Authorization: Bearer <token>` from `localStorage` (key `modudrive.accessToken`, exported as `ACCESS_TOKEN_STORAGE_KEY`).
+  - Auth is a server-side session: the only credential is an `HttpOnly` session cookie the page can't read (API spec `.docs/spec/004-auth-spec.md`). `withCredentials: true` sends it; there is no token, no `Authorization` header, no refresh step.
   - Response interceptor unwraps `response.data.data` — callers receive the unwrapped payload directly, not the `ApiResponse` envelope.
-  - On a 401 response, the stored access token is cleared.
+  - On a 401 response, `auth-store` flips to `anonymous` (routes then send the user to `/login`). A 401 means the session is gone — logged out, idle 30 min, or past 12 h.
+  - Polling requests must send `BACKGROUND_REQUEST_HEADERS` (`X-Background-Request: true`) so they don't keep an idle session alive (see `list-notifications.ts`).
   - All rejected promises are normalized to `Error(message)` using the backend's `message` field when present.
 - `notification-service` is live: `GET /api/v1/notifications` (Spring `Page`, `unreadOnly`/`page`/`size` params), `PATCH /api/v1/notifications/{id}/read`. No count endpoint (ask for `unreadOnly=true&size=1` and read `totalElements`) and no SSE/websocket — the bell polls. Rows are produced only on a file share to a registered member; `sharerName`/`sharerEmail` may be null (backend best-effort).
 - There is no "list deleted files" endpoint (soft delete only sets a DELETED status, no filtered-list API) — a trash/bin screen isn't buildable until the backend adds one.
@@ -75,5 +76,5 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
 ## State management
 
 - **Server state**: TanStack Query (`src/lib/react-query.ts`), `retry: false`, `staleTime: 60s`. DevTools mounted only in dev (`import.meta.env.DEV`) inside `AppProvider`.
-- **Client/global state**: Zustand. `auth-store.ts` holds the access token (persisted to `localStorage`, same key as `api-client.ts`). `theme-store.ts` toggles the `dark` class on `<html>` and persists the choice. Add a new store only when a real cross-cutting concern needs it.
+- **Client/global state**: Zustand. `auth-store.ts` holds only the session status (`checking` → `authenticated`/`anonymous`), resolved once per page load by `useSessionBootstrap` (`GET /api/v1/auth/session`) — nothing auth-related is persisted in the browser. `theme-store.ts` toggles the `dark` class on `<html>` and persists the choice. Add a new store only when a real cross-cutting concern needs it.
 - **Forms**: React Hook Form + Zod via `@hookform/resolvers`.
