@@ -7,9 +7,10 @@ import { create } from 'zustand'
  */
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous'
 
-/** Why the status is `anonymous`: no session when the page loaded, a live one that expired, or
- * the user logged out. Decides which notice (if any) goes with the trip to the login screen. */
-export type AnonymousReason = 'no-session' | 'expired' | 'signed-out'
+/** Why the status is `anonymous`: no session when the page loaded, a live one that expired, one a
+ * login elsewhere took over (API spec 004 1-2), or the user logged out. Decides which notice (if
+ * any) goes with the trip to the login screen. */
+export type AnonymousReason = 'no-session' | 'expired' | 'replaced' | 'signed-out'
 
 type AuthState = {
   status: AuthStatus
