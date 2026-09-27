@@ -14,7 +14,7 @@ export function useLogout() {
       // Drop cached file lists/favorites so the next login (possibly a
       // different account) doesn't start from this user's stale cache.
       queryClient.clear()
-      useAuthStore.getState().setAnonymous()
+      useAuthStore.getState().setAnonymous('signed-out')
     },
     // Only the server can end the session — the cookie is HttpOnly, so JS can't clear it. Showing
     // "logged out" after a failed call would leave a live session behind (e.g. on a shared PC).

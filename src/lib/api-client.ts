@@ -35,12 +35,14 @@ apiClient.interceptors.response.use(
     // past 12 h), so the only way forward is the login screen.
     if (error.response?.status === 401) {
       const { useAuthStore } = await import('@/stores/auth-store')
-      // Only a session that was live until now has expired — a first visit without one (the
-      // startup check) or a failed login shouldn't say so. The status flips on the first 401,
-      // before any await, so parallel requests failing together show the notice once.
-      const wasAuthenticated = useAuthStore.getState().status === 'authenticated'
-      useAuthStore.getState().setAnonymous()
-      if (wasAuthenticated) {
+      // A session that was live until now has expired; one the startup check never found was
+      // never there (AppLayoutRoute words that one). Already anonymous (a failed login) keeps its
+      // reason. The status flips on the first 401, before any await, so parallel requests failing
+      // together show the notice once.
+      const { status } = useAuthStore.getState()
+      if (status === 'checking') useAuthStore.getState().setAnonymous('no-session')
+      if (status === 'authenticated') {
+        useAuthStore.getState().setAnonymous('expired')
         const { useAlertStore } = await import('@/stores/alert-store')
         useAlertStore.getState().show('로그인이 만료되었습니다. 다시 로그인해 주세요.')
       }

@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAlertStore } from '@/stores/alert-store'
 import { useCurrentMember, useLogout } from '@/features/auth'
 import { LoadingState } from '@/components/ui/state'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -38,6 +40,8 @@ const NAV_LINK_INACTIVE_CLASS =
 
 export default function AppLayoutRoute() {
   const authStatus = useAuthStore((state) => state.status)
+  const anonymousReason = useAuthStore((state) => state.anonymousReason)
+  const showAlert = useAlertStore((state) => state.show)
   const { data: member } = useCurrentMember(authStatus === 'authenticated')
   const logoutMutation = useLogout()
   const navigate = useNavigate()
@@ -49,6 +53,12 @@ export default function AppLayoutRoute() {
   const isTrashActive = location.pathname.startsWith('/trash')
   const isSharedActive = location.pathname.startsWith('/shared')
   const sidebar = useResizableWidth('modudrive.sidebarWidth', 240, 200, 400, 'right')
+
+  // Opened a signed-in page without a session: say why the login screen appears. An expired
+  // session already got its own notice (api-client), and a logout needs none.
+  useEffect(() => {
+    if (authStatus === 'anonymous' && anonymousReason === 'no-session') showAlert('로그인이 필요합니다.')
+  }, [authStatus, anonymousReason, showAlert])
 
   // Don't render the shell (or bounce to /login) until the startup session check has answered.
   if (authStatus === 'checking') return <LoadingState />
