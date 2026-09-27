@@ -137,7 +137,7 @@ function LoginCodeStep({
   return (
     <form onSubmit={onSubmit} className="space-y-5" noValidate>
       <div>
-        <p className="font-medium text-slate-900">새 기기에서 로그인하려면 인증이 필요합니다</p>
+        <p className="font-medium text-slate-900">이 기기에서 로그인하려면 인증이 필요합니다</p>
         <p className="mt-1 text-sm text-slate-500">
           {email}(으)로 보낸 6자리 인증 코드를 5분 안에 입력하세요.
         </p>
