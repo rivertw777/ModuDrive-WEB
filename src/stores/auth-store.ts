@@ -7,14 +7,20 @@ import { create } from 'zustand'
  */
 export type AuthStatus = 'checking' | 'authenticated' | 'anonymous'
 
+/** Why the status is `anonymous`: no session when the page loaded, a live one that expired, or
+ * the user logged out. Decides which notice (if any) goes with the trip to the login screen. */
+export type AnonymousReason = 'no-session' | 'expired' | 'signed-out'
+
 type AuthState = {
   status: AuthStatus
+  anonymousReason: AnonymousReason | null
   setAuthenticated: () => void
-  setAnonymous: () => void
+  setAnonymous: (reason: AnonymousReason) => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   status: 'checking',
-  setAuthenticated: () => set({ status: 'authenticated' }),
-  setAnonymous: () => set({ status: 'anonymous' }),
+  anonymousReason: null,
+  setAuthenticated: () => set({ status: 'authenticated', anonymousReason: null }),
+  setAnonymous: (reason) => set({ status: 'anonymous', anonymousReason: reason }),
 }))

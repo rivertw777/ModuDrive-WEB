@@ -21,7 +21,7 @@ export function useSessionBootstrap() {
       getSession().then(
         () => useAuthStore.getState().setAuthenticated(),
         (error: { status?: number }) => {
-          if (error.status === 401) useAuthStore.getState().setAnonymous()
+          if (error.status === 401) useAuthStore.getState().setAnonymous('no-session')
           else retryTimer = setTimeout(check, RETRY_DELAY_MS)
         },
       )

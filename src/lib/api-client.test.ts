@@ -32,7 +32,7 @@ describe('apiClient 401', () => {
 
     await Promise.allSettled([apiClient.get('/api/v1/files'), apiClient.get('/api/v1/notifications')])
 
-    expect(useAuthStore.getState().status).toBe('anonymous')
+    expect(useAuthStore.getState()).toMatchObject({ status: 'anonymous', anonymousReason: 'expired' })
     expect(show).toHaveBeenCalledTimes(1)
     expect(useAlertStore.getState().message).toBe('로그인이 만료되었습니다. 다시 로그인해 주세요.')
     show.mockRestore()
@@ -43,7 +43,7 @@ describe('apiClient 401', () => {
 
     await apiClient.get('/api/v1/auth/session').catch(() => {})
 
-    expect(useAuthStore.getState().status).toBe('anonymous')
+    expect(useAuthStore.getState()).toMatchObject({ status: 'anonymous', anonymousReason: 'no-session' })
     expect(useAlertStore.getState().message).toBeNull()
   })
 })
