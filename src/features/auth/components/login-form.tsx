@@ -29,7 +29,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
 
   const onSubmit = (values: LoginFormValues) => {
     login.mutate(values, {
-      onSuccess: (result) => (result.verificationRequired ? setPending(values) : onSuccess()),
+      onSuccess: (result) => (result?.verificationRequired ? setPending(values) : onSuccess()),
     })
   }
 
@@ -40,7 +40,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         onSuccess={onSuccess}
         onResend={(onSent) =>
           login.mutate(pending, {
-            onSuccess: (result) => (result.verificationRequired ? onSent() : onSuccess()),
+            onSuccess: (result) => (result?.verificationRequired ? onSent() : onSuccess()),
           })
         }
         resendError={login.isError ? login.error.message : null}

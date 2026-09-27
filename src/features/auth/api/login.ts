@@ -12,7 +12,9 @@ export type LoginInput = {
  * HttpOnly cookie. */
 export type LoginResult = { verificationRequired: boolean }
 
-export const login = (input: LoginInput) => apiClient.post<LoginResult>('/api/v1/auth/login', input)
+// `undefined` from an API older than 2-1 (no body): treated as signed in.
+export const login = (input: LoginInput) =>
+  apiClient.post<LoginResult | undefined>('/api/v1/auth/login', input)
 
 export const verifyLogin = (code: string) =>
   apiClient.post<void>('/api/v1/auth/login/verify', { code })
@@ -29,7 +31,7 @@ export function useLogin() {
   return useMutation({
     mutationFn: login,
     onSuccess: (result) => {
-      if (!result.verificationRequired) signIn(queryClient)
+      if (!result?.verificationRequired) signIn(queryClient)
     },
   })
 }

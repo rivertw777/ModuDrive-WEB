@@ -41,6 +41,16 @@ describe('LoginForm', () => {
     expect(useAuthStore.getState().status).toBe('authenticated')
   })
 
+  it('signs in when the API answers without a body (before new-device verification existed)', async () => {
+    vi.mocked(apiClient.post).mockResolvedValue(undefined)
+    const { user, onSuccess } = renderForm()
+
+    await submitCredentials(user)
+
+    await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled())
+    expect(useAuthStore.getState().status).toBe('authenticated')
+  })
+
   it('asks for the emailed code on a new device, then signs in once it checks out', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
     const { user, onSuccess } = renderForm()
