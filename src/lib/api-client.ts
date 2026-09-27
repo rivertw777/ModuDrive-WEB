@@ -31,17 +31,23 @@ apiClient.interceptors.response.use(
     return response.data.data as AxiosResponse
   },
   async (error) => {
-    // No refresh step to retry: a 401 means the session is gone (logged out, idle 30 min, or
-    // past 12 h), so the only way forward is the login screen.
+    // No refresh step to retry: a 401 means the session is gone (logged out, idle 30 min, past
+    // 12 h, or taken over by a login elsewhere), so the only way forward is the login screen.
     if (error.response?.status === 401) {
       const { useAuthStore } = await import('@/stores/auth-store')
       // A session that was live until now has expired; one the startup check never found was
-      // never there (AppLayoutRoute words that one). Already anonymous (a failed login) keeps its
+      // never there (AppLayoutRoute words that one). One a login elsewhere took over is said
+      // either way — this browser did hold it. Already anonymous (a failed login) keeps its
       // reason. The status flips on the first 401, before any await, so parallel requests failing
       // together show the notice once.
       const { status } = useAuthStore.getState()
-      if (status === 'checking') useAuthStore.getState().setAnonymous('no-session')
-      if (status === 'authenticated') {
+      const replaced = error.response.data?.data?.reason === 'SESSION_REPLACED'
+      if (replaced && status !== 'anonymous') {
+        useAuthStore.getState().setAnonymous('replaced')
+        const { useAlertStore } = await import('@/stores/alert-store')
+        useAlertStore.getState().show('다른 곳에서 로그인되어 로그아웃되었습니다.')
+      } else if (status === 'checking') useAuthStore.getState().setAnonymous('no-session')
+      else if (status === 'authenticated') {
         useAuthStore.getState().setAnonymous('expired')
         const { useAlertStore } = await import('@/stores/alert-store')
         useAlertStore.getState().show('로그인이 만료되었습니다. 다시 로그인해 주세요.')
