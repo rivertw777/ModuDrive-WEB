@@ -73,6 +73,10 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
 - `notification-service` is live: `GET /api/v1/notifications` (Spring `Page`, `unreadOnly`/`page`/`size` params), `PATCH /api/v1/notifications/{id}/read`. No count endpoint (ask for `unreadOnly=true&size=1` and read `totalElements`) and no SSE/websocket — the bell polls. Rows are produced only on a file share to a registered member; `sharerName`/`sharerEmail` may be null (backend best-effort).
 - There is no "list deleted files" endpoint (soft delete only sets a DELETED status, no filtered-list API) — a trash/bin screen isn't buildable until the backend adds one.
 
+## Content Security Policy
+
+`vite.config.ts` builds the CSP (`contentSecurityPolicy()`); `vite preview` sends it as a response header, and on AWS the CloudFront response headers policy must send the same string. `script-src 'self'` — only script files from our own origin run, so **never add an inline `<script>` or `on*=` handler to `index.html`**; put it in `public/` and load it with `src` (see `public/theme-init.js`). A new third-party origin (fonts, CDN, analytics) must be added to the policy or the browser blocks it. `vite dev` sends no CSP (its HMR client needs inline scripts), so check CSP-sensitive changes with `npm run build && npm run preview`.
+
 ## State management
 
 - **Server state**: TanStack Query (`src/lib/react-query.ts`), `retry: false`, `staleTime: 60s`. DevTools mounted only in dev (`import.meta.env.DEV`) inside `AppProvider`.
