@@ -8,16 +8,14 @@ import { cn } from '@/utils/cn'
 import { useConfirmEmailVerification } from '../api/confirm-email-verification'
 import { useRequestEmailVerification } from '../api/request-email-verification'
 import { useSignup } from '../api/signup'
+import { formatRemaining } from '../utils/format-remaining'
 
 // Matches member-service's MEMBER_EMAIL_VERIFICATION_TOKEN_EXPIRATION (180000ms).
 const CODE_TTL_MS = 3 * 60_000
 
-function formatRemaining(ms: number) {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
-}
+/** member-service answers 410 once the code is gone — expired, or the last wrong attempt used up. */
+const isCodeEnded = (error: Error | null): error is Error =>
+  (error as (Error & { status?: number }) | null)?.status === 410
 
 const emailSchema = z.string().min(1, '이메일은 필수입니다').email('유효한 이메일 형식이 아닙니다')
 
@@ -58,7 +56,6 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null)
   const [sentToEmail, setSentToEmail] = useState<string | null>(null)
   const [code, setCode] = useState('')
-  const [resendAt, setResendAt] = useState(0)
   const [codeExpiresAt, setCodeExpiresAt] = useState(0)
   const [now, setNow] = useState(Date.now())
   const {
@@ -74,23 +71,24 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   const isCodeSent = sentToEmail !== null && sentToEmail === email
   const remainingMs = codeExpiresAt - now
   const isCodeExpired = isCodeSent && remainingMs <= 0
+  const isCodeCountingDown = isCodeSent && !isCodeExpired
   const password = watch('password') ?? ''
   const confirmPassword = watch('confirmPassword') ?? ''
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword
 
-  // Ticks the expiry countdown while a code is outstanding; stops once verified/expired.
+  // Ticks the code countdown; stops once verified/expired.
   useEffect(() => {
-    if (!isCodeSent || isVerified || isCodeExpired) return
+    if (!isCodeCountingDown || isVerified) return
     const interval = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(interval)
-  }, [isCodeSent, isVerified, isCodeExpired])
+  }, [isCodeCountingDown, isVerified])
 
   const onRequestCode = () => {
     setCode('')
+    confirmVerification.reset()
     requestVerification.mutate(email, {
       onSuccess: () => {
         setSentToEmail(email)
-        setResendAt(Date.now() + 60_000)
         setCodeExpiresAt(Date.now() + CODE_TTL_MS)
         setNow(Date.now())
       },
@@ -98,7 +96,19 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
   }
 
   const onConfirmCode = () => {
-    confirmVerification.mutate({ email, code }, { onSuccess: () => setVerifiedEmail(email) })
+    confirmVerification.mutate(
+      { email, code },
+      {
+        onSuccess: () => setVerifiedEmail(email),
+        // 410: the code is gone (expired or out of attempts) and the server already lifted the resend
+        // lock — end the countdown so the form asks for a new code instead of more guesses.
+        onError: (error) => {
+          if (!isCodeEnded(error)) return
+          setCodeExpiresAt(Date.now())
+          setNow(Date.now())
+        },
+      },
+    )
   }
 
   const onSubmit = (values: SignupFormValues) => {
@@ -150,7 +160,9 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
             <Button
               type="button"
               variant="secondary"
-              disabled={requestVerification.isPending || Date.now() < resendAt}
+              // Always clickable — member-service refuses a second code within 30s and its 429
+              // message shows below, so there's no lock to count down here.
+              disabled={requestVerification.isPending}
               onClick={onRequestCode}
               className="mt-1.5 w-[4.5rem] shrink-0 whitespace-nowrap border-0 bg-slate-100 px-1.5 py-3 text-slate-700 hover:bg-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:opacity-100"
             >
@@ -163,7 +175,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
           <p className="mt-1.5 text-sm text-red-600">{requestVerification.error.message}</p>
         )}
 
-        {!isVerified && isCodeSent && !isCodeExpired && (
+        {!isVerified && isCodeCountingDown && (
           <div className="mt-3">
             <div className="flex items-start gap-2">
               <div className="relative flex-1">
@@ -200,7 +212,9 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
         )}
         {!isVerified && isCodeExpired && (
           <p className="mt-2 text-sm text-red-600">
-            인증 코드가 만료되었습니다. 재전송을 눌러주세요.
+            {isCodeEnded(confirmVerification.error)
+              ? confirmVerification.error.message
+              : '인증 코드가 만료되었습니다. 재전송을 눌러주세요.'}
           </p>
         )}
       </div>
