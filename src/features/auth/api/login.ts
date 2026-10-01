@@ -17,10 +17,10 @@ export const login = (input: LoginInput) =>
   apiClient.post<LoginResult | undefined>('/api/v1/auth/login', input)
 
 /** Mails a fresh code for the waiting new-device login — first send and resend alike. */
-export const sendLoginCode = () => apiClient.post<void>('/api/v1/auth/login/code')
+export const sendLoginCode = () => apiClient.post<void>('/api/v1/auth/verify-email/request')
 
 export const verifyLogin = (code: string) =>
-  apiClient.post<void>('/api/v1/auth/login/verify', { code })
+  apiClient.post<void>('/api/v1/auth/verify-email/confirm', { code })
 
 function signIn(queryClient: QueryClient) {
   // Drop any cached data from a previously logged-in account so a
