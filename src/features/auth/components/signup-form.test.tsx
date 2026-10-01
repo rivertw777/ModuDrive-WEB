@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
+import { apiClient } from '@/lib/api-client'
 import { SignupForm } from './signup-form'
 
 vi.mock('@/lib/api-client', () => ({
@@ -35,7 +36,9 @@ describe('SignupForm email verification', () => {
     expect(verifyButton()).toBeEnabled()
 
     await user.click(verifyButton())
-    expect(await screen.findByText(/^\d:\d{2}$/)).toBeInTheDocument()
+    // The code's 3-minute countdown sits in the code field; 재전송 stays a plain, clickable button.
+    expect(await screen.findByText(/^[23]:\d{2}$/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled()
     await user.type(await screen.findByLabelText('인증 코드'), '123456')
     await user.click(screen.getByRole('button', { name: '확인' }))
 
@@ -46,5 +49,21 @@ describe('SignupForm email verification', () => {
     await user.type(email, 'x')
     expect(verifiedBadge()).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '회원가입' })).toBeDisabled()
+  })
+
+  it('opens 재전송 at once when the server says the code is gone (410)', async () => {
+    const user = renderForm()
+    await user.type(screen.getByLabelText('이메일'), 'river@modudrive.com')
+    await user.click(verifyButton())
+    vi.mocked(apiClient.post).mockRejectedValueOnce(
+      Object.assign(new Error('코드를 다시 받아주세요.'), { status: 410 }),
+    )
+
+    await user.type(await screen.findByLabelText('인증 코드'), '999999')
+    await user.click(screen.getByRole('button', { name: '확인' }))
+
+    expect(await screen.findByRole('button', { name: '재전송' })).toBeEnabled()
+    expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
+    expect(screen.getByText('코드를 다시 받아주세요.')).toBeInTheDocument()
   })
 })
