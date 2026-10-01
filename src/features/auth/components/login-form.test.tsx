@@ -51,15 +51,27 @@ describe('LoginForm', () => {
     expect(useAuthStore.getState().status).toBe('authenticated')
   })
 
-  it('asks for the emailed code on a new device, then signs in once it checks out', async () => {
+  it('waits for the member to send the code on a new device, then signs in once it checks out', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
     const { user, onSuccess } = renderForm()
 
     await submitCredentials(user)
 
-    const codeInput = await screen.findByLabelText('인증 코드')
-    expect(screen.getByText(/river@modudrive\.com/)).toBeInTheDocument()
+    // Nothing is mailed until the member asks with 인증.
+    expect(screen.getByText('가입하신 이메일로 인증 코드를 받아 인증해 주세요.')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('river@modudrive.com')).toBeInTheDocument()
+    expect(apiClient.post).toHaveBeenCalledTimes(1)
+    expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
     expect(useAuthStore.getState().status).toBe('anonymous')
+
+    vi.mocked(apiClient.post).mockResolvedValueOnce(undefined)
+    await user.click(screen.getByRole('button', { name: '인증' }))
+
+    const codeInput = await screen.findByLabelText('인증 코드')
+    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login/code')
+    // The 5-minute countdown sits inside the code field, like the signup form's.
+    expect(screen.getByText(/^[45]:\d{2}$/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '재전송' })).toBeInTheDocument()
     expect(onSuccess).not.toHaveBeenCalled()
 
     vi.mocked(apiClient.post).mockResolvedValueOnce(undefined)
@@ -72,25 +84,61 @@ describe('LoginForm', () => {
     expect(useAuthStore.getState().status).toBe('authenticated')
   })
 
-  it('shows a wrong code and resends by logging in again', async () => {
+  it('shows a wrong code and clears it on resend', async () => {
     vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
     const { user } = renderForm()
     await submitCredentials(user)
+    vi.mocked(apiClient.post).mockResolvedValueOnce(undefined)
+    await user.click(await screen.findByRole('button', { name: '인증' }))
     await user.type(await screen.findByLabelText('인증 코드'), '000000')
 
     vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('인증 코드가 일치하지 않습니다.'))
     await user.click(screen.getByRole('button', { name: '확인' }))
     expect(await screen.findByText('인증 코드가 일치하지 않습니다.')).toBeInTheDocument()
 
-    vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
-    await user.click(screen.getByRole('button', { name: '코드 다시 받기' }))
+    vi.mocked(apiClient.post).mockResolvedValueOnce(undefined)
+    await user.click(screen.getByRole('button', { name: '재전송' }))
 
-    expect(await screen.findByText('새 인증 코드를 보냈습니다.')).toBeInTheDocument()
-    expect(screen.queryByText('인증 코드가 일치하지 않습니다.')).not.toBeInTheDocument()
+    await vi.waitFor(() =>
+      expect(screen.queryByText('인증 코드가 일치하지 않습니다.')).not.toBeInTheDocument(),
+    )
     expect(screen.getByLabelText('인증 코드')).toHaveValue('')
-    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login', {
-      email: 'river@modudrive.com',
-      password: 'password123',
-    })
+    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login/code')
+  })
+
+  it('shows why a send was refused', async () => {
+    vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
+    const { user } = renderForm()
+    await submitCredentials(user)
+
+    vi.mocked(apiClient.post).mockRejectedValueOnce(
+      new Error('요청 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.'),
+    )
+    await user.click(await screen.findByRole('button', { name: '인증' }))
+
+    expect(await screen.findByText('요청 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
+  })
+
+  it('drops the code field once the wrong codes are used up (410) and asks for a resend', async () => {
+    vi.mocked(apiClient.post).mockResolvedValueOnce({ verificationRequired: true })
+    const { user } = renderForm()
+    await submitCredentials(user)
+    vi.mocked(apiClient.post).mockResolvedValueOnce(undefined)
+    await user.click(await screen.findByRole('button', { name: '인증' }))
+    await user.type(await screen.findByLabelText('인증 코드'), '000000')
+
+    const ended = Object.assign(
+      new Error('인증 코드 입력 횟수를 초과했습니다. 코드를 다시 받아 주세요.'),
+      { status: 410 },
+    )
+    vi.mocked(apiClient.post).mockRejectedValueOnce(ended)
+    await user.click(screen.getByRole('button', { name: '확인' }))
+
+    expect(
+      await screen.findByText('인증 코드 입력 횟수를 초과했습니다. 코드를 다시 받아 주세요.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled()
   })
 })

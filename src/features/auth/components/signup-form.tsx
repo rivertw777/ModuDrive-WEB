@@ -10,10 +10,10 @@ import { useRequestEmailVerification } from '../api/request-email-verification'
 import { useSignup } from '../api/signup'
 import { formatRemaining } from '../utils/format-remaining'
 
-// Matches member-service's MEMBER_EMAIL_VERIFICATION_TOKEN_EXPIRATION (180000ms).
-const CODE_TTL_MS = 3 * 60_000
+// Matches member-service's RedisEmailVerificationTokenStore.CODE_TTL (5 min).
+const CODE_TTL_MS = 5 * 60_000
 
-/** member-service answers 410 once the code is gone — expired, or the last wrong attempt used up. */
+/** member-service answers 410 once the code can't be used — expired, or the wrong codes used up. */
 const isCodeEnded = (error: Error | null): error is Error =>
   (error as (Error & { status?: number }) | null)?.status === 410
 
@@ -214,7 +214,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
           <p className="mt-2 text-sm text-red-600">
             {isCodeEnded(confirmVerification.error)
               ? confirmVerification.error.message
-              : '인증 코드가 만료되었습니다. 재전송을 눌러주세요.'}
+              : '인증 코드가 만료되었습니다. 재전송을 눌러 주세요.'}
           </p>
         )}
       </div>
