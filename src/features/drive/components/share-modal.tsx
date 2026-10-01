@@ -293,7 +293,7 @@ export function ShareModal({
       setPendingParentRestrict((prev) =>
         prev.filter((targetId) => failedKeys.has(`parent-restrict:${targetId}`)),
       )
-      setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해주세요.')
+      setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요.')
       return
     }
     setPendingScope(null)
