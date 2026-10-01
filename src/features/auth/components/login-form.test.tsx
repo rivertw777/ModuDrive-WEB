@@ -68,7 +68,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: '인증' }))
 
     const codeInput = await screen.findByLabelText('인증 코드')
-    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login/code')
+    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/verify-email/request')
     // The 5-minute countdown sits inside the code field, like the signup form's.
     expect(screen.getByText(/^[45]:\d{2}$/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '재전송' })).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('LoginForm', () => {
     await user.click(screen.getByRole('button', { name: '확인' }))
 
     await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled())
-    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login/verify', { code: '042917' })
+    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/verify-email/confirm', { code: '042917' })
     expect(useAuthStore.getState().status).toBe('authenticated')
   })
 
@@ -103,7 +103,7 @@ describe('LoginForm', () => {
       expect(screen.queryByText('인증 코드가 일치하지 않습니다.')).not.toBeInTheDocument(),
     )
     expect(screen.getByLabelText('인증 코드')).toHaveValue('')
-    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/login/code')
+    expect(apiClient.post).toHaveBeenLastCalledWith('/api/v1/auth/verify-email/request')
   })
 
   it('shows why a send was refused', async () => {
