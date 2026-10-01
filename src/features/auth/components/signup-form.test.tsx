@@ -36,8 +36,8 @@ describe('SignupForm email verification', () => {
     expect(verifyButton()).toBeEnabled()
 
     await user.click(verifyButton())
-    // The code's 3-minute countdown sits in the code field; 재전송 stays a plain, clickable button.
-    expect(await screen.findByText(/^[23]:\d{2}$/)).toBeInTheDocument()
+    // The code's 5-minute countdown sits in the code field; 재전송 stays a plain, clickable button.
+    expect(await screen.findByText(/^[45]:\d{2}$/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '재전송' })).toBeEnabled()
     await user.type(await screen.findByLabelText('인증 코드'), '123456')
     await user.click(screen.getByRole('button', { name: '확인' }))
@@ -56,7 +56,7 @@ describe('SignupForm email verification', () => {
     await user.type(screen.getByLabelText('이메일'), 'river@modudrive.com')
     await user.click(verifyButton())
     vi.mocked(apiClient.post).mockRejectedValueOnce(
-      Object.assign(new Error('코드를 다시 받아주세요.'), { status: 410 }),
+      Object.assign(new Error('코드를 다시 받아 주세요.'), { status: 410 }),
     )
 
     await user.type(await screen.findByLabelText('인증 코드'), '999999')
@@ -64,6 +64,6 @@ describe('SignupForm email verification', () => {
 
     expect(await screen.findByRole('button', { name: '재전송' })).toBeEnabled()
     expect(screen.queryByLabelText('인증 코드')).not.toBeInTheDocument()
-    expect(screen.getByText('코드를 다시 받아주세요.')).toBeInTheDocument()
+    expect(screen.getByText('코드를 다시 받아 주세요.')).toBeInTheDocument()
   })
 })
