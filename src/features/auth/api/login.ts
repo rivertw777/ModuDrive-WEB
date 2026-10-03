@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
+import { notifyServerError } from '@/stores/alert-store'
 
 export type LoginInput = {
   email: string
@@ -33,6 +34,8 @@ export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: login,
+    // A 5xx gets the common alert; a 4xx (wrong credentials…) is shown inline by LoginForm.
+    onError: (error: Error) => notifyServerError(error),
     onSuccess: (result) => {
       if (!result?.verificationRequired) signIn(queryClient)
     },
@@ -40,7 +43,7 @@ export function useLogin() {
 }
 
 export function useSendLoginCode() {
-  return useMutation({ mutationFn: sendLoginCode })
+  return useMutation({ mutationFn: sendLoginCode, onError: (error: Error) => notifyServerError(error) })
 }
 
 export function useVerifyLogin() {
@@ -48,5 +51,6 @@ export function useVerifyLogin() {
   return useMutation({
     mutationFn: verifyLogin,
     onSuccess: () => signIn(queryClient),
+    onError: (error: Error) => notifyServerError(error),
   })
 }

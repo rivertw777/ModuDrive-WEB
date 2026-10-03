@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useRenameFile } from '../api/rename-file'
+import { isServerError, notifyServerError } from '@/stores/alert-store'
 
 const schema = z.object({
   name: z.string().min(1, '이름은 필수입니다'),
@@ -38,6 +39,7 @@ export function RenameDialog({
           reset()
           onClose()
         },
+        onError: notifyServerError,
       },
     )
   }
@@ -55,7 +57,7 @@ export function RenameDialog({
           {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
         </div>
 
-        {renameFile.isError && (
+        {renameFile.isError && !isServerError(renameFile.error) && (
           <p className="text-sm text-red-600 dark:text-red-400">{renameFile.error.message}</p>
         )}
 

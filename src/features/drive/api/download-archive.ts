@@ -31,13 +31,9 @@ export async function downloadPublicArchive(fileIds: string[], key: string | nul
     )) as unknown as AxiosResponse<ApiResponse<{ token: string }>>
     followArchiveLink(response.data.data.token)
   } catch (error) {
-    const message = axios.isAxiosError<ApiResponse<unknown>>(error)
-      ? (error.response?.data?.message ?? error.message)
-      : String(error)
-    throw new Error(message)
+    if (!axios.isAxiosError<ApiResponse<unknown>>(error)) throw new Error(String(error))
+    throw Object.assign(new Error(error.response?.data?.message ?? error.message), {
+      status: error.response?.status,
+    })
   }
-}
-
-export function alertDownloadFailure(error: unknown) {
-  window.alert(error instanceof Error ? error.message : '다운로드하지 못했습니다.')
 }

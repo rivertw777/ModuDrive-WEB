@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { LoadingState } from '@/components/ui/state'
 import { useAuthStore } from '@/stores/auth-store'
-import { useAlertStore } from '@/stores/alert-store'
+import { SERVER_ERROR_MESSAGE, useAlertStore } from '@/stores/alert-store'
 import { useCurrentMember } from '@/features/auth'
 import { PublicFileView, useFile, usePublicFile } from '@/features/drive'
 
@@ -35,7 +35,12 @@ export default function FileRoute() {
   const authStatus = useAuthStore((s) => s.status)
 
   if (!fileId) return <Navigate to="/drive" replace />
-  if (authStatus === 'checking') return <LoadingState />
+  if (authStatus === 'checking')
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingState />
+      </div>
+    )
   if (authStatus === 'authenticated') return <AuthenticatedFileRoute fileId={fileId} shareKey={shareKey} />
   return <AnonymousFileRoute fileId={fileId} shareKey={shareKey} />
 }
@@ -52,11 +57,30 @@ function deniedIsDirectory(error: unknown): boolean | undefined {
     : undefined
 }
 
+/** No response, or a 5xx: the server couldn't answer, which says nothing about access — the visitor
+ * lands where a 4xx would send them, but with the common error notice, not an access-denied one.
+ * Reads both shapes: api-client's `Error & { status }` and publicClient's raw AxiosError
+ * (`response.status`). */
+function isServerFailure(error: unknown): boolean {
+  if (!error) return false
+  const e = error as { status?: number; response?: { status?: number } }
+  const status = e.response?.status ?? e.status
+  return !status || status >= 500
+}
+
+function RedirectWithServerError({ to, state }: { to: string; state?: unknown }) {
+  useEffect(() => {
+    useAlertStore.getState().show(SERVER_ERROR_MESSAGE)
+  }, [])
+  return <Navigate to={to} replace state={state} />
+}
+
 function AuthenticatedFileRoute({ fileId, shareKey }: { fileId: string; shareKey: string | null }) {
   const { data: file, error, isLoading, isError } = useFile(fileId)
   const { data: member } = useCurrentMember()
 
   if (isLoading) return <LoadingState />
+  if (isServerFailure(error)) return <RedirectWithServerError to="/drive" />
   if (isError || !file)
     return (
       <AnonymousFileRoute
@@ -94,7 +118,8 @@ function AnonymousFileRoute({
    * comment). Undefined when the type genuinely isn't known (e.g. the file doesn't exist at all). */
   deniedIsDirectory?: boolean
 }) {
-  const { isLoading, isError } = usePublicFile(fileId, shareKey)
+  const { isLoading, isError, error } = usePublicFile(fileId, shareKey)
+  const serverFailed = isServerFailure(error)
   const location = useLocation()
   const navigate = useNavigate()
   const showAlert = useAlertStore((s) => s.show)
@@ -105,14 +130,20 @@ function AnonymousFileRoute({
   // the alert (see useAlertStore/GlobalAlert) so it renders on top of the drive page they land
   // on, not this one they're already leaving.
   useEffect(() => {
-    if (isError && deniedIfNoAccess) {
+    if (isError && deniedIfNoAccess && !serverFailed) {
       navigate('/drive', { replace: true })
       const noun = deniedIsDirectory === undefined ? '항목' : deniedIsDirectory ? '폴더' : '파일'
       showAlert(`이 ${noun}에 접근할 권한이 없습니다`)
     }
-  }, [isError, deniedIfNoAccess, deniedIsDirectory, navigate, showAlert])
+  }, [isError, deniedIfNoAccess, deniedIsDirectory, serverFailed, navigate, showAlert])
 
   if (isLoading) return <LoadingState />
+  if (isError && serverFailed)
+    return deniedIfNoAccess ? (
+      <RedirectWithServerError to="/drive" />
+    ) : (
+      <RedirectWithServerError to="/login" state={{ from: location.pathname + location.search }} />
+    )
   if (isError) {
     if (deniedIfNoAccess) return null
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />

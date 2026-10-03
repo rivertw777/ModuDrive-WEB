@@ -5,6 +5,7 @@ import { FileIcon, FolderIcon, RestoreIcon, TrashIcon, XIcon } from '@/component
 import { formatDate, formatFileSize, locationLabel, type FileEntry } from '../types'
 import { useRestoreFile } from '../api/restore-file'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
+import { isServerError, notifyServerError } from '@/stores/alert-store'
 
 export function TrashDetailPanel({ file, onClose }: { file: FileEntry; onClose: () => void }) {
   const restoreFile = useRestoreFile()
@@ -54,14 +55,14 @@ export function TrashDetailPanel({ file, onClose }: { file: FileEntry; onClose: 
           </div>
         </dl>
 
-        {restoreFile.isError && (
+        {restoreFile.isError && !isServerError(restoreFile.error) && (
           <p className="text-sm text-red-600 dark:text-red-400">{restoreFile.error.message}</p>
         )}
 
         <div className="flex flex-col gap-2 pt-1">
           <Button
             variant="secondary"
-            onClick={() => restoreFile.mutate(file.fileId, { onSuccess: onClose })}
+            onClick={() => restoreFile.mutate(file.fileId, { onSuccess: onClose, onError: notifyServerError })}
             disabled={restoreFile.isPending}
           >
             <RestoreIcon size={16} />

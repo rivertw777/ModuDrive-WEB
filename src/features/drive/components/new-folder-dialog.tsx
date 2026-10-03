@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useCreateDirectory } from '../api/create-directory'
+import { isServerError, notifyServerError } from '@/stores/alert-store'
 
 const schema = z.object({
   name: z.string().min(1, '폴더 이름은 필수입니다'),
@@ -36,6 +37,7 @@ export function NewFolderDialog({
           reset()
           onClose()
         },
+        onError: notifyServerError,
       },
     )
   }
@@ -53,7 +55,7 @@ export function NewFolderDialog({
           {errors.name && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name.message}</p>}
         </div>
 
-        {createDirectory.isError && (
+        {createDirectory.isError && !isServerError(createDirectory.error) && (
           <p className="text-sm text-red-600 dark:text-red-400">{createDirectory.error.message}</p>
         )}
 

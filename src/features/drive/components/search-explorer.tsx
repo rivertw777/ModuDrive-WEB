@@ -13,7 +13,7 @@ export function SearchExplorer() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const query = searchParams.get('q') ?? ''
-  const { data: files, isLoading, isError } = useSearchFiles(query)
+  const { data: files, isLoading, isError, error: loadError } = useSearchFiles(query)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
 
   const onNavigate = (path: string) => {
@@ -32,7 +32,7 @@ export function SearchExplorer() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="검색에 실패했습니다" />}
+          {isError && <ErrorState message="검색에 실패했습니다" error={loadError} />}
           {files && (
             <FileList
               files={files}

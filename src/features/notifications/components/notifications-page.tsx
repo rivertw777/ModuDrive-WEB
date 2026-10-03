@@ -9,7 +9,7 @@ import { NotificationItem } from './notification-item'
 
 export function NotificationsPage() {
   const [unreadOnly, setUnreadOnly] = useState(false)
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, isError, error: loadError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useNotifications(unreadOnly)
   const openNotification = useOpenNotification()
 
@@ -37,7 +37,7 @@ export function NotificationsPage() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="알림을 불러오지 못했습니다" />}
+          {isError && <ErrorState message="알림을 불러오지 못했습니다" error={loadError} />}
           {!isLoading && !isError && notifications.length === 0 && (
             <EmptyState label={unreadOnly ? '안 읽은 알림이 없습니다' : '알림이 없습니다'} icon={BellIcon} />
           )}

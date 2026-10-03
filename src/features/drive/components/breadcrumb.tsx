@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn'
 import { runBatch } from '@/utils/run-batch'
 import { useMoveFile } from '../api/move-file'
 import { DRAG_MIME } from '../types'
+import { actionErrorText } from '@/stores/alert-store'
 
 export function Breadcrumb({ path }: { path: string }) {
   const segments = path.split('/').filter(Boolean)
@@ -29,8 +30,8 @@ export function Breadcrumb({ path }: { path: string }) {
     if (ids.length === 0) return
 
     setError(null)
-    const failed = await runBatch(ids, (fileId) => moveFile.mutateAsync({ fileId, path: targetPath }))
-    if (failed.length > 0) setError(`${failed.length}개 항목을 이동하지 못했습니다`)
+    const { failed, error } = await runBatch(ids, (fileId) => moveFile.mutateAsync({ fileId, path: targetPath }))
+    if (failed.length > 0) setError(actionErrorText(error))
   }
 
   const dropHandlers = (targetPath: string) => ({

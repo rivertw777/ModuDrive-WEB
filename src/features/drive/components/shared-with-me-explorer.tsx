@@ -73,7 +73,7 @@ export function SharedWithMeExplorer() {
   const current: Crumb | null = trail[trail.length - 1] ?? null
   const root = useSharedWithMe()
   const nested = useSharedDirectory(current?.fileId ?? null)
-  const { data: files, isLoading, isError } = current ? nested : root
+  const { data: files, isLoading, isError, error: loadError } = current ? nested : root
 
   // A deep-linked file not present at the current level isn't necessarily missing — it's likely
   // nested inside a shared folder the trail hasn't walked into yet. Resolve and jump there once.
@@ -168,7 +168,7 @@ export function SharedWithMeExplorer() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="공유받은 파일을 불러오지 못했습니다" />}
+          {isError && <ErrorState message="공유받은 파일을 불러오지 못했습니다" error={loadError} />}
           {files && (
             <FileList
               files={files}

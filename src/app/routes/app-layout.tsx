@@ -61,7 +61,12 @@ export default function AppLayoutRoute() {
   }, [authStatus, anonymousReason, showAlert])
 
   // Don't render the shell (or bounce to /login) until the startup session check has answered.
-  if (authStatus === 'checking') return <LoadingState />
+  if (authStatus === 'checking')
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <LoadingState />
+      </div>
+    )
   if (authStatus === 'anonymous') {
     // Preserve where the user was headed (e.g. a shared-file deep link) so login can
     // send them back instead of always landing on /drive.

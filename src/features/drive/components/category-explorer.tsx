@@ -23,7 +23,7 @@ const CATEGORY_ICONS = {
 
 export function CategoryExplorer({ category }: { category: FileCategory }) {
   const label = FILE_CATEGORIES.find((c) => c.type === category)?.label ?? category
-  const { data: files, isLoading, isError } = useFilesByCategory(category)
+  const { data: files, isLoading, isError, error: loadError } = useFilesByCategory(category)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   // Category views span every folder, so uploads here land in the drive root.
   const { onUpload, uploads, clearUploads, uploadError, conflict, resolveConflict } =
@@ -45,7 +45,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message={`${label} 목록을 불러오지 못했습니다`} />}
+          {isError && <ErrorState message={`${label} 목록을 불러오지 못했습니다`} error={loadError} />}
           {files && (
             <FileList
               files={files}

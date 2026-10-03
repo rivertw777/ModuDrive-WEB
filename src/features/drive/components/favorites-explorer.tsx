@@ -11,7 +11,7 @@ import { ViewToggle } from './view-toggle'
 
 export function FavoritesExplorer() {
   const navigate = useNavigate()
-  const { data: files, isLoading, isError } = useFavorites()
+  const { data: files, isLoading, isError, error: loadError } = useFavorites()
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
 
   const onNavigate = (path: string) => {
@@ -30,7 +30,7 @@ export function FavoritesExplorer() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="즐겨찾기를 불러오지 못했습니다" />}
+          {isError && <ErrorState message="즐겨찾기를 불러오지 못했습니다" error={loadError} />}
           {files && (
             <FileList
               files={files}

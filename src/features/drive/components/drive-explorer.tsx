@@ -66,7 +66,7 @@ export function DriveExplorer({ path }: { path: string }) {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {query.isLoading && <LoadingState />}
-          {query.isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
+          {query.isError && <ErrorState message="폴더를 불러오지 못했습니다" error={query.error} />}
           {query.data && (
             <UploadDropzone onUpload={onUpload} onError={showUploadError}>
               <FileList

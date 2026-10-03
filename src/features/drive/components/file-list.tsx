@@ -33,7 +33,7 @@ import {
   type SortField,
 } from '../types'
 import { downloadFile } from '../api/download-file'
-import { alertDownloadFailure, downloadArchive } from '../api/download-archive'
+import { downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
 import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
@@ -45,6 +45,7 @@ import { MoveDialog } from './move-dialog'
 import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { FileViewerModal } from './file-viewer-modal'
+import { actionErrorText } from '@/stores/alert-store'
 
 type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
@@ -190,7 +191,7 @@ export function FileList({
       downloadFile(files[0].fileId, files[0].name)
       return
     }
-    downloadArchive(files.map((file) => file.fileId)).catch(alertDownloadFailure)
+    downloadArchive(files.map((file) => file.fileId)).catch((error) => setActionError(actionErrorText(error)))
   }
 
   const openMenu = (file: FileEntry, x: number, y: number) => {
@@ -237,11 +238,11 @@ export function FileList({
     if (ids.length === 0) return
 
     setActionError(null)
-    const failed = await runBatch(ids, (fileId) =>
+    const { failed, error } = await runBatch(ids, (fileId) =>
       moveFile.mutateAsync({ fileId, path: targetFullPath }),
     )
     setSelected(new Set())
-    if (failed.length > 0) setActionError(`${failed.length}개 항목을 이동하지 못했습니다`)
+    if (failed.length > 0) setActionError(actionErrorText(error))
   }
 
   // Shared across the table row and grid card — both are just a `data-row-id` element wired
@@ -329,7 +330,10 @@ export function FileList({
                     aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                     onClick={(event) => {
                       event.stopPropagation()
-                      toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+                      toggleFavorite.mutate(
+                        { fileId: file.fileId, favorite: !file.favorite },
+                        { onError: (error) => setActionError(actionErrorText(error)) },
+                      )
                     }}
                     className="absolute top-1.5 left-1.5 flex size-9 items-center justify-center rounded-full text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
                   >
@@ -455,7 +459,10 @@ export function FileList({
                         aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
                         onClick={(event) => {
                           event.stopPropagation()
-                          toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+                          toggleFavorite.mutate(
+                        { fileId: file.fileId, favorite: !file.favorite },
+                        { onError: (error) => setActionError(actionErrorText(error)) },
+                      )
                         }}
                         className="flex items-center text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
                       >
@@ -593,7 +600,10 @@ export function FileList({
           )}
           <ContextMenuItem
             onClick={() => {
-              toggleFavorite.mutate({ fileId: menu.file.fileId, favorite: !menu.file.favorite })
+              toggleFavorite.mutate(
+                { fileId: menu.file.fileId, favorite: !menu.file.favorite },
+                { onError: (error) => setActionError(actionErrorText(error)) },
+              )
               setMenu(null)
             }}
           >
@@ -641,11 +651,10 @@ export function FileList({
                 setMenu(null)
                 setActionError(null)
                 const targets = selectedFiles.filter((file) => !file.favorite)
-                const failed = await runBatch(targets, (file) =>
+                const { failed, error } = await runBatch(targets, (file) =>
                   toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: true }),
                 )
-                if (failed.length > 0)
-                  setActionError(`${failed.length}개 항목의 즐겨찾기 추가에 실패했습니다`)
+                if (failed.length > 0) setActionError(actionErrorText(error))
               }}
             >
               <StarIcon size={16} /> 즐겨찾기 추가
@@ -657,11 +666,10 @@ export function FileList({
                 setMenu(null)
                 setActionError(null)
                 const targets = selectedFiles.filter((file) => file.favorite)
-                const failed = await runBatch(targets, (file) =>
+                const { failed, error } = await runBatch(targets, (file) =>
                   toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: false }),
                 )
-                if (failed.length > 0)
-                  setActionError(`${failed.length}개 항목의 즐겨찾기 해제에 실패했습니다`)
+                if (failed.length > 0) setActionError(actionErrorText(error))
               }}
             >
               <StarIcon size={16} /> 즐겨찾기 해제

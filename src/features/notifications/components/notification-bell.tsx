@@ -19,7 +19,7 @@ export function NotificationBell() {
   // the bell. The full history stays on /notifications. Always mounted in the header (not just
   // while open), so it needs its own poll to pick up new notifications — nothing else invalidates
   // this query when one arrives.
-  const { data, isLoading, isError } = useNotifications(true, NOTIFICATION_POLL_INTERVAL_MS)
+  const { data, isLoading, isError, error: loadError } = useNotifications(true, NOTIFICATION_POLL_INTERVAL_MS)
   const openNotification = useOpenNotification()
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function NotificationBell() {
 
           <div className="max-h-96 overflow-y-auto">
             {isLoading && <LoadingState />}
-            {isError && <ErrorState message="알림을 불러오지 못했습니다" />}
+            {isError && <ErrorState message="알림을 불러오지 못했습니다" error={loadError} compact />}
             {!isLoading && !isError && notifications.length === 0 && (
               <p className="px-4 py-10 text-center text-sm text-slate-400 dark:text-slate-500">
                 새로운 알림이 없습니다

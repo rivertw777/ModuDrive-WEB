@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/utils/cn'
 import { useLogin, useSendLoginCode, useVerifyLogin } from '../api/login'
 import { formatRemaining } from '../utils/format-remaining'
+import { isServerError } from '@/stores/alert-store'
 
 // Matches auth-service's RedisLoginChallengeStore.TTL (5 min) — the code lives as long as the login
 // waiting for it, so once it runs out the member logs in again rather than resending.
@@ -88,7 +89,7 @@ export function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         )}
       </div>
 
-      {login.isError && <p className="text-sm text-red-600">{login.error.message}</p>}
+      {login.isError && !isServerError(login.error) && <p className="text-sm text-red-600">{login.error.message}</p>}
 
       <Button
         type="submit"
@@ -181,7 +182,7 @@ function LoginCodeStep({ email, onSuccess, onBack }: LoginCodeStepProps) {
             {sendCode.isPending ? '발송 중...' : isCodeSent ? '재전송' : '인증'}
           </Button>
         </div>
-        {sendCode.isError && <p className="mt-1.5 text-sm text-red-600">{sendCode.error.message}</p>}
+        {sendCode.isError && !isServerError(sendCode.error) && <p className="mt-1.5 text-sm text-red-600">{sendCode.error.message}</p>}
 
         {isCodeCountingDown && (
           <div className="mt-3">
@@ -214,7 +215,7 @@ function LoginCodeStep({ email, onSuccess, onBack }: LoginCodeStepProps) {
                 {verify.isPending ? '확인 중...' : '확인'}
               </Button>
             </div>
-            {verify.isError && <p className="mt-1.5 text-sm text-red-600">{verify.error.message}</p>}
+            {verify.isError && !isServerError(verify.error) && <p className="mt-1.5 text-sm text-red-600">{verify.error.message}</p>}
           </div>
         )}
         {isCodeExpired && (
