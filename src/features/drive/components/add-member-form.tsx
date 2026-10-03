@@ -6,6 +6,7 @@ import { memberExistsByEmail } from '../api/check-member-email'
 import { useShareFile } from '../api/share-file'
 import type { Role } from '../types'
 import { RoleSelect } from './role-select'
+import { actionErrorText } from '@/stores/alert-store'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -102,7 +103,12 @@ export function AddMemberForm({
       )
     if (failures.length > 0) {
       setEmails(failures.map((f) => f.email))
-      setError(failures.map((f) => `${f.email}: ${(f.result.reason as Error)?.message}`).join('\n'))
+      // A 5xx gets the common alert (once); a 4xx (not a member, already shared…) stays inline.
+      const lines = failures.flatMap((f) => {
+        const text = actionErrorText(f.result.reason)
+        return text ? [`${f.email}: ${text}`] : []
+      })
+      setError(lines.length > 0 ? lines.join('\n') : null)
       return
     }
     onDone()

@@ -3,6 +3,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { runBatch } from '@/utils/run-batch'
 import { usePurgeFile } from '../api/purge-file'
+import { actionErrorText } from '@/stores/alert-store'
 
 export function PurgeConfirmDialog({
   open,
@@ -22,12 +23,12 @@ export function PurgeConfirmDialog({
   const onConfirm = async () => {
     setError(null)
     setIsSubmitting(true)
-    const failed = await runBatch(files, (file) => purgeFile.mutateAsync(file.fileId))
+    const { failed, error } = await runBatch(files, (file) => purgeFile.mutateAsync(file.fileId))
     setIsSubmitting(false)
 
     if (failed.length < files.length) onPurged?.()
     if (failed.length > 0) {
-      setError(`${failed.map((file) => file.name).join(', ')} 영구 삭제에 실패했습니다`)
+      setError(actionErrorText(error))
       return
     }
     onClose()

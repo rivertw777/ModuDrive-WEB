@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { alertActionError } from '@/stores/alert-store'
 import { useMarkNotificationRead } from '../api/mark-notification-read'
 import type { Notification } from '../types'
 
@@ -9,7 +10,7 @@ export function useOpenNotification() {
   const markRead = useMarkNotificationRead()
 
   return (notification: Notification) => {
-    if (!notification.read) markRead.mutate(notification.id)
+    if (!notification.read) markRead.mutate(notification.id, { onError: alertActionError })
     navigate(`/shared?file=${encodeURIComponent(notification.fileId)}`)
   }
 }

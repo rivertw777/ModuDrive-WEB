@@ -103,7 +103,7 @@ export function FilePreview({
   }, [kind, fileName, sourceType, sourceId, shareKey])
 
   if (!kind) return null
-  if (error) return <ErrorState message="미리보기를 불러오지 못했습니다" />
+  if (error) return <ErrorState message="미리보기를 불러오지 못했습니다" compact />
 
   const maxH = fullscreen ? 'max-h-[80vh]' : 'max-h-64'
 

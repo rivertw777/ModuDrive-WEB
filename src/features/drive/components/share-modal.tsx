@@ -17,6 +17,7 @@ import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
 import { RestrictParentDialog } from './restrict-parent-dialog'
 import { RevokeInheritedDialog } from './revoke-inherited-dialog'
+import { actionErrorText } from '@/stores/alert-store'
 
 const SCOPE_LABELS: Record<ShareScope, string> = {
   RESTRICTED: '권한이 부여된 사용자',
@@ -47,7 +48,7 @@ export function ShareModal({
   fileId: string
   fileName: string
 }) {
-  const { data: access, isLoading, isError } = useFileShares(fileId, open)
+  const { data: access, isLoading, isError, error: loadError } = useFileShares(fileId, open)
   const { data: member } = useCurrentMember(open)
   const updateScope = useUpdateFileScope()
   const updateRole = useUpdateFileShareRole()
@@ -293,7 +294,7 @@ export function ShareModal({
       setPendingParentRestrict((prev) =>
         prev.filter((targetId) => failedKeys.has(`parent-restrict:${targetId}`)),
       )
-      setCommitError('일부 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요.')
+      setCommitError(actionErrorText(results.find((r) => r.status === 'rejected')?.reason))
       return
     }
     setPendingScope(null)
@@ -334,7 +335,7 @@ export function ShareModal({
         helpContent={HELP_CONTENT}
       >
         {isLoading && <LoadingState />}
-        {isError && <ErrorState message="공유 정보를 불러오지 못했습니다" />}
+        {isError && <ErrorState message="공유 정보를 불러오지 못했습니다" error={loadError} compact />}
 
         {access && view === 'invite' && (
           <AddMemberForm

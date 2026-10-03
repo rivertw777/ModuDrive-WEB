@@ -10,12 +10,13 @@ import { useForceLightMode } from '@/hooks/use-force-light-mode'
 import { useWindowedList } from '@/hooks/use-windowed-list'
 import { usePublicChildren } from '../api/get-public-file'
 import { downloadPublicFile } from '../api/download-public-file'
-import { alertDownloadFailure, downloadPublicArchive } from '../api/download-archive'
+import { downloadPublicArchive } from '../api/download-archive'
 import { formatDate, formatFileSize, sortFiles, type PublicFile, type SortDir, type SortField } from '../types'
 import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
 import { EntryIcon } from './entry-icon'
 import { ViewToggle } from './view-toggle'
 import { FileViewerModal } from './file-viewer-modal'
+import { alertActionError } from '@/stores/alert-store'
 
 type Crumb = { id: string; name: string }
 type MenuState = ContextMenuPosition & { entry: PublicFile; batch: boolean }
@@ -96,7 +97,7 @@ export function PublicFolderView({
     downloadPublicArchive(
       picked.map((entry) => entry.fileId),
       shareKey,
-    ).catch(alertDownloadFailure)
+    ).catch(alertActionError)
   }
 
   const openMenu = (entry: PublicFile, event: React.MouseEvent) => {

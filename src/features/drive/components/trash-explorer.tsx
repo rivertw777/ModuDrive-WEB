@@ -32,12 +32,13 @@ import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
 import { EmptyTrashConfirmDialog } from './empty-trash-confirm-dialog'
 import { ViewToggle } from './view-toggle'
+import { actionErrorText } from '@/stores/alert-store'
 
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
 
 export function TrashExplorer() {
   const navigate = useNavigate()
-  const { data: files, isLoading, isError } = useTrash()
+  const { data: files, isLoading, isError, error: loadError } = useTrash()
   // `?file=<id>` deep link — a "위치" link from 저장용량 lands here with the file's detail open.
   const { selectedFileId, setSelectedFileId, clearSelection } = useFileDeeplink()
   const [menu, setMenu] = useState<MenuState | null>(null)
@@ -105,7 +106,7 @@ export function TrashExplorer() {
           )}
 
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="휴지통을 불러오지 못했습니다" />}
+          {isError && <ErrorState message="휴지통을 불러오지 못했습니다" error={loadError} />}
           {files && files.length === 0 && (
             <EmptyState label="휴지통이 비어 있습니다" icon={TrashIcon} />
           )}
@@ -277,7 +278,9 @@ export function TrashExplorer() {
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
           <ContextMenuItem
             onClick={() => {
-              restoreFile.mutate(menu.file.fileId)
+              restoreFile.mutate(menu.file.fileId, {
+                onError: (error) => setActionError(actionErrorText(error)),
+              })
               setMenu(null)
             }}
           >
@@ -301,11 +304,11 @@ export function TrashExplorer() {
             onClick={async () => {
               setMenu(null)
               setActionError(null)
-              const failed = await runBatch(selectedFiles, (file) =>
+              const { failed, error } = await runBatch(selectedFiles, (file) =>
                 restoreFile.mutateAsync(file.fileId),
               )
               setSelected(new Set())
-              if (failed.length > 0) setActionError(`${failed.length}개 항목 복원에 실패했습니다`)
+              if (failed.length > 0) setActionError(actionErrorText(error))
             }}
           >
             <RestoreIcon size={16} /> 복원 ({selectedFiles.length}개)

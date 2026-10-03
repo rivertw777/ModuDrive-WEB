@@ -8,6 +8,7 @@ import { useMoveFile } from '../api/move-file'
 import { useDirectoryFolders } from '../api/list-directory'
 import { formatDate, joinPath, type FileEntry } from '../types'
 import { NewFolderDialog } from './new-folder-dialog'
+import { actionErrorText } from '@/stores/alert-store'
 
 type MovableEntry = Pick<FileEntry, 'fileId' | 'name' | 'path' | 'directory'>
 
@@ -26,7 +27,7 @@ export function MoveDialog({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
 
-  const { data: entries, isLoading, isError } = useDirectoryFolders(browsePath)
+  const { data: entries, isLoading, isError, error: loadError } = useDirectoryFolders(browsePath)
 
   // Folders being moved (and anything under them) can't be a valid destination —
   // filtering them out of each level's listing blocks drilling into that subtree at all.
@@ -53,13 +54,13 @@ export function MoveDialog({
   const onMove = async () => {
     setError(null)
     setIsSubmitting(true)
-    const failed = await runBatch(files, (file) =>
+    const { failed, error } = await runBatch(files, (file) =>
       moveFile.mutateAsync({ fileId: file.fileId, path: browsePath }),
     )
     setIsSubmitting(false)
 
     if (failed.length > 0) {
-      setError(`${failed.length}개 항목을 이동하지 못했습니다`)
+      setError(actionErrorText(error))
       return
     }
     close()
@@ -99,7 +100,7 @@ export function MoveDialog({
 
         <div className="h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
           {isLoading && <LoadingState />}
-          {isError && <ErrorState message="폴더를 불러오지 못했습니다" />}
+          {isError && <ErrorState message="폴더를 불러오지 못했습니다" error={loadError} compact />}
           {!isLoading && !isError && folders.length === 0 && (
             <EmptyState label="하위 폴더가 없습니다" compact />
           )}

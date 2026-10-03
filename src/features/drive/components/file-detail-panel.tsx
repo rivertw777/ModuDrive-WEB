@@ -22,9 +22,10 @@ import { ShareModal } from './share-modal'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
+import { alertActionError } from '@/stores/alert-store'
 
 export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: () => void }) {
-  const { data: file, isLoading, isError } = useFile(fileId)
+  const { data: file, isLoading, isError, error: loadError } = useFile(fileId)
   const { data: me } = useCurrentMember()
   const toggleFavorite = useToggleFavorite()
   const [shareOpen, setShareOpen] = useState(false)
@@ -59,7 +60,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
       </div>
 
       {isLoading && <LoadingState />}
-      {isError && <ErrorState message="파일 정보를 불러오지 못했습니다" />}
+      {isError && <ErrorState message="파일 정보를 불러오지 못했습니다" error={loadError} compact />}
 
       {file && (
         <div className="mt-4 space-y-5 text-sm">
@@ -134,7 +135,10 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
             <Button
               variant="secondary"
               onClick={() =>
-                toggleFavorite.mutate({ fileId: file.fileId, favorite: !file.favorite })
+                toggleFavorite.mutate(
+                  { fileId: file.fileId, favorite: !file.favorite },
+                  { onError: alertActionError },
+                )
               }
               disabled={toggleFavorite.isPending}
             >

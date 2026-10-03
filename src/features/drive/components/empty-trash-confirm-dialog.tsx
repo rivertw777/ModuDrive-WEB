@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useEmptyTrash } from '../api/empty-trash'
+import { actionErrorText } from '@/stores/alert-store'
 
 export function EmptyTrashConfirmDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const emptyTrash = useEmptyTrash()
@@ -12,8 +13,8 @@ export function EmptyTrashConfirmDialog({ open, onClose }: { open: boolean; onCl
     try {
       await emptyTrash.mutateAsync()
       onClose()
-    } catch {
-      setError('휴지통 비우기에 실패했습니다')
+    } catch (error) {
+      setError(actionErrorText(error))
     }
   }
 

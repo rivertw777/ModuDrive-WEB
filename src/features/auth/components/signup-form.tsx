@@ -9,6 +9,7 @@ import { useConfirmEmailVerification } from '../api/confirm-email-verification'
 import { useRequestEmailVerification } from '../api/request-email-verification'
 import { useSignup } from '../api/signup'
 import { formatRemaining } from '../utils/format-remaining'
+import { isServerError } from '@/stores/alert-store'
 
 // Matches member-service's RedisEmailVerificationTokenStore.CODE_TTL (5 min).
 const CODE_TTL_MS = 5 * 60_000
@@ -171,7 +172,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
           )}
         </div>
         {errors.email && <p className="mt-1.5 text-sm text-red-600">{errors.email.message}</p>}
-        {requestVerification.isError && (
+        {requestVerification.isError && !isServerError(requestVerification.error) && (
           <p className="mt-1.5 text-sm text-red-600">{requestVerification.error.message}</p>
         )}
 
@@ -205,7 +206,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
                 {confirmVerification.isPending ? '확인 중...' : '확인'}
               </Button>
             </div>
-            {confirmVerification.isError && (
+            {confirmVerification.isError && !isServerError(confirmVerification.error) && (
               <p className="mt-1.5 text-sm text-red-600">{confirmVerification.error.message}</p>
             )}
           </div>
@@ -254,7 +255,7 @@ export function SignupForm({ onSuccess }: { onSuccess: () => void }) {
         )}
       </div>
 
-      {signup.isError && <p className="text-sm text-red-600">{signup.error.message}</p>}
+      {signup.isError && !isServerError(signup.error) && <p className="text-sm text-red-600">{signup.error.message}</p>}
 
       <Button
         type="submit"

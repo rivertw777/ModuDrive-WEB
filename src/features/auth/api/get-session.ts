@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
+import { notifyServerError } from '@/stores/alert-store'
 
 /** Left behind by the JWT-era client; the session cookie replaced it (API issue #430). */
 const LEGACY_ACCESS_TOKEN_KEY = 'modudrive.accessToken'
@@ -16,13 +17,20 @@ export function useSessionBootstrap() {
   useEffect(() => {
     localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY)
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let notified = false
 
     const check = () =>
       getSession().then(
         () => useAuthStore.getState().setAuthenticated(),
         (error: { status?: number }) => {
           if (error.status === 401) useAuthStore.getState().setAnonymous('no-session')
-          else retryTimer = setTimeout(check, RETRY_DELAY_MS)
+          else {
+            // The screen only shows a spinner meanwhile, so say why it's taking a while — once,
+            // not again on every 3-second retry after the user has dismissed it.
+            if (!notified) notifyServerError(error)
+            notified = true
+            retryTimer = setTimeout(check, RETRY_DELAY_MS)
+          }
         },
       )
     check()

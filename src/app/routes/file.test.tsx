@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import FileRoute from './file'
 import { useAuthStore } from '@/stores/auth-store'
-import { useAlertStore } from '@/stores/alert-store'
+import { SERVER_ERROR_MESSAGE, useAlertStore } from '@/stores/alert-store'
 
 const useFile = vi.fn()
 const usePublicFile = vi.fn()
@@ -69,6 +69,16 @@ describe('FileRoute', () => {
       expect(screen.getByText('login page')).toBeInTheDocument()
     })
 
+    it('sends a server failure to /login like a 4xx, but with the common error notice', () => {
+      useAlertStore.setState({ message: null })
+      usePublicFile.mockReturnValue({ isLoading: false, isError: true, error: { response: { status: 503 } } })
+
+      renderAt('/files/f-1')
+
+      expect(screen.getByText('login page')).toBeInTheDocument()
+      expect(useAlertStore.getState().message).toBe(SERVER_ERROR_MESSAGE)
+    })
+
     it('shows a loading state while the anonymous lookup is in flight', () => {
       usePublicFile.mockReturnValue({ isLoading: true, isError: false })
 
@@ -131,7 +141,7 @@ describe('FileRoute', () => {
         isLoading: false,
         isError: true,
         data: undefined,
-        error: { data: { isDirectory: false } },
+        error: { status: 403, data: { isDirectory: false } },
       })
       usePublicFile.mockReturnValue({ isLoading: false, isError: true })
 
@@ -150,7 +160,7 @@ describe('FileRoute', () => {
         isLoading: false,
         isError: true,
         data: undefined,
-        error: { data: { isDirectory: true } },
+        error: { status: 403, data: { isDirectory: true } },
       })
       usePublicFile.mockReturnValue({ isLoading: false, isError: true })
 
@@ -159,11 +169,32 @@ describe('FileRoute', () => {
       expect(useAlertStore.getState().message).toBe('이 폴더에 접근할 권한이 없습니다')
     })
 
+    it('sends a server failure to /drive like a 4xx, but with the common error notice instead of access denied', () => {
+      useAlertStore.setState({ message: null })
+      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined, error: { status: 503 } })
+
+      renderAt('/files/f-1')
+
+      expect(screen.getByText('drive explorer')).toBeInTheDocument()
+      expect(useAlertStore.getState().message).toBe(SERVER_ERROR_MESSAGE)
+    })
+
+    it('treats a server failure of the public fallback lookup the same way', () => {
+      useAlertStore.setState({ message: null })
+      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined, error: { status: 404 } })
+      usePublicFile.mockReturnValue({ isLoading: false, isError: true, error: { response: { status: 502 } } })
+
+      renderAt('/files/f-1')
+
+      expect(screen.getByText('drive explorer')).toBeInTheDocument()
+      expect(useAlertStore.getState().message).toBe(SERVER_ERROR_MESSAGE)
+    })
+
     it('falls back to a type-agnostic 항목 wording when the file genuinely does not exist', () => {
       useAlertStore.setState({ message: null })
       // A real FILE_NOT_FOUND carries no isDirectory (see FileAccessGuard) — this pins the
       // fallback wording rather than defaulting to either 파일 or 폴더.
-      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined, error: new Error('not found') })
+      useFile.mockReturnValue({ isLoading: false, isError: true, data: undefined, error: Object.assign(new Error('not found'), { status: 404 }) })
       usePublicFile.mockReturnValue({ isLoading: false, isError: true })
 
       renderAt('/files/f-1')

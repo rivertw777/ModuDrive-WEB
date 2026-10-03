@@ -11,6 +11,7 @@ import {
   type ConflictResolution,
 } from '../api/upload-file'
 import type { UploadEntry } from '../utils/collect-upload-entries'
+import { actionErrorText } from '@/stores/alert-store'
 
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
 export type ConflictChoice = 'replace' | 'keep-both'
@@ -157,7 +158,7 @@ export function useFileUpload(path: string) {
           }
         }
       } catch (error) {
-        setUploadError(error instanceof Error ? error.message : '업로드에 실패했습니다')
+        setUploadError(actionErrorText(error))
         for (const row of rows.values()) {
           row.status = 'error'
           sync(row)

@@ -92,7 +92,9 @@ describe('LoginForm', () => {
     await user.click(await screen.findByRole('button', { name: '인증' }))
     await user.type(await screen.findByLabelText('인증 코드'), '000000')
 
-    vi.mocked(apiClient.post).mockRejectedValueOnce(new Error('인증 코드가 일치하지 않습니다.'))
+    vi.mocked(apiClient.post).mockRejectedValueOnce(
+      Object.assign(new Error('인증 코드가 일치하지 않습니다.'), { status: 400 }),
+    )
     await user.click(screen.getByRole('button', { name: '확인' }))
     expect(await screen.findByText('인증 코드가 일치하지 않습니다.')).toBeInTheDocument()
 
@@ -112,7 +114,7 @@ describe('LoginForm', () => {
     await submitCredentials(user)
 
     vi.mocked(apiClient.post).mockRejectedValueOnce(
-      new Error('요청 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.'),
+      Object.assign(new Error('요청 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.'), { status: 429 }),
     )
     await user.click(await screen.findByRole('button', { name: '인증' }))
 

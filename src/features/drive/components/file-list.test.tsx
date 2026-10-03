@@ -11,7 +11,6 @@ vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))
 vi.mock('../api/download-file', () => ({ downloadFile: vi.fn() }))
 vi.mock('../api/download-archive', () => ({
   downloadArchive: vi.fn(() => Promise.resolve()),
-  alertDownloadFailure: vi.fn(),
 }))
 
 const { useToggleFavorite } = await import('../api/toggle-favorite')

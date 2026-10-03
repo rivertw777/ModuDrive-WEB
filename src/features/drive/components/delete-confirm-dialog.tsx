@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { runBatch } from '@/utils/run-batch'
 import { useDeleteFile } from '../api/delete-file'
 import { listFileShares } from '../api/list-file-shares'
+import { actionErrorText } from '@/stores/alert-store'
 
 type Target = { fileId: string; name: string; directory?: boolean }
 
@@ -49,12 +50,12 @@ export function DeleteConfirmDialog({
   const onConfirm = async () => {
     setError(null)
     setIsSubmitting(true)
-    const failed = await runBatch(files, (file) => deleteFile.mutateAsync(file.fileId))
+    const { failed, error } = await runBatch(files, (file) => deleteFile.mutateAsync(file.fileId))
     setIsSubmitting(false)
 
     if (failed.length < files.length) onDeleted() // at least one succeeded — let the parent prune it
     if (failed.length > 0) {
-      setError(`${failed.map((file) => file.name).join(', ')} 삭제에 실패했습니다`)
+      setError(actionErrorText(error))
       return
     }
     onClose()
