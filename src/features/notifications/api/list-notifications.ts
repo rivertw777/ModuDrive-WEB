@@ -2,8 +2,9 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { BACKGROUND_REQUEST_HEADERS, apiClient } from '@/lib/api-client'
 import type { Notification } from '../types'
 
-/** One page of `GET /api/v1/notifications`. The backend returns a Spring `Page`, so paging is
- * by page number (`number`) rather than a cursor; `last` marks the final page. */
+/** One page of `GET /api/v1/notifications`, mirroring the backend's `NotificationPageResponse`.
+ * Paging is by page number (`number`) rather than a cursor; `last` marks the final page, and
+ * `size` must stay within 1..100. */
 export type NotificationPage = {
   content: Notification[]
   number: number
