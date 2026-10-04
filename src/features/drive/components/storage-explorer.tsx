@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useThemeStore } from '@/stores/theme-store'
 import { useWindowedList } from '@/hooks/use-windowed-list'
@@ -9,7 +8,8 @@ import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, Vi
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
 import { useTrash } from '@/features/trash'
-import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '@/types/file'
+import { FILE_CATEGORIES, type FileCategory, type FileEntry, type SortField } from '@/types/file'
+import { useSortState } from '@/hooks/use-sort-state'
 import { formatFileSize, locationLabel } from '@/utils/file'
 import { EntryIcon } from '@/components/file/entry-icon'
 
@@ -23,8 +23,7 @@ const CATEGORY_COLORS: Record<FileCategory, { light: string; dark: string }> = {
 }
 const CATEGORY_ICONS = { IMAGE: ImageIcon, VIDEO: VideoIcon, DOCUMENT: DocumentIcon, AUDIO: MusicIcon, OTHER: FilesIcon } as const
 
-type SortField = 'name' | 'size'
-type SortDir = 'asc' | 'desc'
+type StorageSortField = Extract<SortField, 'name' | 'size'>
 
 export function StorageExplorer() {
   const navigate = useNavigate()
@@ -34,8 +33,9 @@ export function StorageExplorer() {
   // Trash is secondary data on this page — if the endpoint is down, still show the donut + table
   // (just without the trashed rows) rather than failing the whole screen.
   const { data: trashed, isLoading: trashLoading } = useTrash()
-  const [sortField, setSortField] = useState<SortField>('size')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const { sortField, sortDir, toggleSort } = useSortState<StorageSortField>('size', 'desc', (field) =>
+    field === 'name' ? 'asc' : 'desc',
+  )
 
   // /api/v1/files/all excludes folders and trashed files — that's the set the donut breaks down
   // by category. The table also lists trashed files (still counted against the quota), tagged
@@ -61,15 +61,6 @@ export function StorageExplorer() {
   if (usageLoading || filesLoading || trashLoading) return <LoadingState />
   if (usageError || filesError || !usage || !entries) {
     return <ErrorState message="저장용량 정보를 불러오지 못했습니다" />
-  }
-
-  function toggleSort(field: SortField) {
-    if (field === sortField) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDir(field === 'name' ? 'asc' : 'desc')
-    }
   }
 
   const isTrashed = (file: FileEntry) => file.status === 'TRASHED'

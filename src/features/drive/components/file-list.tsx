@@ -1,44 +1,30 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentMember } from '@/features/auth'
+import { ShareModal } from '@/features/sharing'
 import { EmptyState, type EmptyStateIcon } from '@/components/ui/state'
-import {
-  ContextMenu,
-  ContextMenuItem,
-  type ContextMenuPosition,
-} from '@/components/ui/context-menu'
-import { SortHeader } from '@/components/ui/sort-header'
-import {
-  DownloadIcon,
-  InfoIcon,
-  MoreVerticalIcon,
-  MoveIcon,
-  PencilIcon,
-  ShareIcon,
-  StarIcon,
-  TrashIcon,
-} from '@/components/ui/icons'
-import { cn } from '@/utils/cn'
+import type { ContextMenuPosition } from '@/components/ui/context-menu'
 import { useFileViewStore } from '@/stores/file-view-store'
-import { ROLE_LABELS } from '@/features/sharing'
-import { DRAG_MIME, type FileEntry, type SortDir, type SortField } from '@/types/file'
-import { formatDate, formatFileSize, joinPath, locationLabel, sortFiles } from '@/utils/file'
+import { actionErrorText } from '@/stores/alert-store'
+import type { FileEntry, SortDir, SortField } from '@/types/file'
+import { useSortState } from '@/hooks/use-sort-state'
+import { MarqueeOverlay, useRowSelection } from '@/hooks/use-row-selection'
+import { useInfiniteScrollRef, useWindowedList } from '@/hooks/use-windowed-list'
+import { joinPath, locationLabel, sortFiles } from '@/utils/file'
+import { runBatch } from '@/utils/run-batch'
 import { downloadFile } from '../api/download-file'
 import { downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
-import { useMoveFile } from '../api/move-file'
-import { MarqueeOverlay, setDragPreview, useRowSelection } from '@/hooks/use-row-selection'
-import { useInfiniteScrollRef, useWindowedList } from '@/hooks/use-windowed-list'
-import { runBatch } from '@/utils/run-batch'
-import { EntryIcon } from '@/components/file/entry-icon'
+import { useFileDragMove } from '../hooks/use-file-drag-move'
+import { BatchContextMenu, FileContextMenu, type FileDialogType } from './file-context-menu'
+import { FileGridCard, type RowProps } from './file-grid-card'
+import { FileTableHead, FileTableRow, type DateColumn } from './file-table'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
-import { ShareModal } from '@/features/sharing'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { FileViewerModal } from './file-viewer-modal'
-import { actionErrorText } from '@/stores/alert-store'
 
-type DialogState = { type: 'rename' | 'move' | 'share' | 'delete'; files: FileEntry[] }
+type DialogState = { type: FileDialogType; files: FileEntry[] }
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }
 
 /** When set, the list is already sorted and paged by the server: `files` holds every page
@@ -84,27 +70,19 @@ export function FileList({
   emptyIcon?: EmptyStateIcon
   preserveOrder?: boolean
   serverPagination?: ServerPagination
-  dateColumn?: { label: string; getValue: (file: FileEntry) => string | null | undefined }
+  dateColumn?: DateColumn
 }) {
   // Date-descending is the default everywhere in the app (내 드라이브/휴지통 and up), so every
   // FileList instance opens the same way — a click still opts into a real client-side sort.
-  const [localSortField, setLocalSortField] = useState<SortField>('date')
-  const [localSortDir, setLocalSortDir] = useState<SortDir>('desc')
-  const [userSorted, setUserSorted] = useState(false)
-  const sortField = serverPagination?.sortField ?? localSortField
-  const sortDir = serverPagination?.sortDir ?? localSortDir
+  const localSort = useSortState<SortField>('date', 'desc')
+  const sortField = serverPagination?.sortField ?? localSort.sortField
+  const sortDir = serverPagination?.sortDir ?? localSort.sortDir
   const [menu, setMenu] = useState<MenuState | null>(null)
   const [dialog, setDialog] = useState<DialogState | null>(null)
   const [viewerFile, setViewerFile] = useState<FileEntry | null>(null)
-  const [dragOverId, setDragOverId] = useState<string | null>(null)
-  // Ids currently being dragged (set from this same list's onDragStart) — lets onDragOver reject
-  // a target that is itself part of the drag before it ever reaches onDrop (Google Drive-style:
-  // dropping a selection onto one of its own members is refused outright, not partially applied).
-  const [draggingIds, setDraggingIds] = useState<Set<string>>(new Set())
   const [actionError, setActionError] = useState<string | null>(null)
   const viewMode = useFileViewStore((state) => state.mode)
   const toggleFavorite = useToggleFavorite()
-  const moveFile = useMoveFile()
   const containerRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { data: me } = useCurrentMember()
@@ -133,19 +111,13 @@ export function FileList({
       serverPagination.onSortChange(field)
       return
     }
-    setUserSorted(true)
-    if (field === localSortField) {
-      setLocalSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setLocalSortField(field)
-      setLocalSortDir('asc')
-    }
+    localSort.toggleSort(field)
   }
 
   const nonDeleted = files.filter((file) => file.status !== 'DELETED' && file.status !== 'TRASHED')
   // preserveOrder holds the server's order only until the user clicks a header; serverPagination
   // means the server is already sorting/paging, so client sort never applies there.
-  const unsortedPreserve = preserveOrder && !userSorted
+  const unsortedPreserve = preserveOrder && !localSort.touched
   const skipClientSort = unsortedPreserve || serverPagination
   // Server mode: `files` already arrives sorted (directories first) and paged — don't re-sort
   // or window it here, just render every loaded page and let the sentinel pull the next one.
@@ -172,6 +144,12 @@ export function FileList({
     shown.map((file) => file.fileId),
     onClearSelection,
   )
+  const { dragOverId, dragHandlers } = useFileDragMove({
+    files: visible,
+    selected,
+    setSelected,
+    setActionError,
+  })
   const selectedFiles = shown.filter((file) => selected.has(file.fileId))
   const downloadableSelected = selectedFiles.filter(
     (file) => file.directory || file.status === 'UPLOADED',
@@ -185,63 +163,31 @@ export function FileList({
     downloadArchive(files.map((file) => file.fileId)).catch((error) => setActionError(actionErrorText(error)))
   }
 
+  const toggleFavoriteOf = (file: FileEntry) =>
+    toggleFavorite.mutate(
+      { fileId: file.fileId, favorite: !file.favorite },
+      { onError: (error) => setActionError(actionErrorText(error)) },
+    )
+  const setFavoriteOfSelected = async (favorite: boolean) => {
+    setActionError(null)
+    const targets = selectedFiles.filter((file) => file.favorite !== favorite)
+    const { failed, error } = await runBatch(targets, (file) =>
+      toggleFavorite.mutateAsync({ fileId: file.fileId, favorite }),
+    )
+    if (failed.length > 0) setActionError(actionErrorText(error))
+  }
+
   const openMenu = (file: FileEntry, x: number, y: number) => {
     const batch = selected.has(file.fileId) && selected.size > 1
     if (!batch) setSelected(new Set([file.fileId]))
     setMenu({ file, x, y, batch })
   }
 
-  const onDragStart = (event: React.DragEvent, file: FileEntry) => {
-    const ids = selected.has(file.fileId) && selected.size > 1 ? [...selected] : [file.fileId]
-    if (ids.length === 1) setSelected(new Set(ids))
-    setDraggingIds(new Set(ids))
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData(DRAG_MIME, JSON.stringify(ids))
-    setDragPreview(event, file.name, ids.length)
-  }
-
-  const onDrop = async (event: React.DragEvent, target: FileEntry) => {
-    event.preventDefault()
-    setDragOverId(null)
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(event.dataTransfer.getData(DRAG_MIME))
-    } catch {
-      return
-    }
-    if (!Array.isArray(parsed)) return
-    // The target is itself one of the dragged items (e.g. a file + folder selected together,
-    // dropped on that same folder) — refuse the whole drop rather than moving just the rest.
-    if (parsed.includes(target.fileId)) return
-
-    // Only ids this list actually rendered, excluding the drop target itself and any dragged
-    // directory that the target sits inside of (would otherwise move a folder into its own subtree).
-    const byId = new Map(visible.map((file) => [file.fileId, file]))
-    const targetFullPath = joinPath(target.path, target.name)
-    const ids = parsed.filter((id): id is string => {
-      if (typeof id !== 'string' || id === target.fileId) return false
-      const source = byId.get(id)
-      if (!source || source.path === targetFullPath) return false
-      if (!source.directory) return true
-      const sourceFullPath = joinPath(source.path, source.name)
-      return targetFullPath !== sourceFullPath && !targetFullPath.startsWith(`${sourceFullPath}/`)
-    })
-    if (ids.length === 0) return
-
-    setActionError(null)
-    const { failed, error } = await runBatch(ids, (fileId) =>
-      moveFile.mutateAsync({ fileId, path: targetFullPath }),
-    )
-    setSelected(new Set())
-    if (failed.length > 0) setActionError(actionErrorText(error))
-  }
-
   // Shared across the table row and grid card — both are just a `data-row-id` element wired
   // to the same selection/drag/navigate behavior, so only the layout differs between views.
-  const rowHandlers = (file: FileEntry) => ({
+  const rowProps = (file: FileEntry): RowProps => ({
     'data-row-id': file.fileId,
-    draggable: true,
-    onDragStart: (event: React.DragEvent) => onDragStart(event, file),
+    ...dragHandlers(file),
     onMouseDown: (event: React.MouseEvent) => onRowMouseDown(file.fileId, event),
     onClick: (event: React.MouseEvent) => {
       // Single click only selects — entering a folder or previewing a file is a double-click
@@ -265,22 +211,21 @@ export function FileList({
       event.preventDefault()
       openMenu(file, event.clientX, event.clientY)
     },
-    onDragEnd: () => setDraggingIds(new Set()),
-    onDragOver: file.directory
-      ? (event: React.DragEvent) => {
-          if (!event.dataTransfer.types.includes(DRAG_MIME)) return
-          // This row is itself part of the drag (e.g. file + folder selected together, hovering
-          // that same folder) — leave preventDefault uncalled so the browser shows "no drop"
-          // instead of highlighting it as a valid target.
-          if (draggingIds.has(file.fileId)) return
-          event.preventDefault()
-          setDragOverId(file.fileId)
+  })
+  // What a card/row needs besides its layout — identical for both views.
+  const itemProps = (file: FileEntry) => ({
+    file,
+    rowProps: rowProps(file),
+    selected: selected.has(file.fileId) || selectedFileId === file.fileId,
+    dragOver: dragOverId === file.fileId,
+    onToggleFavorite: () => toggleFavoriteOf(file),
+    onMore: (event: React.MouseEvent) => openMenu(file, event.clientX, event.clientY),
+    location: showLocation
+      ? {
+          label: locationText(file),
+          onClick: (event: React.MouseEvent) => openLocation(file, event),
         }
       : undefined,
-    onDragLeave: file.directory
-      ? () => setDragOverId((cur) => (cur === file.fileId ? null : cur))
-      : undefined,
-    onDrop: file.directory ? (event: React.DragEvent) => onDrop(event, file) : undefined,
   })
 
   // Viewer's ◀/▶ step through this same folder listing, previewable files only (matches what
@@ -306,225 +251,27 @@ export function FileList({
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
               {shown.map((file) => (
-                <div
-                  key={file.fileId}
-                  {...rowHandlers(file)}
-                  className={cn(
-                    'group relative flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-slate-200 p-4 text-center hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800',
-                    (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                      'border-brand-300 bg-brand-100 hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-700/40 dark:hover:bg-brand-700/40',
-                    dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
-                  )}
-                >
-                  <button
-                    type="button"
-                    aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      toggleFavorite.mutate(
-                        { fileId: file.fileId, favorite: !file.favorite },
-                        { onError: (error) => setActionError(actionErrorText(error)) },
-                      )
-                    }}
-                    className="absolute top-1.5 left-1.5 flex size-9 items-center justify-center rounded-full text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
-                  >
-                    <StarIcon
-                      size={20}
-                      className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="더보기"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      openMenu(file, event.clientX, event.clientY)
-                    }}
-                    className="absolute top-1.5 right-1.5 flex size-9 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                  >
-                    <MoreVerticalIcon size={20} />
-                  </button>
-                  <EntryIcon
-                    name={file.name}
-                    category={file.category}
-                    directory={file.directory}
-                    size={72}
-                    className="mt-8"
-                  />
-                  <span className="line-clamp-2 w-full text-sm break-all text-slate-800 dark:text-slate-200">
-                    {file.name}
-                  </span>
-                  {showLocation && (
-                    <button
-                      type="button"
-                      onClick={(event) => openLocation(file, event)}
-                      className="max-w-full truncate text-xs text-slate-500 hover:underline dark:text-slate-400"
-                    >
-                      {locationText(file)}
-                    </button>
-                  )}
-                </div>
+                <FileGridCard key={file.fileId} {...itemProps(file)} />
               ))}
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
-                <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  <th className="w-8 py-2 pl-2 font-medium" />
-                  <th className="w-14 px-3 py-2 font-medium whitespace-nowrap">종류</th>
-                  <th className="px-3 py-2 font-medium">
-                    <SortHeader
-                      label="이름"
-                      active={sortField === 'name'}
-                      dir={sortField === 'name' ? sortDir : 'asc'}
-                      onClick={() => toggleSort('name')}
-                    />
-                  </th>
-                  {showSharedBy ? (
-                    <>
-                      <th className="w-48 px-3 py-2 font-medium">
-                        <SortHeader
-                          label="공유한 사용자"
-                          active={sortField === 'sharedBy'}
-                          dir={sortField === 'sharedBy' ? sortDir : 'asc'}
-                          onClick={() => toggleSort('sharedBy')}
-                        />
-                      </th>
-                      <th className="w-20 px-3 py-2 font-medium">권한</th>
-                      <th className="w-44 px-3 py-2 font-medium">
-                        <SortHeader
-                          label="공유된 날짜"
-                          active={sortField === 'date'}
-                          dir={sortField === 'date' ? sortDir : 'asc'}
-                          onClick={() => toggleSort('date')}
-                        />
-                      </th>
-                      <th className="w-28 px-3 py-2 font-medium">
-                        <SortHeader
-                          label="크기"
-                          active={sortField === 'size'}
-                          dir={sortField === 'size' ? sortDir : 'asc'}
-                          onClick={() => toggleSort('size')}
-                        />
-                      </th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="w-28 px-3 py-2 font-medium">
-                        <SortHeader
-                          label="크기"
-                          active={sortField === 'size'}
-                          dir={sortField === 'size' ? sortDir : 'asc'}
-                          onClick={() => toggleSort('size')}
-                        />
-                      </th>
-                      <th className="w-44 px-3 py-2 font-medium">
-                        <SortHeader
-                          label={dateColumn.label}
-                          active={sortField === 'date'}
-                          dir={sortField === 'date' ? sortDir : 'asc'}
-                          onClick={() => toggleSort('date')}
-                        />
-                      </th>
-                    </>
-                  )}
-                  {showLocation && <th className="w-32 py-2 pr-4 pl-3 font-medium">위치</th>}
-                  <th className="w-14 py-2" />
-                </tr>
-              </thead>
+              <FileTableHead
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={toggleSort}
+                showSharedBy={showSharedBy}
+                showLocation={showLocation}
+                dateColumn={dateColumn}
+              />
               <tbody>
                 {shown.map((file) => (
-                  <tr
+                  <FileTableRow
                     key={file.fileId}
-                    {...rowHandlers(file)}
-                    className={cn(
-                      'cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800',
-                      (selected.has(file.fileId) || selectedFileId === file.fileId) &&
-                        'bg-brand-100 hover:bg-brand-100 dark:bg-brand-700/40 dark:hover:bg-brand-700/40',
-                      dragOverId === file.fileId && 'ring-2 ring-inset ring-brand-400',
-                    )}
-                  >
-                    <td className="py-2.5 pl-2">
-                      <button
-                        type="button"
-                        aria-label={file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          toggleFavorite.mutate(
-                        { fileId: file.fileId, favorite: !file.favorite },
-                        { onError: (error) => setActionError(actionErrorText(error)) },
-                      )
-                        }}
-                        className="flex items-center text-slate-300 hover:text-amber-400 dark:text-slate-600 dark:hover:text-amber-400"
-                      >
-                        <StarIcon
-                          size={16}
-                          className={file.favorite ? 'fill-amber-400 text-amber-400' : undefined}
-                        />
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <EntryIcon
-                        name={file.name}
-                        category={file.category}
-                        directory={file.directory}
-                      />
-                    </td>
-                    <td className="px-3 py-2.5 text-slate-800 dark:text-slate-200">{file.name}</td>
-                    {showSharedBy ? (
-                      <>
-                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          <SharedByCell file={file} />
-                        </td>
-                        <td className="px-3 py-2.5">
-                          {file.role && (
-                            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-300">
-                              {ROLE_LABELS[file.role]}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          {formatDate(file.sharedAt ?? null)}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          {file.directory ? '-' : formatFileSize(file.fileSize)}
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          {file.directory ? '-' : formatFileSize(file.fileSize)}
-                        </td>
-                        <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">
-                          {formatDate(dateColumn.getValue(file) ?? null)}
-                        </td>
-                      </>
-                    )}
-                    {showLocation && (
-                      <td className="py-2.5 pr-4 pl-3">
-                        <button
-                          type="button"
-                          onClick={(event) => openLocation(file, event)}
-                          className="rounded-md px-1.5 py-0.5 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                        >
-                          {locationText(file)}
-                        </button>
-                      </td>
-                    )}
-                    <td className="py-2.5 pr-2 text-right">
-                      <button
-                        type="button"
-                        aria-label="더보기"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          openMenu(file, event.clientX, event.clientY)
-                        }}
-                        className="inline-flex size-7 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-200"
-                      >
-                        <MoreVerticalIcon size={16} />
-                      </button>
-                    </td>
-                  </tr>
+                    {...itemProps(file)}
+                    showSharedBy={showSharedBy}
+                    dateColumn={dateColumn}
+                  />
                 ))}
               </tbody>
             </table>
@@ -539,145 +286,29 @@ export function FileList({
       )}
 
       {menu && !menu.batch && (
-        <ContextMenu position={menu} onClose={() => setMenu(null)}>
-          <ContextMenuItem
-            onClick={() => {
-              onSelect(menu.file)
-              setMenu(null)
-            }}
-          >
-            <InfoIcon size={16} /> 상세보기
-          </ContextMenuItem>
-          {(menu.file.directory || menu.file.status === 'UPLOADED') && (
-            <ContextMenuItem
-              onClick={() => {
-                download([menu.file])
-                setMenu(null)
-              }}
-            >
-              <DownloadIcon size={16} /> 다운로드
-            </ContextMenuItem>
-          )}
-          {/* A file the viewer doesn't own: rename needs EDITOR, move / share / trash are off. */}
-          {(!isSharedFile(menu.file) || menu.file.role === 'EDITOR') && (
-            <ContextMenuItem
-              onClick={() => {
-                setDialog({ type: 'rename', files: [menu.file] })
-                setMenu(null)
-              }}
-            >
-              <PencilIcon size={16} /> 이름 바꾸기
-            </ContextMenuItem>
-          )}
-          {!isSharedFile(menu.file) && (
-            <ContextMenuItem
-              onClick={() => {
-                setDialog({ type: 'move', files: [menu.file] })
-                setMenu(null)
-              }}
-            >
-              <MoveIcon size={16} /> 이동
-            </ContextMenuItem>
-          )}
-          {!isSharedFile(menu.file) && (
-            <ContextMenuItem
-              onClick={() => {
-                setDialog({ type: 'share', files: [menu.file] })
-                setMenu(null)
-              }}
-            >
-              <ShareIcon size={16} /> 공유
-            </ContextMenuItem>
-          )}
-          <ContextMenuItem
-            onClick={() => {
-              toggleFavorite.mutate(
-                { fileId: menu.file.fileId, favorite: !menu.file.favorite },
-                { onError: (error) => setActionError(actionErrorText(error)) },
-              )
-              setMenu(null)
-            }}
-          >
-            <StarIcon size={16} /> {menu.file.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
-          </ContextMenuItem>
-          {!isSharedFile(menu.file) && (
-            <ContextMenuItem
-              danger
-              onClick={() => {
-                setDialog({ type: 'delete', files: [menu.file] })
-                setMenu(null)
-              }}
-            >
-              <TrashIcon size={16} /> 휴지통으로 이동
-            </ContextMenuItem>
-          )}
-        </ContextMenu>
+        <FileContextMenu
+          position={menu}
+          file={menu.file}
+          shared={isSharedFile(menu.file)}
+          onClose={() => setMenu(null)}
+          onDetail={() => onSelect(menu.file)}
+          onDownload={() => download([menu.file])}
+          onDialog={(type) => setDialog({ type, files: [menu.file] })}
+          onToggleFavorite={() => toggleFavoriteOf(menu.file)}
+        />
       )}
 
       {menu?.batch && (
-        <ContextMenu position={menu} onClose={() => setMenu(null)}>
-          {downloadableSelected.length > 0 && (
-            <ContextMenuItem
-              onClick={() => {
-                download(downloadableSelected)
-                setMenu(null)
-              }}
-            >
-              <DownloadIcon size={16} /> 다운로드 ({downloadableSelected.length}개)
-            </ContextMenuItem>
-          )}
-          {!selectedFiles.some(isSharedFile) && (
-            <ContextMenuItem
-              onClick={() => {
-                setDialog({ type: 'move', files: selectedFiles })
-                setMenu(null)
-              }}
-            >
-              <MoveIcon size={16} /> 이동 ({selectedFiles.length}개)
-            </ContextMenuItem>
-          )}
-          {selectedFiles.some((file) => !file.favorite) && (
-            <ContextMenuItem
-              onClick={async () => {
-                setMenu(null)
-                setActionError(null)
-                const targets = selectedFiles.filter((file) => !file.favorite)
-                const { failed, error } = await runBatch(targets, (file) =>
-                  toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: true }),
-                )
-                if (failed.length > 0) setActionError(actionErrorText(error))
-              }}
-            >
-              <StarIcon size={16} /> 즐겨찾기 추가
-            </ContextMenuItem>
-          )}
-          {selectedFiles.some((file) => file.favorite) && (
-            <ContextMenuItem
-              onClick={async () => {
-                setMenu(null)
-                setActionError(null)
-                const targets = selectedFiles.filter((file) => file.favorite)
-                const { failed, error } = await runBatch(targets, (file) =>
-                  toggleFavorite.mutateAsync({ fileId: file.fileId, favorite: false }),
-                )
-                if (failed.length > 0) setActionError(actionErrorText(error))
-              }}
-            >
-              <StarIcon size={16} /> 즐겨찾기 해제
-            </ContextMenuItem>
-          )}
-          {!selectedFiles.some(isSharedFile) && (
-            <ContextMenuItem
-              danger
-              onClick={() => {
-                setDialog({ type: 'delete', files: selectedFiles })
-                setMenu(null)
-              }}
-            >
-              <TrashIcon size={16} /> 휴지통으로 이동 ({selectedFiles.length}개)
-            </ContextMenuItem>
-          )}
-        </ContextMenu>
+        <BatchContextMenu
+          position={menu}
+          files={selectedFiles}
+          downloadable={downloadableSelected}
+          anyShared={selectedFiles.some(isSharedFile)}
+          onClose={() => setMenu(null)}
+          onDownload={() => download(downloadableSelected)}
+          onDialog={(type) => setDialog({ type, files: selectedFiles })}
+          onSetFavorite={(favorite) => void setFavoriteOfSelected(favorite)}
+        />
       )}
 
       {dialog?.type === 'rename' && (
@@ -730,14 +361,5 @@ export function FileList({
         />
       )}
     </>
-  )
-}
-
-/** "공유한 사용자" cell for the shared-with-me list: sharer email (name only if email is unknown). */
-function SharedByCell({ file }: { file: FileEntry }) {
-  return (
-    <span className="block truncate text-slate-600 dark:text-slate-300">
-      {file.sharedByEmail ?? file.sharedByName ?? '알 수 없음'}
-    </span>
   )
 }

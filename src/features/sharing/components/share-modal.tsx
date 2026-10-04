@@ -6,19 +6,14 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { GlobeIcon, LockIcon, UserPlusIcon } from '@/components/ui/icons'
 import { useCurrentMember } from '@/features/auth'
 import { useFileShares } from '../api/list-file-shares'
-import { useUpdateFileScope } from '../api/update-file-scope'
-import { useUpdateFileShareRole } from '../api/update-file-share-role'
-import { useRevokeFileShare } from '../api/revoke-file-share'
-import { useShareFile } from '../api/share-file'
-import { granteeKey, type ShareScope } from '../types'
-import { type Role } from '@/types/file'
-import { MemberAccessList, REMOVE_ACCESS, type PendingChange } from './member-access-list'
+import { usePendingShareChanges } from '../hooks/use-pending-share-changes'
+import type { ShareScope } from '../types'
+import { MemberAccessList } from './member-access-list'
 import { ROLE_LABELS } from './role-select'
 import { AddMemberForm } from './add-member-form'
 import { CopyLinkButton } from './link-panel'
 import { RestrictParentDialog } from './restrict-parent-dialog'
 import { RevokeInheritedDialog } from './revoke-inherited-dialog'
-import { actionErrorText } from '@/stores/alert-store'
 
 const SCOPE_LABELS: Record<ShareScope, string> = {
   RESTRICTED: '권한이 부여된 사용자',
@@ -51,258 +46,32 @@ export function ShareModal({
 }) {
   const { data: access, isLoading, isError, error: loadError } = useFileShares(fileId, open)
   const { data: member } = useCurrentMember(open)
-  const updateScope = useUpdateFileScope()
-  const updateRole = useUpdateFileShareRole()
-  const revoke = useRevokeFileShare()
-  const createShare = useShareFile()
+  const pending = usePendingShareChanges({ fileId, open, access })
   const [view, setView] = useState<'list' | 'invite'>('list')
 
-  // Scope/role/revoke edits are staged here and only sent to the server on 완료.
-  const [pendingScope, setPendingScope] = useState<ShareScope | null>(null)
-  const [pendingRoleChanges, setPendingRoleChanges] = useState<Record<string, PendingChange>>({})
-  // Removing a direct share whose grantee also has a separate grant on one or more ancestor
-  // folders is a no-op unless every one of those ancestor grants goes too (see
-  // RevokeInheritedDialog — ListFileSharesService never collapses independent ancestor grants
-  // for the same person down to one). Staged here keyed by the triggering row's shareId, one
-  // cascade entry per ancestor that also grants this person access.
-  const [cascadeRevokes, setCascadeRevokes] = useState<
-    Record<string, { fileId: string; shareId: string }[]>
-  >({})
-  const [cascadeTarget, setCascadeTarget] = useState<{
-    directShareId: string
-    granteeLabel: string
-    fileRole: Role
-    ancestors: { fileId: string; shareId: string; name: string; role: Role }[]
-  } | null>(null)
-  // Ancestor folders (see RestrictParentDialog) whose own "anyone with the link" also has to be
-  // turned off for this file's RESTRICTED pick to mean anything — staged here rather than applied
-  // on confirm, same as every other edit, and only sent to the server on 완료.
-  const [pendingParentRestrict, setPendingParentRestrict] = useState<string[]>([])
-  const [commitError, setCommitError] = useState<string | null>(null)
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false)
   // Bumped to hand a close attempt to the invite form, which knows whether it holds a draft.
   const [inviteCloseRequest, setInviteCloseRequest] = useState(0)
-  const [restrictOpen, setRestrictOpen] = useState(false)
 
-  // Land back on the list view, with no staged edits, each time the modal is (re)opened for a file.
+  // Land back on the list view each time the modal is (re)opened for a file (the hook drops the
+  // staged edits on the same signal).
   useEffect(() => {
     if (open) {
       setView('list')
-      setPendingScope(null)
-      setPendingRoleChanges({})
-      setCascadeRevokes({})
-      setCascadeTarget(null)
-      setPendingParentRestrict([])
-      setCommitError(null)
       setConfirmCloseOpen(false)
-      setRestrictOpen(false)
     }
   }, [open, fileId])
 
   const isOwner = access !== undefined && member !== undefined && member.id === access.ownerId
-  // A directory above this file that is link-shared makes the file effectively "anyone with the
-  // link" even though its own scope is RESTRICTED. Restricting the file then means turning those
-  // links off (there is no per-item inheritance break) — that's what RestrictParentDialog does.
-  const inheritedLinks = access?.inheritedLinks ?? []
-  const effectiveScope: ShareScope | undefined =
-    pendingScope ??
-    (access
-      ? access.scope === 'LINK' || inheritedLinks.length > 0
-        ? 'LINK'
-        : access.scope
-      : undefined)
-  const isCommitting =
-    updateScope.isPending || updateRole.isPending || revoke.isPending || createShare.isPending
-
-  const onScopeChange = (next: ShareScope) => {
-    if (next === 'RESTRICTED' && inheritedLinks.length > 0) {
-      setRestrictOpen(true)
-      return
-    }
-    setPendingScope(next)
-  }
-
-  // Stages the restrict, same as every other edit here — actually turning the ancestors' links
-  // off happens in onComplete, not here (see pendingParentRestrict's doc comment).
-  const onRestrictConfirm = () => {
-    setRestrictOpen(false)
-    setPendingScope('RESTRICTED')
-    setPendingParentRestrict(inheritedLinks.map((link) => link.fileId))
-  }
-
-  // A member's row here can be shadowed by a separate grant on an ancestor folder (this file
-  // itself was shared directly, then a folder above it also was) — dropping just this row would
-  // change nothing, since the ancestor grant still lets them in. Removing that ancestor row would
-  // also drop every other file only reachable through it, so this is confirmed, not silent.
-  // Two (or more) *independent* ancestors can each separately grant the same person — the server
-  // never collapses those to one (see ListFileSharesService), so every one of them has to be
-  // found and cascaded, not just the nearest.
-  const onMemberChange = (shareId: string, change: PendingChange) => {
-    const target = access?.shares.find((s) => s.shareId === shareId)
-    // userId for a member, invited email for a guest (see granteeKey's doc comment) — a guest's
-    // userId is always null, so matching on that alone would never find their other ancestor
-    // grants.
-    const grantee = target ? granteeKey(target) : null
-    // Every ancestor that also grants this same person access, root-most first (matches
-    // access.shares' own order — see ListFileSharesService, never collapsed to one). If `target`
-    // itself is a pure-inherited row it's naturally included here too, in its correct position —
-    // its own shareId already IS that ancestor's real share id.
-    const ancestorGrants = (access?.shares ?? []).filter(
-      (s) => grantee !== null && granteeKey(s) === grantee && s.inheritedFrom,
-    )
-
-    if (change !== REMOVE_ACCESS) {
-      setCascadeRevokes((prev) => {
-        if (!(shareId in prev)) return prev
-        return Object.fromEntries(Object.entries(prev).filter(([id]) => id !== shareId))
-      })
-      setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
-      return
-    }
-    if (target && ancestorGrants.length > 0) {
-      setCascadeTarget({
-        directShareId: shareId,
-        granteeLabel: target.sharedWithEmail ?? target.sharedWithName ?? '이 사용자',
-        fileRole: target.role,
-        // flatMap, not map: every entry here was already filtered for inheritedFrom above, but
-        // narrowing that through the array construction is more code than just re-checking here.
-        ancestors: ancestorGrants.flatMap((s) => {
-          const from = s.inheritedFrom
-          return from ? [{ fileId: from.fileId, shareId: s.shareId, name: from.name, role: s.role }] : []
-        }),
-      })
-      return
-    }
-    setPendingRoleChanges((prev) => ({ ...prev, [shareId]: change }))
-  }
-
-  const onCascadeConfirm = () => {
-    if (!cascadeTarget) return
-    // Always staged, even when the clicked row is itself a pure-inherited one (no direct share
-    // of its own on this file): MemberAccessList reads pendingRoleChanges by the row's own
-    // shareId to show it as "삭제", regardless of what kind of row it is. onComplete separately
-    // skips sending a *second*, wrongly-scoped revoke when this shareId also appears in
-    // cascadeRevokes below (see its dedup check) — that's unrelated to this UI feedback.
-    setPendingRoleChanges((prev) => ({ ...prev, [cascadeTarget.directShareId]: REMOVE_ACCESS }))
-    setCascadeRevokes((prev) => ({
-      ...prev,
-      [cascadeTarget.directShareId]: cascadeTarget.ancestors.map((a) => ({
-        fileId: a.fileId,
-        shareId: a.shareId,
-      })),
-    }))
-    setCascadeTarget(null)
-  }
-
   // One address regardless of access scope or who follows it (issue #303): /files/:fileId routes
   // an anonymous visitor to the read-only view when this file (or an ancestor) is LINK-scoped,
   // and a signed-in one straight into the real app when they have actual access — see file.tsx.
   // No token in the URL, so it never changes when link sharing is toggled off/on.
   const shareLink = access ? `${window.location.origin}/files/${encodeURIComponent(fileId)}` : null
 
-  const ScopeIcon = effectiveScope === 'LINK' ? GlobeIcon : LockIcon
-  // A link is a bearer credential anyone who obtains it can use, so it only ever grants
-  // read-only access — VIEWER isn't a default here, it's the only value the server accepts.
-  const hasPendingChanges =
-    pendingScope !== null ||
-    Object.keys(pendingRoleChanges).length > 0 ||
-    Object.keys(cascadeRevokes).length > 0 ||
-    pendingParentRestrict.length > 0
-
+  const ScopeIcon = pending.effectiveScope === 'LINK' ? GlobeIcon : LockIcon
   const onComplete = async () => {
-    const roleEntries = Object.entries(pendingRoleChanges)
-    if (!hasPendingChanges) {
-      onClose()
-      return
-    }
-    setCommitError(null)
-    // Keys run parallel to tasks so a partial failure can narrow the staged edits back to
-    // just what failed — revoke isn't idempotent server-side (a retried revoke of an
-    // already-revoked share 404s), so resending a succeeded edit on retry would deadlock 완료.
-    const keys: ('scope' | string)[] = []
-    const tasks: Promise<unknown>[] = []
-    if (access && pendingScope !== null && pendingScope !== access.scope) {
-      keys.push('scope')
-      tasks.push(
-        updateScope.mutateAsync({
-          fileId,
-          scope: pendingScope,
-          role: pendingScope === 'LINK' ? 'VIEWER' : undefined,
-        }),
-      )
-    }
-    for (const [shareId, change] of roleEntries) {
-      // A pure-inherited row's own shareId IS one ancestor's real share id (see
-      // MemberAccessList's delete-only affordance for such a row) — cascadeRevokes below already
-      // targets it with the correct fileId, so sending this one too would hit it under *this*
-      // file's id instead and 404.
-      if (change === REMOVE_ACCESS && cascadeRevokes[shareId]?.some((c) => c.shareId === shareId))
-        continue
-      keys.push(shareId)
-      const row = access?.shares.find((s) => s.shareId === shareId)
-      tasks.push(
-        change === REMOVE_ACCESS
-          ? revoke.mutateAsync({ fileId, shareId })
-          : row?.inheritedFrom
-            ? // Picking a role on a pure-inherited row has no share of its own on this file to
-              // PATCH (that shareId belongs to the ancestor) — it creates one instead, the same
-              // override 사용자 추가 would (see 폴더 공유 상속 spec 3.3).
-              createShare.mutateAsync({ fileId, email: row.sharedWithEmail ?? '', role: change })
-            : updateRole.mutateAsync({ fileId, shareId, role: change }),
-      )
-    }
-    // Every ancestor cascade is tracked and retried independently of its triggering direct row
-    // (and of each other) — resending a revoke that already succeeded 404s (see the note above),
-    // so a retry must not resend one just because a sibling cascade or the direct row failed.
-    for (const [directShareId, cascades] of Object.entries(cascadeRevokes)) {
-      for (const cascade of cascades) {
-        keys.push(`cascade:${directShareId}:${cascade.shareId}`)
-        tasks.push(revoke.mutateAsync({ fileId: cascade.fileId, shareId: cascade.shareId }))
-      }
-    }
-    // Ancestor folders whose own link-sharing has to turn off too for this file's RESTRICTED
-    // pick to mean anything (see RestrictParentDialog / pendingParentRestrict's doc comment).
-    for (const targetId of pendingParentRestrict) {
-      keys.push(`parent-restrict:${targetId}`)
-      tasks.push(updateScope.mutateAsync({ fileId: targetId, scope: 'RESTRICTED', role: undefined }))
-    }
-    const results = await Promise.allSettled(tasks)
-    const failedKeys = new Set(keys.filter((_, i) => results[i].status === 'rejected'))
-    if (failedKeys.size > 0) {
-      setPendingScope(failedKeys.has('scope') ? pendingScope : null)
-      setPendingRoleChanges((prev) =>
-        Object.fromEntries(
-          Object.entries(prev).filter(([shareId]) => {
-            if (keys.includes(shareId)) return failedKeys.has(shareId)
-            // Never entered `keys` above — a same-shareId cascade (pure-inherited row) handled
-            // it instead. Its only retry signal is that specific cascade failing; a sibling
-            // ancestor's cascade failing must not resend this one, or it 404s on retry.
-            const selfCascade = cascadeRevokes[shareId]?.find((c) => c.shareId === shareId)
-            return selfCascade ? failedKeys.has(`cascade:${shareId}:${selfCascade.shareId}`) : false
-          }),
-        ),
-      )
-      setCascadeRevokes((prev) => {
-        const next: typeof prev = {}
-        for (const [directShareId, cascades] of Object.entries(prev)) {
-          const remaining = cascades.filter((c) =>
-            failedKeys.has(`cascade:${directShareId}:${c.shareId}`),
-          )
-          if (remaining.length > 0) next[directShareId] = remaining
-        }
-        return next
-      })
-      setPendingParentRestrict((prev) =>
-        prev.filter((targetId) => failedKeys.has(`parent-restrict:${targetId}`)),
-      )
-      setCommitError(actionErrorText(results.find((r) => r.status === 'rejected')?.reason))
-      return
-    }
-    setPendingScope(null)
-    setPendingRoleChanges({})
-    setCascadeRevokes({})
-    setPendingParentRestrict([])
-    onClose()
+    if (await pending.commit()) onClose()
   }
 
   // Backdrop click / ESC / any other non-완료 close attempt goes through here —
@@ -317,7 +86,7 @@ export function ShareModal({
   }
 
   const closeList = () => {
-    if (!hasPendingChanges) {
+    if (!pending.hasPendingChanges) {
       onClose()
       return
     }
@@ -363,9 +132,9 @@ export function ShareModal({
                 </span>
                 {isOwner ? (
                   <select
-                    value={effectiveScope}
-                    disabled={isCommitting}
-                    onChange={(e) => onScopeChange(e.target.value as ShareScope)}
+                    value={pending.effectiveScope}
+                    disabled={pending.isCommitting}
+                    onChange={(e) => pending.onScopeChange(e.target.value as ShareScope)}
                     className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {(Object.keys(SCOPE_LABELS) as ShareScope[]).map((scope) => (
@@ -383,7 +152,7 @@ export function ShareModal({
                     updates now), but a link created before that restriction can still hold a
                     stored EDITOR role — read it from access.role rather than assuming VIEWER,
                     so a stale editable link isn't mislabeled. */}
-                {isOwner && effectiveScope === 'LINK' && (
+                {isOwner && pending.effectiveScope === 'LINK' && (
                   <span
                     data-testid="link-role-badge"
                     className="flex shrink-0 items-center self-stretch rounded-lg border border-slate-300 px-3 text-sm text-slate-600 dark:border-slate-600 dark:text-slate-300"
@@ -418,15 +187,15 @@ export function ShareModal({
                 shares={access.shares}
                 isOwner={isOwner}
                 directory={access.directory}
-                pendingChanges={pendingRoleChanges}
-                onChange={onMemberChange}
-                disabled={isCommitting}
+                pendingChanges={pending.pendingRoleChanges}
+                onChange={pending.onMemberChange}
+                disabled={pending.isCommitting}
               />
             </div>
 
             <div className="border-t border-slate-200 pt-6 dark:border-slate-700">
-              {commitError && (
-                <p className="mb-3 text-sm text-red-600 dark:text-red-400">{commitError}</p>
+              {pending.commitError && (
+                <p className="mb-3 text-sm text-red-600 dark:text-red-400">{pending.commitError}</p>
               )}
               <div className="flex items-center justify-between gap-3">
                 <CopyLinkButton link={shareLink} />
@@ -434,9 +203,9 @@ export function ShareModal({
                   type="button"
                   variant="primary"
                   onClick={onComplete}
-                  disabled={isCommitting}
+                  disabled={pending.isCommitting}
                 >
-                  {isCommitting ? '저장 중...' : '완료'}
+                  {pending.isCommitting ? '저장 중...' : '완료'}
                 </Button>
               </div>
             </div>
@@ -455,20 +224,20 @@ export function ShareModal({
         onCancel={() => setConfirmCloseOpen(false)}
       />
       <RestrictParentDialog
-        open={restrictOpen}
-        folders={inheritedLinks}
+        open={pending.restrictOpen}
+        folders={pending.inheritedLinks}
         fileName={fileName}
-        onConfirm={onRestrictConfirm}
-        onCancel={() => setRestrictOpen(false)}
+        onConfirm={pending.onRestrictConfirm}
+        onCancel={pending.cancelRestrict}
       />
       <RevokeInheritedDialog
-        open={cascadeTarget !== null}
-        granteeLabel={cascadeTarget?.granteeLabel ?? ''}
-        ancestors={cascadeTarget?.ancestors ?? []}
+        open={pending.cascadeTarget !== null}
+        granteeLabel={pending.cascadeTarget?.granteeLabel ?? ''}
+        ancestors={pending.cascadeTarget?.ancestors ?? []}
         fileName={fileName}
-        fileRole={cascadeTarget?.fileRole ?? 'VIEWER'}
-        onConfirm={onCascadeConfirm}
-        onCancel={() => setCascadeTarget(null)}
+        fileRole={pending.cascadeTarget?.fileRole ?? 'VIEWER'}
+        onConfirm={pending.onCascadeConfirm}
+        onCancel={pending.cancelCascade}
       />
     </>
   )

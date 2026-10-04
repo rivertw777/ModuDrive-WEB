@@ -14,7 +14,8 @@ import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
 import { useRestoreFile } from '../api/restore-file'
 import { formatDate, formatFileSize, locationLabel, sortFiles } from '@/utils/file'
-import { type FileEntry, type SortDir, type SortField } from '@/types/file'
+import { type FileEntry, type SortField } from '@/types/file'
+import { useSortState } from '@/hooks/use-sort-state'
 import { MarqueeOverlay, useRowSelection } from '@/hooks/use-row-selection'
 import { useWindowedList } from '@/hooks/use-windowed-list'
 import { useFileDeeplink } from '@/hooks/use-file-deeplink'
@@ -38,20 +39,10 @@ export function TrashExplorer() {
   const [purgeTargets, setPurgeTargets] = useState<FileEntry[] | null>(null)
   const [emptyTrashOpen, setEmptyTrashOpen] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [sortField, setSortField] = useState<SortField>('date')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const { sortField, sortDir, toggleSort } = useSortState<SortField>('date', 'desc')
   const restoreFile = useRestoreFile()
   const containerRef = useRef<HTMLDivElement>(null)
   const viewMode = useFileViewStore((state) => state.mode)
-
-  const toggleSort = (field: SortField) => {
-    if (field === sortField) {
-      setSortDir((dir) => (dir === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
 
   const selectedFile = files?.find((file) => file.fileId === selectedFileId) ?? null
   const sorted = files ? sortFiles(files, sortField, sortDir, (file) => file.trashedAt) : []
