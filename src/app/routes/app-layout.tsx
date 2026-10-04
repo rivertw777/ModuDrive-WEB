@@ -19,7 +19,8 @@ import {
   UsersIcon,
   VideoIcon,
 } from '@/components/ui/icons'
-import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
+import { SearchBar, StorageUsage } from '@/features/drive'
+import { FILE_CATEGORIES } from '@/types/file'
 import { NotificationBell } from '@/features/notifications'
 import { cn } from '@/utils/cn'
 import { ResizeHandle } from '@/components/ui/resize-handle'

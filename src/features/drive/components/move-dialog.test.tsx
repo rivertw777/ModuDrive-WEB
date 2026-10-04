@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { MoveDialog } from './move-dialog'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))
 vi.mock('../api/create-directory', () => ({ useCreateDirectory: vi.fn() }))

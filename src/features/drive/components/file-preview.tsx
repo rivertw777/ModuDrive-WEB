@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { env } from '@/config/env'
-import { canPreviewFile, previewKind, type PreviewKind } from '../types'
+import { canPreviewFile, previewKind } from '@/utils/file'
+import { type PreviewKind } from '@/types/file'
 import { viewFile } from '../api/view-file'
 import { viewPublicFile } from '../api/view-public-file'
 

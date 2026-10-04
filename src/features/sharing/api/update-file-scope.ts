@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileAccessList, Role, ShareScope } from '../types'
+import type { FileAccessList, ShareScope } from '../types'
+import type { Role } from '@/types/file'
 
 export type UpdateFileScopeInput = {
   fileId: string

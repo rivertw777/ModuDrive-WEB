@@ -1,5 +1,6 @@
 import { Navigate, useParams } from 'react-router-dom'
-import { CategoryExplorer, FILE_CATEGORIES } from '@/features/drive'
+import { CategoryExplorer } from '@/features/drive'
+import { FILE_CATEGORIES } from '@/types/file'
 
 export default function CategoryRoute() {
   const { slug } = useParams()

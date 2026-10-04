@@ -1,6 +1,7 @@
 import { DocumentIcon, FileIcon, FolderIcon, ImageIcon, MusicIcon, VideoIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { categorizeFile, type FileCategory } from '../types'
+import { categorizeFile } from '@/utils/file'
+import { type FileCategory } from '@/types/file'
 
 // Single source of truth for "which icon/color does this file type get".
 const CATEGORY_STYLE = {

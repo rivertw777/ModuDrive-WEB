@@ -6,11 +6,12 @@ import { PageHeader } from '@/components/ui/page-header'
 import { getFile } from '../api/get-file'
 import { listSharedWithMe, useSharedWithMe } from '../api/list-shared-with-me'
 import { listSharedDirectory, useSharedDirectory } from '../api/list-shared-directory'
-import { useFileDeeplink } from '../hooks/use-file-deeplink'
-import { joinPath, type FileEntry } from '../types'
+import { useFileDeeplink } from '@/hooks/use-file-deeplink'
+import { joinPath } from '@/utils/file'
+import { type FileEntry } from '@/types/file'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
-import { ViewToggle } from './view-toggle'
+import { ViewToggle } from '@/components/file/view-toggle'
 
 type Crumb = { fileId: string; name: string }
 

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { cn } from '@/utils/cn'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { granteeKey, type FileShare, type Role } from '../types'
+import { granteeKey, type FileShare } from '../types'
+import { type Role } from '@/types/file'
 import { ROLE_LABELS } from './role-select'
 
 export const REMOVE_ACCESS = 'REMOVE_ACCESS'

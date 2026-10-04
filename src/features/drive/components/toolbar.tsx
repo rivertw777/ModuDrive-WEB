@@ -2,9 +2,9 @@ import { Button } from '@/components/ui/button'
 import { FolderPlusIcon } from '@/components/ui/icons'
 import { PageHeader } from '@/components/ui/page-header'
 import { Breadcrumb } from './breadcrumb'
-import { UploadButton } from './upload-button'
-import { ViewToggle } from './view-toggle'
-import type { UploadEntry } from '../utils/collect-upload-entries'
+import { UploadButton } from '@/features/upload'
+import { ViewToggle } from '@/components/file/view-toggle'
+import type { UploadEntry } from '@/features/upload'
 
 export function Toolbar({
   path,

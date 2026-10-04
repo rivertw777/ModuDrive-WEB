@@ -13,25 +13,18 @@ import { PageHeader } from '@/components/ui/page-header'
 import { cn } from '@/utils/cn'
 import { useTrash } from '../api/list-trash'
 import { useRestoreFile } from '../api/restore-file'
-import {
-  formatDate,
-  formatFileSize,
-  locationLabel,
-  sortFiles,
-  type FileEntry,
-  type SortDir,
-  type SortField,
-} from '../types'
-import { MarqueeOverlay, useRowSelection } from '../hooks/use-row-selection'
+import { formatDate, formatFileSize, locationLabel, sortFiles } from '@/utils/file'
+import { type FileEntry, type SortDir, type SortField } from '@/types/file'
+import { MarqueeOverlay, useRowSelection } from '@/hooks/use-row-selection'
 import { useWindowedList } from '@/hooks/use-windowed-list'
-import { useFileDeeplink } from '../hooks/use-file-deeplink'
-import { runBatch } from '../utils/run-batch'
-import { useFileViewStore } from '../stores/file-view-store'
-import { EntryIcon } from './entry-icon'
+import { useFileDeeplink } from '@/hooks/use-file-deeplink'
+import { runBatch } from '@/utils/run-batch'
+import { useFileViewStore } from '@/stores/file-view-store'
+import { EntryIcon } from '@/components/file/entry-icon'
 import { TrashDetailPanel } from './trash-detail-panel'
 import { PurgeConfirmDialog } from './purge-confirm-dialog'
 import { EmptyTrashConfirmDialog } from './empty-trash-confirm-dialog'
-import { ViewToggle } from './view-toggle'
+import { ViewToggle } from '@/components/file/view-toggle'
 import { actionErrorText } from '@/stores/alert-store'
 
 type MenuState = ContextMenuPosition & { file: FileEntry; batch: boolean }

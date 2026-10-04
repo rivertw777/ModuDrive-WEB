@@ -33,30 +33,39 @@ src/
     provider.tsx     # global providers (QueryClientProvider, ReactQueryDevtools in dev)
     router.tsx       # createBrowserRouter
   components/
+    file/            # file-domain pieces several features render (entry-icon, view-toggle)
     layouts/         # page chrome shared by routes (marketing-header for landing/login/signup)
     ui/              # shared UI primitives (button, dialog, icons, state, theme-toggle, resize-handle)
   config/
     env.ts           # validates import.meta.env via zod
   features/
     auth/            # login/signup forms, current-member query
-    drive/            # file explorer, upload, search, sharing — the app's core feature
+    drive/            # file explorers (drive, recent, favorites, shared, category, search, storage), detail panel, viewer, public link view
+    sharing/          # share modal: members, roles, link scope, inherited access
+    trash/            # trash explorer, restore, purge, empty trash
+    upload/           # upload button/dropzone, batch upload + conflict dialog, status panel
     notifications/    # in-app notification bell (header) + /notifications page, polls unread count
-  hooks/             # cross-feature hooks (use-windowed-list, use-resizable-width, use-force-light-mode)
+  hooks/             # cross-feature hooks (use-windowed-list, use-row-selection, use-file-deeplink, use-resizable-width, use-force-light-mode)
   lib/
     api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
-  stores/             # zustand, app-wide only: auth-store (session status), alert-store, theme-store (light/dark)
+  stores/             # zustand, cross-feature only: auth-store (session status), alert-store, theme-store (light/dark), file-view-store (list/grid)
   testing/
     setup-tests.ts
   types/
     api.ts            # backend ApiResponse<T> shape
+    file.ts           # FileEntry, FileCategory/FILE_CATEGORIES, Role, sort types
   utils/
     cn.ts              # clsx + tailwind-merge
+    file.ts            # file helpers (formatFileSize, sortFiles, previewKind, categorizeFile, ...)
+    run-batch.ts
 ```
 
 **Feature boundary rule**: `features/*` modules may not import each other's internals. This is enforced in `eslint.config.js` via `no-restricted-imports` (pattern `@/features/*/*` is an error) — a feature must only be reached through its public barrel `@/features/<name>`, never a file inside it. No separate plugin is used for this; when adding a new feature, keep its public exports in the feature root (`index.ts`) so other features/routes can import it without violating the rule.
 
 A store, hook or util that only one feature uses lives inside that feature (`features/<name>/stores|hooks|utils`); the top-level `stores/`, `hooks/` and `utils/` are for code shared across features or used by `app/`.
+
+Feature dependencies run one way: `drive` → `sharing`, `trash`, `upload` (and `auth`); those three never import `drive`. What they all need — `FileEntry` and file types (`types/file.ts`), file helpers (`utils/file.ts`), `EntryIcon`/`ViewToggle` (`components/file/`), row selection, deep links, `runBatch` — lives in the shared layer, so a split feature never has to reach back into `drive`.
 
 Path alias `@/` → `src/` is configured in both `tsconfig.app.json` and `vite.config.ts` — keep them in sync if it ever changes.
 

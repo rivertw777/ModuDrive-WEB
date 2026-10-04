@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileCategory, FileEntry } from '../types'
+import type { FileCategory, FileEntry } from '@/types/file'
 
 export const listFilesByCategory = (type: FileCategory) =>
   apiClient.get<FileEntry[]>('/api/v1/files/category', { params: { type } })

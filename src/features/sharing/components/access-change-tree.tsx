@@ -1,6 +1,6 @@
 import { FolderIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { EntryIcon } from './entry-icon'
+import { EntryIcon } from '@/components/file/entry-icon'
 
 type Row = { name: string; before: string }
 

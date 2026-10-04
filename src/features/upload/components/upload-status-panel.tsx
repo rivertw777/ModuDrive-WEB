@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AlertCircleIcon, CheckIcon, ChevronRightIcon, LoaderIcon, XIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import type { UploadItem } from '../hooks/use-file-upload'
-import { EntryIcon } from './entry-icon'
+import { EntryIcon } from '@/components/file/entry-icon'
 
 /** Bytes sent over bytes picked — a folder row sums every file under it. */
 function percentOf(item: UploadItem) {

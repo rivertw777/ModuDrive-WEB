@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import { EntryIcon } from '@/features/drive'
+import { EntryIcon } from '@/components/file/entry-icon'
 import { formatRelativeTime, roleLabel, sharerLabel, type Notification } from '../types'
 
 /** One row, shared by the bell dropdown and the full page. `onSelect` marks it read and

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FileList, type ServerPagination } from './file-list'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 vi.mock('../api/toggle-favorite', () => ({ useToggleFavorite: vi.fn() }))
 vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))

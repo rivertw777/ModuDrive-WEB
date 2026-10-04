@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { runBatch } from '../utils/run-batch'
+import { runBatch } from '@/utils/run-batch'
 import { useDeleteFile } from '../api/delete-file'
-import { listFileShares } from '../api/list-file-shares'
+import { listFileShares } from '@/features/sharing'
 import { actionErrorText } from '@/stores/alert-store'
 
 type Target = { fileId: string; name: string; directory?: boolean }

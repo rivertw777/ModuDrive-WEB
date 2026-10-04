@@ -8,9 +8,10 @@ import { PageHeader } from '@/components/ui/page-header'
 import { CloudIcon, DocumentIcon, FilesIcon, ImageIcon, MusicIcon, TrashIcon, VideoIcon } from '@/components/ui/icons'
 import { useStorageUsage } from '../api/get-storage-usage'
 import { useAllFiles } from '../api/list-all-files'
-import { useTrash } from '../api/list-trash'
-import { FILE_CATEGORIES, formatFileSize, locationLabel, type FileCategory, type FileEntry } from '../types'
-import { EntryIcon } from './entry-icon'
+import { useTrash } from '@/features/trash'
+import { FILE_CATEGORIES, type FileCategory, type FileEntry } from '@/types/file'
+import { formatFileSize, locationLabel } from '@/utils/file'
+import { EntryIcon } from '@/components/file/entry-icon'
 
 // Tailwind palette hues — cohesive, CVD-safe adjacency, one light/dark pair each.
 const CATEGORY_COLORS: Record<FileCategory, { light: string; dark: string }> = {
