@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 export const getFile = (fileId: string) =>
   apiClient.get<FileEntry>(`/api/v1/files/${encodeURIComponent(fileId)}`)

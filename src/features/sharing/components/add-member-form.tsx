@@ -4,7 +4,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { XIcon } from '@/components/ui/icons'
 import { memberExistsByEmail } from '../api/check-member-email'
 import { useShareFile } from '../api/share-file'
-import type { Role } from '../types'
+import type { Role } from '@/types/file'
 import { RoleSelect } from './role-select'
 import { actionErrorText } from '@/stores/alert-store'
 

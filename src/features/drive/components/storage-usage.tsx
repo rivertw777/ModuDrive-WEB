@@ -1,5 +1,5 @@
 import { useStorageUsage } from '../api/get-storage-usage'
-import { formatFileSize } from '../types'
+import { formatFileSize } from '@/utils/file'
 
 export function StorageUsage() {
   const { data } = useStorageUsage()

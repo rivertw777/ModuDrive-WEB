@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRightIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { runBatch } from '../utils/run-batch'
+import { runBatch } from '@/utils/run-batch'
 import { useMoveFile } from '../api/move-file'
-import { DRAG_MIME } from '../types'
+import { DRAG_MIME } from '@/types/file'
 import { actionErrorText } from '@/stores/alert-store'
 
 export function Breadcrumb({ path }: { path: string }) {

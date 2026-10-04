@@ -2,12 +2,12 @@ import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
-import type { FileAccessList } from '../types'
+import type { FileAccessList } from '@/features/sharing'
 
-vi.mock('../api/list-file-shares', () => ({ listFileShares: vi.fn() }))
+vi.mock('@/features/sharing', () => ({ listFileShares: vi.fn() }))
 vi.mock('../api/delete-file', () => ({ useDeleteFile: vi.fn() }))
 
-const { listFileShares } = await import('../api/list-file-shares')
+const { listFileShares } = await import('@/features/sharing')
 const { useDeleteFile } = await import('../api/delete-file')
 
 const emptyAccess: FileAccessList = {

@@ -1,5 +1,5 @@
 import { cn } from '@/utils/cn'
-import type { Role } from '../types'
+import type { Role } from '@/types/file'
 
 export const ROLE_LABELS: Record<Role, string> = {
   VIEWER: '뷰어',

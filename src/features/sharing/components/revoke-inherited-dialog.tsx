@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { Role } from '../types'
+import type { Role } from '@/types/file'
 import { AccessChangeTree } from './access-change-tree'
 import { ROLE_LABELS } from './role-select'
 

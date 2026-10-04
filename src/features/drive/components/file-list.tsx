@@ -19,30 +19,21 @@ import {
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { useFileViewStore } from '../stores/file-view-store'
-import { ROLE_LABELS } from './role-select'
-import {
-  DRAG_MIME,
-  formatDate,
-  formatFileSize,
-  joinPath,
-  locationLabel,
-  sortFiles,
-  type FileEntry,
-  type SortDir,
-  type SortField,
-} from '../types'
+import { useFileViewStore } from '@/stores/file-view-store'
+import { ROLE_LABELS } from '@/features/sharing'
+import { DRAG_MIME, type FileEntry, type SortDir, type SortField } from '@/types/file'
+import { formatDate, formatFileSize, joinPath, locationLabel, sortFiles } from '@/utils/file'
 import { downloadFile } from '../api/download-file'
 import { downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
-import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
+import { MarqueeOverlay, setDragPreview, useRowSelection } from '@/hooks/use-row-selection'
 import { useInfiniteScrollRef, useWindowedList } from '@/hooks/use-windowed-list'
-import { runBatch } from '../utils/run-batch'
-import { EntryIcon } from './entry-icon'
+import { runBatch } from '@/utils/run-batch'
+import { EntryIcon } from '@/components/file/entry-icon'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'
-import { ShareModal } from './share-modal'
+import { ShareModal } from '@/features/sharing'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { FileViewerModal } from './file-viewer-modal'
 import { actionErrorText } from '@/stores/alert-store'

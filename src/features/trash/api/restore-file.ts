@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 export const restoreFile = (fileId: string) =>
   apiClient.patch<FileEntry>(`/api/v1/files/${encodeURIComponent(fileId)}/restore`)

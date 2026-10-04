@@ -4,10 +4,10 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { StarIcon } from '@/components/ui/icons'
 import { PageHeader } from '@/components/ui/page-header'
 import { useFavorites } from '../api/list-favorites'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
-import { ViewToggle } from './view-toggle'
+import { ViewToggle } from '@/components/file/view-toggle'
 
 export function FavoritesExplorer() {
   const navigate = useNavigate()

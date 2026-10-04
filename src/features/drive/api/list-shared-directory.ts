@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 /** Children of a directory the caller reached through a share (their own on it, or inherited
  * from a directory above it) — the entry point for browsing into a folder in "shared with me". */

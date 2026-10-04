@@ -4,10 +4,10 @@ import { ErrorState, LoadingState } from '@/components/ui/state'
 import { ClockIcon } from '@/components/ui/icons'
 import { PageHeader } from '@/components/ui/page-header'
 import { useRecentFiles } from '../api/list-recent-files'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 import { FileList } from './file-list'
 import { FileDetailPanel } from './file-detail-panel'
-import { ViewToggle } from './view-toggle'
+import { ViewToggle } from '@/components/file/view-toggle'
 
 export function RecentExplorer() {
   const navigate = useNavigate()

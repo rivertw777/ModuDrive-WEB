@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { previewKind } from './types'
+import { previewKind } from '@/utils/file'
 
 describe('previewKind', () => {
   it.each([

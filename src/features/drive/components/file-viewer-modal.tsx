@@ -8,11 +8,11 @@ import {
   ShareIcon,
   XIcon,
 } from '@/components/ui/icons'
-import { canPreviewFile } from '../types'
+import { canPreviewFile } from '@/utils/file'
 import { downloadFile } from '../api/download-file'
-import { EntryIcon } from './entry-icon'
+import { EntryIcon } from '@/components/file/entry-icon'
 import { FilePreview, type Source } from './file-preview'
-import { ShareModal } from './share-modal'
+import { ShareModal } from '@/features/sharing'
 
 /** Shared with PublicFileView so both full-screen viewer chromes stay visually in sync. */
 export const VIEWER_BACKDROP = 'bg-slate-900/90'

@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SharedWithMeExplorer } from './shared-with-me-explorer'
-import type { FileEntry } from '../types'
+import type { FileEntry } from '@/types/file'
 
 vi.mock('../api/list-shared-with-me', () => ({
   useSharedWithMe: vi.fn(),

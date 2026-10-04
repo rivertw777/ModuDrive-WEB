@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { FileEntry, SortDir, SortField } from '../types'
+import type { FileEntry, SortDir, SortField } from '@/types/file'
 
 /** One keyset page from `GET /api/v1/directories`. `nextCursor` is opaque — pass it straight
  * back as the `cursor` param for the following page. */
