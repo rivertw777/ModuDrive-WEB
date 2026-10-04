@@ -29,20 +29,23 @@ Structure follows the **bulletproof-react** convention:
 ```
 src/
   app/
-    routes/          # landing, login, signup, app-layout (drive shell), drive, search, shared, notifications, not-found
+    routes/          # landing, login, signup, app-layout (drive shell), drive, recent, favorites, shared, category, storage, trash, search, file, notifications, not-found
     provider.tsx     # global providers (QueryClientProvider, ReactQueryDevtools in dev)
     router.tsx       # createBrowserRouter
-  components/ui/     # shared UI primitives (button, dialog, icons, state, theme-toggle)
+  components/
+    layouts/         # page chrome shared by routes (marketing-header for landing/login/signup)
+    ui/              # shared UI primitives (button, dialog, icons, state, theme-toggle, resize-handle)
   config/
     env.ts           # validates import.meta.env via zod
   features/
     auth/            # login/signup forms, current-member query
     drive/            # file explorer, upload, search, sharing — the app's core feature
     notifications/    # in-app notification bell (header) + /notifications page, polls unread count
+  hooks/             # cross-feature hooks (use-windowed-list, use-resizable-width, use-force-light-mode)
   lib/
     api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
-  stores/             # zustand: auth-store (session status), theme-store (light/dark)
+  stores/             # zustand, app-wide only: auth-store (session status), alert-store, theme-store (light/dark)
   testing/
     setup-tests.ts
   types/
@@ -52,6 +55,8 @@ src/
 ```
 
 **Feature boundary rule**: `features/*` modules may not import each other's internals. This is enforced in `eslint.config.js` via `no-restricted-imports` (pattern `@/features/*/*` is an error) — a feature must only be reached through its public barrel `@/features/<name>`, never a file inside it. No separate plugin is used for this; when adding a new feature, keep its public exports in the feature root (`index.ts`) so other features/routes can import it without violating the rule.
+
+A store, hook or util that only one feature uses lives inside that feature (`features/<name>/stores|hooks|utils`); the top-level `stores/`, `hooks/` and `utils/` are for code shared across features or used by `app/`.
 
 Path alias `@/` → `src/` is configured in both `tsconfig.app.json` and `vite.config.ts` — keep them in sync if it ever changes.
 
@@ -72,7 +77,7 @@ This is the frontend for a separate `ModuDrive-API` backend (microservices: gate
   - Polling requests must send `BACKGROUND_REQUEST_HEADERS` (`X-Background-Request: true`) so they don't keep an idle session alive (see `list-notifications.ts`).
   - Failed requests (`alert-store`): a load shows its screen's own `ErrorState`. A user action (click, drop, submit) splits by status — a 5xx or no response goes to the common `AlertDialog` (`SERVER_ERROR_MESSAGE`, via `notifyServerError`), a 4xx's own message is shown in red text next to the action (`actionErrorText` returns it, or null after alerting a 5xx). Where there is no room for red text (a star, a menu item, logout) `alertActionError` puts the 4xx message in the alert too. 401 never reaches these — api-client shows the session-expired notice.
   - All rejected promises are normalized to `Error(message)` using the backend's `message` field when present.
-- `notification-service` is live: `GET /api/v1/notifications` (Spring `Page`, `unreadOnly`/`page`/`size` params), `PATCH /api/v1/notifications/{id}/read`. No count endpoint (ask for `unreadOnly=true&size=1` and read `totalElements`) and no SSE/websocket — the bell polls. Rows are produced only on a file share to a registered member; `sharerName`/`sharerEmail` may be null (backend best-effort).
+- `notification-service` is live: `GET /api/v1/notifications` (`unreadOnly`/`page`/`size` params, `size` 1..100; returns `content`/`number`/`last`/`totalElements`), `PATCH /api/v1/notifications/{id}/read`. No count endpoint (ask for `unreadOnly=true&size=1` and read `totalElements`) and no SSE/websocket — the bell polls. Rows are produced only on a file share to a registered member; `sharerName`/`sharerEmail` may be null (backend best-effort).
 - There is no "list deleted files" endpoint (soft delete only sets a DELETED status, no filtered-list API) — a trash/bin screen isn't buildable until the backend adds one.
 
 ## Content Security Policy

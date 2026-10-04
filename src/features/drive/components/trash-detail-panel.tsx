@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
+import { ResizeHandle } from '@/components/ui/resize-handle'
+import { useResizableWidth } from '@/hooks/use-resizable-width'
 import { FileIcon, FolderIcon, RestoreIcon, TrashIcon, XIcon } from '@/components/ui/icons'
 import { formatDate, formatFileSize, locationLabel, type FileEntry } from '../types'
 import { useRestoreFile } from '../api/restore-file'

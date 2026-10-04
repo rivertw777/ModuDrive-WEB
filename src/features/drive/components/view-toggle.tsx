@@ -1,5 +1,5 @@
 import { GridIcon, ListIcon } from '@/components/ui/icons'
-import { useFileViewStore, type FileViewMode } from '@/stores/file-view-store'
+import { useFileViewStore, type FileViewMode } from '../stores/file-view-store'
 import { cn } from '@/utils/cn'
 
 const OPTIONS: { mode: FileViewMode; label: string; icon: typeof ListIcon }[] = [

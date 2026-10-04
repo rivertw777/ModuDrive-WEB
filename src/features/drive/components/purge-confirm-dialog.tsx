@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Dialog } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { runBatch } from '@/utils/run-batch'
+import { runBatch } from '../utils/run-batch'
 import { usePurgeFile } from '../api/purge-file'
 import { actionErrorText } from '@/stores/alert-store'
 

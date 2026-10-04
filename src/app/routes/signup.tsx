@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { SignupForm } from '@/features/auth'
 import { useForceLightMode } from '@/hooks/use-force-light-mode'
-import { MarketingHeader } from '@/components/ui/marketing-header'
+import { MarketingHeader } from '@/components/layouts/marketing-header'
 
 export default function SignupRoute() {
   useForceLightMode()
