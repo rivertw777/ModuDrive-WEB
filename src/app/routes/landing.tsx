@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { MarketingHeader } from '@/components/ui/marketing-header'
+import { MarketingHeader } from '@/components/layouts/marketing-header'
 
 export default function LandingRoute() {
   return (

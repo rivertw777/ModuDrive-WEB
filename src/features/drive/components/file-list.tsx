@@ -19,7 +19,7 @@ import {
   TrashIcon,
 } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
-import { useFileViewStore } from '@/stores/file-view-store'
+import { useFileViewStore } from '../stores/file-view-store'
 import { ROLE_LABELS } from './role-select'
 import {
   DRAG_MIME,
@@ -38,7 +38,7 @@ import { useToggleFavorite } from '../api/toggle-favorite'
 import { useMoveFile } from '../api/move-file'
 import { MarqueeOverlay, setDragPreview, useRowSelection } from '../hooks/use-row-selection'
 import { useInfiniteScrollRef, useWindowedList } from '@/hooks/use-windowed-list'
-import { runBatch } from '@/utils/run-batch'
+import { runBatch } from '../utils/run-batch'
 import { EntryIcon } from './entry-icon'
 import { RenameDialog } from './rename-dialog'
 import { MoveDialog } from './move-dialog'

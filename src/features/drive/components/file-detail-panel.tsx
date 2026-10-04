@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ErrorState, LoadingState } from '@/components/ui/state'
-import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
+import { ResizeHandle } from '@/components/ui/resize-handle'
+import { useResizableWidth } from '@/hooks/use-resizable-width'
 import {
   DownloadIcon,
   MoveIcon,

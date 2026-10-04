@@ -22,7 +22,8 @@ import {
 import { SearchBar, StorageUsage, FILE_CATEGORIES } from '@/features/drive'
 import { NotificationBell } from '@/features/notifications'
 import { cn } from '@/utils/cn'
-import { useResizableWidth, ResizeHandle } from '@/components/ui/use-resizable-width'
+import { ResizeHandle } from '@/components/ui/resize-handle'
+import { useResizableWidth } from '@/hooks/use-resizable-width'
 
 const CATEGORY_ICONS = {
   IMAGE: ImageIcon,
