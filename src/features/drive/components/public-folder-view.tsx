@@ -13,7 +13,8 @@ import { downloadPublicFile } from '../api/download-public-file'
 import { downloadPublicArchive } from '../api/download-archive'
 import { formatDate, formatFileSize, sortFiles } from '@/utils/file'
 import { type PublicFile } from '../types'
-import { type SortDir, type SortField } from '@/types/file'
+import { type SortField } from '@/types/file'
+import { useSortState } from '@/hooks/use-sort-state'
 import { MarqueeOverlay, useRowSelection } from '@/hooks/use-row-selection'
 import { EntryIcon } from '@/components/file/entry-icon'
 import { ViewToggle } from '@/components/file/view-toggle'
@@ -41,8 +42,7 @@ export function PublicFolderView({
   const [trail, setTrail] = useState<Crumb[]>([])
   const [preview, setPreview] = useState<PublicFile | null>(null)
   const [menu, setMenu] = useState<MenuState | null>(null)
-  const [sortField, setSortField] = useState<SortField>('date')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const { sortField, sortDir, toggleSort } = useSortState<SortField>('date', 'desc')
   const viewMode = useFileViewStore((state) => state.mode)
   const containerRef = useRef<HTMLDivElement>(null)
   // This page is light-only (bg-white below), but a stored/OS dark preference on <html> still
@@ -52,14 +52,6 @@ export function PublicFolderView({
 
   const currentId = trail[trail.length - 1]?.id ?? fileId
   const { data: entries, isLoading, isError } = usePublicChildren(currentId, shareKey)
-
-  const toggleSort = (field: SortField) => {
-    if (field === sortField) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else {
-      setSortField(field)
-      setSortDir('asc')
-    }
-  }
 
   // Single click only selects (highlight) — matches FileList's authenticated row behavior.
   // Double-click activates: directories navigate straight in, files open the preview.

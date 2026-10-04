@@ -45,7 +45,7 @@ src/
     trash/            # trash explorer, restore, purge, empty trash
     upload/           # upload button/dropzone, batch upload + conflict dialog, status panel
     notifications/    # in-app notification bell (header) + /notifications page, polls unread count
-  hooks/             # cross-feature hooks (use-windowed-list, use-row-selection, use-file-deeplink, use-resizable-width, use-force-light-mode)
+  hooks/             # cross-feature hooks (use-windowed-list, use-sort-state, use-row-selection, use-file-deeplink, use-resizable-width, use-force-light-mode)
   lib/
     api-client.ts    # axios instance: unwraps ApiResponse, handles 401
     react-query.ts
