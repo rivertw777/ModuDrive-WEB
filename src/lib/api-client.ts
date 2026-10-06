@@ -52,11 +52,13 @@ apiClient.interceptors.response.use(
     // status carried through so callers can branch on "not found" vs. other failures without
     // re-parsing the (locale-specific) message text — see check-member-email.ts. `data` is the
     // backend's optional ApiResponse.error(..., data) payload (e.g. FileAccessGuard attaching
-    // isDirectory to a FILE_ACCESS_DENIED) — see file.tsx's access-denied alert.
+    // isDirectory to a FILE_ACCESS_DENIED) — see file.tsx's access-denied alert. `traceId` is the
+    // gateway's X-Trace-Id, shown with the server-error alert so a report can be traced (API #522).
     return Promise.reject(
       Object.assign(new Error(message), {
         status: error.response?.status,
         data: error.response?.data?.data,
+        traceId: error.response?.headers?.['x-trace-id'],
       }),
     )
   },

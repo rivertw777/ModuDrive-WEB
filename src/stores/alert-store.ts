@@ -25,10 +25,14 @@ export function isServerError(error: unknown): boolean {
   return !status || status >= 500
 }
 
-/** 5xx / no response → the common alert. Returns whether it showed one. */
+/** 5xx / no response → the common alert, with the request's trace id (api-client) when the gateway
+ * answered — the code a user quotes when reporting it. Returns whether it showed one. */
 export function notifyServerError(error: unknown): boolean {
   if (!isServerError(error)) return false
-  useAlertStore.getState().show(SERVER_ERROR_MESSAGE)
+  const traceId = (error as { traceId?: string } | undefined)?.traceId
+  useAlertStore
+    .getState()
+    .show(traceId ? `${SERVER_ERROR_MESSAGE}\n오류 코드: ${traceId}` : SERVER_ERROR_MESSAGE)
   return true
 }
 
