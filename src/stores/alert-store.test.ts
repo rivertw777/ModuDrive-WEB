@@ -19,6 +19,13 @@ describe('notifyServerError', () => {
     expect(useAlertStore.getState().message).toBe(SERVER_ERROR_MESSAGE)
   })
 
+  it("adds the gateway's trace id when there is one", () => {
+    notifyServerError({ status: 500, traceId: '4bf92f3577b34da6a3ce929d0e0e4736' })
+    expect(useAlertStore.getState().message).toBe(
+      `${SERVER_ERROR_MESSAGE}\n오류 코드: 4bf92f3577b34da6a3ce929d0e0e4736`,
+    )
+  })
+
   it('stays quiet for a 4xx', () => {
     expect(notifyServerError({ status: 404 })).toBe(false)
     expect(useAlertStore.getState().message).toBeNull()
