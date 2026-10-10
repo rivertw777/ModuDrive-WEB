@@ -167,9 +167,38 @@ describe('uploadGroup', () => {
     expect(outcomes[0]?.message).toBe('Blocks still missing after upload')
   })
 
-  it('stops sending once a block request gives up, failing the files that still miss blocks', async () => {
+  it('pauses past the quick retries and resumes on its own once storage is back', async () => {
     const [h0, h1, h2] = await hashes
-    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] })
+    try {
+      let storageDown = true
+      api.post.mockImplementation((url: string) =>
+        url === '/api/v1/files/commit'
+          ? Promise.resolve({ results: commitCalls().length === 1 ? [{ needBlocks: [h0, h1, h2] }] : [committed] })
+          : storageDown
+            ? Promise.reject(Object.assign(new Error('저장소에 일시적으로 연결할 수 없습니다.'), { status: 503 }))
+            : Promise.resolve(undefined),
+      )
+      const onPause = vi.fn()
+      const upload = uploadGroup([target(big)], [await hashes], () => {}, onPause)
+      let done = false
+      void upload.finally(() => (done = true))
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(onPause).toHaveBeenCalledWith(true)
+      storageDown = false
+      while (!done) await vi.advanceTimersByTimeAsync(5_000)
+
+      expect(await upload).toEqual([null])
+      // Two requests paused, but the group is told once each way.
+      expect(onPause.mock.calls).toEqual([[true], [false]])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('stops sending after 10 minutes paused, failing the files that still miss blocks', async () => {
+    const [h0, h1, h2] = await hashes
+    vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] })
     try {
       api.post.mockImplementation((url: string) =>
         url === '/api/v1/files/commit'
@@ -179,17 +208,64 @@ describe('uploadGroup', () => {
       const upload = send([target(big), target(new File(['ok'], 'b'))])
       let done = false
       void upload.finally(() => (done = true))
-      while (!done) await vi.advanceTimersByTimeAsync(1000)
+      while (!done) await vi.advanceTimersByTimeAsync(30_000)
 
       const outcomes = await upload
-      // Both requests were already in flight: each tries 4 times (first + 3 retries), no third starts.
-      expect(blockCalls()).toHaveLength(8)
       expect(outcomes[0]?.message).toBe('저장소에 일시적으로 연결할 수 없습니다.')
       expect(outcomes[1]).toBeNull()
       expect(commitCalls()).toHaveLength(1)
+      // Both requests were already in flight; no third one starts.
+      expect(new Set(blockCalls().map((hashesSent) => hashesSent.join()))).toHaveLength(2)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('waits at least as long as Retry-After says', async () => {
+    const blocklist = await hashes
+    const [, h1] = blocklist
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      let failures = 1
+      api.post.mockImplementation((url: string) =>
+        url === '/api/v1/files/commit'
+          ? Promise.resolve({ results: commitCalls().length === 1 ? [{ needBlocks: [h1] }] : [committed] })
+          : failures-- > 0
+            ? Promise.reject(Object.assign(new Error('busy'), { status: 503, retryAfter: 10 }))
+            : Promise.resolve(undefined),
+      )
+      const upload = uploadGroup([target(big)], [blocklist], () => {})
+      await vi.advanceTimersByTimeAsync(9_000)
+      expect(blockCalls()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(blockCalls()).toHaveLength(2)
+      expect(await upload).toEqual([null])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('fails only the files whose blocks were refused, and keeps sending the rest', async () => {
+    const [h0, h1, h2] = await hashes
+    const other = new File(['other'], 'c')
+    const [otherHash] = await hashFile(other)
+    api.post.mockImplementation((url: string, body: FormData | object) => {
+      if (url === '/api/v1/files/commit') {
+        return Promise.resolve({
+          results: commitCalls().length === 1 ? [{ needBlocks: [h0, h1, h2] }, { needBlocks: [otherHash] }] : [committed],
+        })
+      }
+      // The big file changed since it was hashed: its first request no longer matches.
+      return (body as FormData).getAll('hash').includes(h0)
+        ? Promise.reject(Object.assign(new Error('블록이 올바르지 않습니다.'), { status: 400 }))
+        : Promise.resolve(undefined)
+    })
+
+    const outcomes = await send([target(big), target(other)])
+
+    expect(outcomes[0]?.message).toBe('블록이 올바르지 않습니다.')
+    expect(outcomes[1]).toBeNull()
+    expect(commitCalls()[1]).toHaveLength(1)
   })
 
   it('does not retry a 429 — on uploads it is only the 24-hour limit', async () => {
@@ -204,6 +280,21 @@ describe('uploadGroup', () => {
 
     expect(blockCalls()).toHaveLength(1)
     expect(outcomes[0]?.message).toBe('업로드 한도를 초과했습니다.')
+  })
+
+  it('stops every request on a 401 instead of sending the rest for nothing', async () => {
+    const [h0, h1, h2] = await hashes
+    api.post.mockImplementation((url: string) =>
+      url === '/api/v1/files/commit'
+        ? Promise.resolve({ results: [{ needBlocks: [h0, h1, h2] }] })
+        : Promise.reject(Object.assign(new Error('로그인이 필요합니다.'), { status: 401 })),
+    )
+
+    const outcomes = await uploadGroup([target(big)], [await hashes], () => {})
+
+    // Both in-flight requests got their 401; no third request was ever packed and sent.
+    expect(blockCalls().length).toBeLessThanOrEqual(2)
+    expect(outcomes[0]?.message).toBe('로그인이 필요합니다.')
   })
 
   it('does not retry a 4xx block request', async () => {

@@ -1,12 +1,16 @@
 import { useState } from 'react'
-import { AlertCircleIcon, CheckIcon, ChevronRightIcon, LoaderIcon, XIcon } from '@/components/ui/icons'
+import { AlertCircleIcon, CheckIcon, ChevronRightIcon, ClockIcon, LoaderIcon, XIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import type { UploadItem } from '../hooks/use-file-upload'
 import { EntryIcon } from '@/components/file/entry-icon'
 
-/** Bytes sent over bytes picked — a folder row sums every file under it. */
-function percentOf(item: UploadItem) {
-  return item.totalBytes > 0 ? Math.floor((item.sentBytes / item.totalBytes) * 100) : 0
+/** Bytes sent over bytes picked — a folder row sums every file under it. Before the first byte goes
+ * out, the hashing that has to come first: "준비 중 37%". */
+function progressOf(item: UploadItem) {
+  const percent = (bytes: number) => (item.totalBytes > 0 ? Math.floor((bytes / item.totalBytes) * 100) : 0)
+  return item.sentBytes === 0 && item.hashedBytes < item.totalBytes
+    ? `준비 중 ${percent(item.hashedBytes)}%`
+    : `${percent(item.sentBytes)}%`
 }
 
 export function UploadStatusPanel({
@@ -19,7 +23,7 @@ export function UploadStatusPanel({
   const [collapsed, setCollapsed] = useState(false)
   if (uploads.length === 0) return null
 
-  const uploadingCount = uploads.filter((item) => item.status === 'uploading').length
+  const uploadingCount = uploads.filter((item) => item.status === 'uploading' || item.status === 'paused').length
   const doneCount = uploads.filter((item) => item.status === 'done').length
   const errorCount = uploads.filter((item) => item.status === 'error').length
 
@@ -64,6 +68,11 @@ export function UploadStatusPanel({
               <EntryIcon name={item.name} directory={item.directory} size={20} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-slate-700 dark:text-slate-300">{item.name}</span>
+                {item.status === 'paused' && (
+                  <span className="block text-xs text-amber-600 dark:text-amber-400">
+                    연결 대기 중 · 자동으로 다시 시도합니다
+                  </span>
+                )}
                 {!item.directory && item.errorReason && (
                   <span className="block text-xs text-red-600 dark:text-red-400">
                     {item.errorReason}
@@ -85,9 +94,17 @@ export function UploadStatusPanel({
               {item.status === 'uploading' && (
                 <>
                   <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
-                    {percentOf(item)}%
+                    {progressOf(item)}
                   </span>
                   <LoaderIcon size={16} className="shrink-0 animate-spin text-slate-400" />
+                </>
+              )}
+              {item.status === 'paused' && (
+                <>
+                  <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
+                    {progressOf(item)}
+                  </span>
+                  <ClockIcon size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
                 </>
               )}
               {item.status === 'done' && (

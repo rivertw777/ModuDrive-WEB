@@ -1,4 +1,4 @@
-import { blockCountOf, hashBlocks } from './hash-blocks'
+import { BLOCK_SIZE, blockCountOf, hashBlocks } from './hash-blocks'
 
 type Reply = { blocklist?: string[]; error?: string }
 type Task = {
@@ -60,13 +60,24 @@ function pump() {
 
 /** {@link hashBlocks} split over a pool of Web Workers, so the page stays responsive and a big file
  * uses every core; on the main thread where there are no workers (tests). Rejects if the file
- * can't be read. */
-export async function hashFile(file: Blob): Promise<string[]> {
-  if (typeof Worker === 'undefined') return hashBlocks(file)
+ * can't be read. `onHashed` gets the bytes of each range as it finishes, for a "preparing" percentage. */
+export async function hashFile(file: Blob, onHashed: (bytes: number) => void = () => {}): Promise<string[]> {
+  if (typeof Worker === 'undefined') {
+    const blocklist = await hashBlocks(file)
+    onHashed(file.size)
+    return blocklist
+  }
   const ranges: Promise<string[]>[] = []
   for (let from = 0; from < blockCountOf(file); from += BLOCKS_PER_TASK) {
     const to = Math.min(from + BLOCKS_PER_TASK, blockCountOf(file))
-    ranges.push(new Promise((resolve, reject) => queue.push({ file, from, to, resolve, reject })))
+    const bytes = Math.min(to * BLOCK_SIZE, file.size) - from * BLOCK_SIZE
+    const range = new Promise<string[]>((resolve, reject) => queue.push({ file, from, to, resolve, reject }))
+    ranges.push(
+      range.then((blocklist) => {
+        onHashed(bytes)
+        return blocklist
+      }),
+    )
   }
   pump()
   return (await Promise.all(ranges)).flat()

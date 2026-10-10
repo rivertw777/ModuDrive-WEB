@@ -32,13 +32,16 @@ export type UploadItem = {
   directory: boolean
   /** Bytes of the files actually being sent — an over-5GB file never counts toward it. */
   totalBytes: number
+  /** Bytes hashed so far — the "preparing" percentage before anything is sent. */
+  hashedBytes: number
   sentBytes: number
   fileCount: number
   doneCount: number
   errorCount: number
   /** Why the row failed before anything was sent, e.g. "5GB 초과". */
   errorReason?: string
-  status: 'uploading' | 'done' | 'error'
+  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-1). */
+  status: 'uploading' | 'paused' | 'done' | 'error'
 }
 
 const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
@@ -109,6 +112,7 @@ export function useFileUpload(path: string) {
           name,
           directory: false,
           totalBytes: 0,
+          hashedBytes: 0,
           sentBytes: 0,
           fileCount: 0,
           doneCount: 0,
@@ -138,9 +142,13 @@ export function useFileUpload(path: string) {
 
     // Queued in pick order on the hashing pool, so earlier picks are still hashed first.
     const hashes = new Map<File, Promise<string[]>>()
-    for (const { file } of accepted) {
-      if (!file) continue
-      const hashing = hashFile(file)
+    for (const { relativePath, file } of accepted) {
+      const row = rows.get(topLevelName(relativePath))
+      if (!file || !row) continue
+      const hashing = hashFile(file, (bytes) => {
+        row.hashedBytes += bytes
+        sync(row)
+      })
       hashing.catch(() => undefined) // awaited per group; this only keeps a skipped file's failure handled
       hashes.set(file, hashing)
     }
@@ -251,6 +259,12 @@ export function useFileUpload(path: string) {
             readable.map((k) => group[k]),
             readable.map((k) => (blocklists[k] as PromiseFulfilledResult<string[]>).value),
             (j, sentBytes) => count(readable[j], sentBytes),
+            (paused) => {
+              for (const row of new Set(group.map((target) => target.row))) {
+                row.status = paused ? 'paused' : 'uploading'
+                sync(row)
+              }
+            },
           )
           sent.forEach((outcome, j) => (outcomes[readable[j]] = outcome))
         } catch (error) {
@@ -294,7 +308,7 @@ export function useFileUpload(path: string) {
     }
 
     for (const row of rows.values()) {
-      if (!skippedIds.has(row.id) && row.status === 'uploading') finish(row)
+      if (!skippedIds.has(row.id) && (row.status === 'uploading' || row.status === 'paused')) finish(row)
     }
     void queryClient.invalidateQueries({ queryKey: ['directory'] })
     // Prefix match covers 'usage', 'all', and 'category' queries too.
