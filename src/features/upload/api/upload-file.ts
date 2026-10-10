@@ -169,6 +169,11 @@ export function groupForCommit<T extends { file: File }>(targets: T[]): T[][] {
   return groups
 }
 
+/** A file the commit refused. Its 413 is the drive being full (QUOTA_EXCEEDED — WEB never sends a
+ * file over 5GB), unlike a block request's 413. */
+const commitError = ({ status, message }: { status: number; message: string }) =>
+  Object.assign(new Error(message), { quotaExceeded: status === 413 })
+
 const blockBytes = (file: File, index: number) => Math.min(BLOCK_SIZE, file.size - index * BLOCK_SIZE)
 
 /**
@@ -226,7 +231,7 @@ export async function uploadGroup(
 
   const first = await commit(targets.map((_, i) => i))
   first.forEach((result, i) => {
-    if (result.error) outcomes[i] = new Error(result.error.message)
+    if (result.error) outcomes[i] = commitError(result.error)
     else if (result.needBlocks?.length) missing.set(i, new Set(result.needBlocks))
     else outcomes[i] = null
     if (!result.error) onProgress(i, sentBytes(i))
@@ -303,7 +308,7 @@ export async function uploadGroup(
     const second = await commit(ready)
     second.forEach((result, k) => {
       const i = ready[k]
-      if (result.error) outcomes[i] = new Error(result.error.message)
+      if (result.error) outcomes[i] = commitError(result.error)
       // Only if an uploaded block expired in between (24h) — the next attempt uploads it again.
       else if (result.needBlocks?.length) outcomes[i] = new Error('Blocks still missing after upload')
       else outcomes[i] = null

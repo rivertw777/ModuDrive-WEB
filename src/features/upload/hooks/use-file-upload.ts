@@ -277,6 +277,7 @@ export function useFileUpload(path: string) {
         if (outcome) {
           // Only this file fails; nothing was created for it and the rest keep going.
           row.errorCount++
+          if ((outcome as { quotaExceeded?: boolean }).quotaExceeded) row.errorReason = '저장 공간 부족'
         } else {
           row.doneCount++
           let folder = ''
