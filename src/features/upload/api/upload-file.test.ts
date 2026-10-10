@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const api = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/lib/api-client', () => ({ apiClient: api }))
 
-import { uploadBytes } from './upload-file'
+import { commitFolders, groupForCommit, uploadGroup, type UploadTarget } from './upload-file'
+import { hashFile } from '../utils/hash-in-worker'
 
 const MB = 1024 * 1024
 
@@ -17,116 +18,224 @@ const bytes = new Uint8Array(9 * MB)
 bytes.fill(1, 0, 4 * MB)
 bytes.fill(2, 4 * MB, 8 * MB)
 bytes.fill(3, 8 * MB)
-const file = new File([bytes], 'big.bin')
+const big = new File([bytes], 'big.bin')
 const hashes = Promise.all([
   sha256Hex(bytes.subarray(0, 4 * MB)),
   sha256Hex(bytes.subarray(4 * MB, 8 * MB)),
   sha256Hex(bytes.subarray(8 * MB)),
 ])
 
-const commitCalls = () => api.post.mock.calls.filter(([url]) => (url as string).endsWith('/commit'))
-const putHashes = () => api.put.mock.calls.map(([url]) => (url as string).split('/').pop())
+type CommitAnswer = { needBlocks?: string[]; versionId?: string; error?: { status: number; message: string } }
 
-/** First commit answers `need`, every later one answers nothing missing. */
-function commitAnswers(need: string[]) {
-  api.post.mockResolvedValueOnce({ needBlocks: need, versionId: null })
-  api.post.mockResolvedValue({ needBlocks: [], versionId: 'v1' })
+const commitCalls = () =>
+  api.post.mock.calls.filter(([url]) => url === '/api/v1/files/commit').map(([, body]) => body.files)
+const blockCalls = () =>
+  api.post.mock.calls
+    .filter(([url]) => url === '/api/v1/storage/blocks')
+    .map(([, form]) => (form as FormData).getAll('hash'))
+
+/** Each commit answers with the next list (one answer per file it carries); blocks always succeed. */
+function answer(...commits: CommitAnswer[][]) {
+  const queue = [...commits]
+  api.post.mockImplementation((url: string) =>
+    url === '/api/v1/files/commit'
+      ? Promise.resolve({ results: queue.shift() ?? [] })
+      : Promise.resolve(undefined),
+  )
 }
+
+const target = (file: File, name = file.name) => ({ path: '/docs', name, file })
+/** Hashes like the hook does (on the main thread here — jsdom has no Worker), then uploads. */
+const send = async (targets: UploadTarget[], onProgress: (index: number, sent: number) => void = () => {}) =>
+  uploadGroup(targets, await Promise.all(targets.map(({ file }) => hashFile(file))), onProgress)
+const committed = { needBlocks: [], versionId: 'v' }
 
 beforeEach(() => {
   vi.clearAllMocks()
   api.post.mockReset()
-  api.put.mockReset()
-  api.put.mockResolvedValue(undefined)
 })
 
-describe('uploadBytes', () => {
-  it('commits the blocklist, uploads only the blocks the server lacks, then commits again', async () => {
+describe('groupForCommit', () => {
+  const small = (i: number) => ({ file: new File(['x'], `f${i}`) })
+  const sized = (blocks: number) => ({ file: { size: blocks * 4 * MB } as File })
+
+  it('starts a new group at 100 files or when the next file would pass 1,280 hashes', () => {
+    expect(groupForCommit(Array.from({ length: 250 }, (_, i) => small(i))).map((g) => g.length)).toEqual([100, 100, 50])
+    expect(groupForCommit(Array.from({ length: 50 }, () => sized(30))).map((g) => g.length)).toEqual([42, 8])
+  })
+
+  it('puts a file over 256MB in a group of its own, so small files never wait on it', () => {
+    expect(groupForCommit([small(0), sized(65), small(1), small(2)]).map((g) => g.length)).toEqual([1, 1, 2])
+    expect(groupForCommit([sized(1280), sized(1000)]).map((g) => g.length)).toEqual([1, 1])
+    expect(groupForCommit([sized(64), sized(64), small(0)]).map((g) => g.length)).toEqual([3])
+  })
+})
+
+describe('uploadGroup', () => {
+  it('commits the group, sends only the blocks the server lacks, then commits those files again', async () => {
     const [h0, h1, h2] = await hashes
-    commitAnswers([h1, h2])
+    answer([{ needBlocks: [h1, h2] }], [committed])
     const progress: number[] = []
 
-    await uploadBytes('file-1', file, (sent) => progress.push(sent))
+    const outcomes = await send([target(big, 'a.bin')], (_, sent) => progress.push(sent))
 
     const [first, second] = commitCalls()
-    expect(first[0]).toBe('/api/v1/files/file-1/commit')
-    expect(first[1]).toMatchObject({ size: file.size, blocklist: [h0, h1, h2] })
-    expect(second[1]).toEqual(first[1]) // same uploadId, so a lost response can be resent safely
-    expect(putHashes()).toEqual([h1, h2])
-    expect(progress).toEqual([4 * MB, 8 * MB, file.size])
+    expect(first).toEqual([
+      expect.objectContaining({ path: '/docs', name: 'a.bin', size: big.size, blocklist: [h0, h1, h2] }),
+    ])
+    expect(second).toEqual(first) // same uploadId, so a lost response can be resent safely
+    // 4MB + 1MB fit one 8MB request.
+    expect(blockCalls()).toEqual([[h1, h2]])
+    expect(progress).toEqual([4 * MB, big.size])
+    expect(outcomes).toEqual([null])
   })
 
-  it('sends no bytes when the server already has every block', async () => {
-    commitAnswers([])
+  it('sends no bytes and commits once when the server already has every block', async () => {
+    answer([committed, committed])
 
-    await uploadBytes('file-1', file, () => {})
+    const outcomes = await send([target(big), target(new File([], 'empty.txt'))])
 
     expect(commitCalls()).toHaveLength(1)
-    expect(api.put).not.toHaveBeenCalled()
-  })
-
-  it('commits an empty file with an empty blocklist', async () => {
-    commitAnswers([])
-
-    await uploadBytes('file-1', new File([], 'empty.txt'), () => {})
-
     expect(commitCalls()[0][1]).toMatchObject({ size: 0, blocklist: [] })
+    expect(blockCalls()).toEqual([])
+    expect(outcomes).toEqual([null, null])
   })
 
-  it('uploads a block that repeats in the file only once', async () => {
-    const same = new Uint8Array(8 * MB).fill(7)
-    const h = await sha256Hex(same.subarray(0, 4 * MB))
-    commitAnswers([h])
+  it('sends a block several files share only once, and commits again only the files that needed blocks', async () => {
+    const tail = new Uint8Array(10).fill(9)
+    const h = await sha256Hex(tail)
+    answer([{ needBlocks: [h] }, committed, { needBlocks: [h] }], [committed, committed])
 
-    await uploadBytes('file-1', new File([same], 'twice.bin'), () => {})
+    await send(
+      [target(new File([tail], 'a')), target(new File(['ok'], 'b')), target(new File([tail], 'c'))],
+      () => {},
+    )
 
-    expect(commitCalls()[0][1]).toMatchObject({ blocklist: [h, h] })
-    expect(putHashes()).toEqual([h])
+    expect(blockCalls()).toEqual([[h]])
+    expect(commitCalls()[1].map((file: { name: string }) => file.name)).toEqual(['a', 'c'])
   })
 
-  it('fails when the second commit still finds blocks missing', async () => {
+  it('packs blocks into requests of at most 8MB', async () => {
+    const [h0, h1, h2] = await hashes
+    answer([{ needBlocks: [h0, h1, h2] }], [committed])
+
+    await send([target(big)])
+
+    expect(blockCalls()).toEqual([[h0, h1], [h2]])
+  })
+
+  it('keeps up to three block requests in flight at once', async () => {
+    const files = Array.from({ length: 5 }, (_, i) => new File([new Uint8Array(4 * MB).fill(i + 1)], `f${i}`))
+    const hashesOf = await Promise.all(files.map((f) => hashFile(f).then((list) => list[0])))
+    let inFlight = 0
+    let most = 0
+    const releases: (() => void)[] = []
+    api.post.mockImplementation((url: string) => {
+      if (url === '/api/v1/files/commit') {
+        return Promise.resolve({
+          results: commitCalls().length === 1 ? hashesOf.map((h) => ({ needBlocks: [h] })) : files.map(() => committed),
+        })
+      }
+      inFlight++
+      most = Math.max(most, inFlight)
+      return new Promise<void>((resolve) => releases.push(() => (inFlight--, resolve())))
+    })
+
+    const upload = send(files.map((f) => target(f)))
+    // Two 4MB blocks per 8MB request: three requests for five blocks, all started together.
+    await vi.waitFor(() => expect(releases).toHaveLength(3))
+    releases.forEach((release) => release())
+    expect(await upload).toEqual(files.map(() => null))
+    expect(most).toBe(3)
+  })
+
+  it('fails only the file the server rejected', async () => {
+    answer([{ error: { status: 400, message: '같은 위치에 같은 이름의 항목이 이미 존재합니다.' } }, committed])
+
+    const outcomes = await send([target(new File(['a'], 'a')), target(new File(['b'], 'b'))])
+
+    expect(outcomes[0]?.message).toBe('같은 위치에 같은 이름의 항목이 이미 존재합니다.')
+    expect(outcomes[1]).toBeNull()
+  })
+
+  it('fails a file whose blocks are still missing after the upload', async () => {
     const [, h1] = await hashes
-    api.post.mockResolvedValue({ needBlocks: [h1], versionId: null })
+    answer([{ needBlocks: [h1] }], [{ needBlocks: [h1] }])
 
-    await expect(uploadBytes('file-1', file, () => {})).rejects.toThrow('Blocks still missing')
+    const outcomes = await send([target(big)])
+
+    expect(outcomes[0]?.message).toBe('Blocks still missing after upload')
   })
 
-  it('retries a block that failed with a 5xx, and gives up after three retries', async () => {
-    const [, h1] = await hashes
-    // Only setTimeout: hashing is real async work, so the clock is stepped until the upload settles
-    // instead of being run out once up front.
+  it('stops sending once a block request gives up, failing the files that still miss blocks', async () => {
+    const [h0, h1, h2] = await hashes
     vi.useFakeTimers({ toFake: ['setTimeout'] })
-    const settle = async (upload: Promise<void>) => {
-      let done = false
-      upload.then(
-        () => (done = true),
-        () => (done = true),
-      )
-      while (!done) await vi.advanceTimersByTimeAsync(1000)
-      return upload
-    }
     try {
-      commitAnswers([h1])
-      api.put.mockRejectedValueOnce(Object.assign(new Error('boom'), { status: 503 }))
-      await settle(uploadBytes('file-1', file, () => {}))
-      expect(putHashes()).toEqual([h1, h1])
+      api.post.mockImplementation((url: string) =>
+        url === '/api/v1/files/commit'
+          ? Promise.resolve({ results: [{ needBlocks: [h0, h1, h2] }, committed] })
+          : Promise.reject(Object.assign(new Error('저장소에 일시적으로 연결할 수 없습니다.'), { status: 503 })),
+      )
+      const upload = send([target(big), target(new File(['ok'], 'b'))])
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(1000)
 
-      api.put.mockReset()
-      commitAnswers([h1])
-      api.put.mockRejectedValue(Object.assign(new Error('down'), { status: 500 }))
-      await expect(settle(uploadBytes('file-1', file, () => {}))).rejects.toThrow('down')
-      expect(api.put).toHaveBeenCalledTimes(4) // first try + 3 retries
+      const outcomes = await upload
+      // Both requests were already in flight: each tries 4 times (first + 3 retries), no third starts.
+      expect(blockCalls()).toHaveLength(8)
+      expect(outcomes[0]?.message).toBe('저장소에 일시적으로 연결할 수 없습니다.')
+      expect(outcomes[1]).toBeNull()
+      expect(commitCalls()).toHaveLength(1)
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('does not retry a 4xx', async () => {
+  it('does not retry a 429 — on uploads it is only the 24-hour limit', async () => {
     const [, h1] = await hashes
-    commitAnswers([h1])
-    api.put.mockRejectedValue(Object.assign(new Error('bad'), { status: 400 }))
+    api.post.mockImplementation((url: string) =>
+      url === '/api/v1/files/commit'
+        ? Promise.resolve({ results: [{ needBlocks: [h1] }] })
+        : Promise.reject(Object.assign(new Error('업로드 한도를 초과했습니다.'), { status: 429 })),
+    )
 
-    await expect(uploadBytes('file-1', file, () => {})).rejects.toThrow('bad')
-    expect(api.put).toHaveBeenCalledTimes(1)
+    const outcomes = await send([target(big)])
+
+    expect(blockCalls()).toHaveLength(1)
+    expect(outcomes[0]?.message).toBe('업로드 한도를 초과했습니다.')
+  })
+
+  it('does not retry a 4xx block request', async () => {
+    const [, h1] = await hashes
+    api.post.mockImplementation((url: string) =>
+      url === '/api/v1/files/commit'
+        ? Promise.resolve({ results: [{ needBlocks: [h1] }] })
+        : Promise.reject(Object.assign(new Error('bad'), { status: 400 })),
+    )
+
+    const outcomes = await send([target(big)])
+
+    expect(blockCalls()).toHaveLength(1)
+    expect(outcomes[0]?.message).toBe('bad')
+  })
+})
+
+describe('commitFolders', () => {
+  it('sends the folders as one commit and answers one result per folder, in order', async () => {
+    api.post.mockResolvedValue({ results: [], directories: [{ fileId: 'f1' }, { error: { status: 400, message: 'x' } }] })
+
+    const results = await commitFolders([
+      { path: '/사진', name: '빈폴더' },
+      { path: '/', name: 'a.bin' },
+    ])
+
+    expect(api.post).toHaveBeenCalledWith('/api/v1/files/commit', {
+      directories: [
+        { path: '/사진', name: '빈폴더' },
+        { path: '/', name: 'a.bin' },
+      ],
+    })
+    expect(results.map((r) => r.error === undefined)).toEqual([true, false])
   })
 })

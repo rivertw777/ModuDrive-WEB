@@ -2,15 +2,20 @@ import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   MAX_BATCH_ITEMS,
+  MAX_COMMIT_FOLDERS,
   MAX_FILE_SIZE,
   batchConflicts,
-  createUploadBatch,
-  uploadBytes,
-  type BatchCreatedItem,
+  commitFolders,
+  groupForCommit,
+  planUploadBatch,
+  uploadGroup,
+  type BatchPlannedItem,
   type BatchItem,
   type ConflictResolution,
+  type UploadTarget,
 } from '../api/upload-file'
 import type { UploadEntry } from '../utils/collect-upload-entries'
+import { hashFile } from '../utils/hash-in-worker'
 import { actionErrorText } from '@/stores/alert-store'
 
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
@@ -42,10 +47,16 @@ const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
 }
 
 const topLevelName = (relativePath: string) => relativePath.split('/')[0]
+const asError = (error: unknown) => (error instanceof Error ? error : new Error(String(error)))
+const childPath = (parent: string, name: string) => (parent === '/' ? `/${name}` : `${parent}/${name}`)
 
 /**
- * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2, §9): the
- * whole tree is registered with one batch request, then each file's bytes go up one at a time.
+ * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2): one batch
+ * request checks the whole tree for name conflicts and says where everything lands, then the files
+ * are committed a group at a time (which creates them and the folders above them), and the folders
+ * no file commit made — empty ones, or ones whose files all failed — are committed last.
+ * Hashing starts the moment files are picked, so it runs while the batch check and any conflict
+ * dialog wait.
  * A name conflict pauses on that one item (`conflict`) until the caller answers via
  * `resolveConflict`; a failed file only fails itself, never the rest of the selection.
  */
@@ -125,25 +136,38 @@ export function useFileUpload(path: string) {
     }
     setUploads((prev) => [...prev, ...Array.from(rows.values(), (row) => ({ ...row }))])
 
-    const run = queue.current.then(() => uploadSelection(rows, accepted))
+    // Queued in pick order on the hashing pool, so earlier picks are still hashed first.
+    const hashes = new Map<File, Promise<string[]>>()
+    for (const { file } of accepted) {
+      if (!file) continue
+      const hashing = hashFile(file)
+      hashing.catch(() => undefined) // awaited per group; this only keeps a skipped file's failure handled
+      hashes.set(file, hashing)
+    }
+
+    const run = queue.current.then(() => uploadSelection(rows, accepted, hashes))
     // A run that somehow throws must not jam every later pick behind a rejected promise.
     queue.current = run.catch(() => undefined)
     return queue.current
   }
 
-  const uploadSelection = async (rows: Map<string, UploadItem>, accepted: UploadEntry[]) => {
+  const uploadSelection = async (
+    rows: Map<string, UploadItem>,
+    accepted: UploadEntry[],
+    hashes: Map<File, Promise<string[]>>,
+  ) => {
     const items: BatchItem[] = accepted.map((entry) =>
       entry.file
         ? { relativePath: entry.relativePath, directory: false, size: entry.file.size }
         : { relativePath: entry.relativePath, directory: true },
     )
     const resolutions: Record<string, ConflictResolution> = {}
-    let created: BatchCreatedItem[] = []
+    let planned: BatchPlannedItem[] = []
     if (items.length > 0) {
       try {
         for (;;) {
           try {
-            created = await createUploadBatch(path, items, resolutions)
+            planned = await planUploadBatch(path, items, resolutions)
             break
           } catch (error) {
             const conflicts = batchConflicts(error)
@@ -165,8 +189,6 @@ export function useFileUpload(path: string) {
         }
         return
       }
-      // Rows exist as soon as the batch commits — show them before any byte goes out.
-      void queryClient.invalidateQueries({ queryKey: ['directory'] })
     }
 
     // A skipped conflict is always a whole top-level item — its row just goes away.
@@ -180,48 +202,95 @@ export function useFileUpload(path: string) {
     }
 
     // Rows show where things actually landed — "사진" becomes "사진 (1)" on a folder clash.
-    for (const item of created) {
+    for (const item of planned) {
       const row = rows.get(item.relativePath)
       if (row && row.name !== item.name) {
         row.name = item.name
         sync(row)
       }
     }
-    // Nothing to send for an empty folder (or one whose only files were over 5GB): it's settled
-    // the moment the batch commits, not after the rest of the selection finishes.
-    for (const row of rows.values()) {
-      if (!skippedIds.has(row.id) && row.totalBytes === 0 && row.doneCount + row.errorCount === row.fileCount) {
-        finish(row)
-      }
+    const targets = new Map(planned.map((item) => [item.relativePath, item]))
+    // Folders known to exist: the target, the ones a replace merges into, and every folder above a
+    // committed file (the commit creates them).
+    const existingFolders = new Set([path])
+    for (const item of planned) {
+      if (item.directory && item.replaced) existingFolders.add(childPath(item.path, item.name))
     }
-
-    const fileIds = new Map(created.map((item) => [item.relativePath, item.fileId]))
-    const completedBytes = new Map<string, number>()
+    const sendable: (UploadTarget & { row: UploadItem })[] = []
     for (const entry of accepted) {
       const row = rows.get(topLevelName(entry.relativePath))
       if (!entry.file || !row || skippedIds.has(row.id)) continue
-      const fileId = fileIds.get(entry.relativePath)
-      if (!fileId) {
-        // The batch should have created every file it wasn't told to skip.
+      const target = targets.get(entry.relativePath)
+      if (!target) {
+        // The batch should have planned every file it wasn't told to skip.
         row.errorCount++
         sync(row)
         continue
       }
-      const file = entry.file
-      const before = completedBytes.get(row.id) ?? 0
-      try {
-        await uploadBytes(fileId, file, (sent) => {
-          row.sentBytes = before + sent
-          sync(row)
-        })
-        row.doneCount++
-      } catch {
-        // Only this file fails; it stays PENDING in the list and the rest keep going.
-        row.errorCount++
+      sendable.push({ path: target.path, name: target.name, file: entry.file, row })
+    }
+
+    for (const group of groupForCommit(sendable)) {
+      // Each file's bytes counted so far, so a row's total moves by the difference.
+      const counted = group.map(() => 0)
+      const count = (k: number, sent: number) => {
+        const { row } = group[k]
+        row.sentBytes += sent - counted[k]
+        counted[k] = sent
+        sync(row)
       }
-      completedBytes.set(row.id, before + file.size)
-      row.sentBytes = before + file.size
-      sync(row)
+      // A file that can't be read (deleted, no permission) fails alone; the rest of the group goes on.
+      const blocklists = await Promise.allSettled(group.map(({ file }) => hashes.get(file) ?? hashFile(file)))
+      const outcomes: (Error | null)[] = blocklists.map((hashed) =>
+        hashed.status === 'rejected' ? asError(hashed.reason) : null,
+      )
+      const readable = group.flatMap((_, k) => (blocklists[k].status === 'fulfilled' ? [k] : []))
+      if (readable.length > 0) {
+        try {
+          const sent = await uploadGroup(
+            readable.map((k) => group[k]),
+            readable.map((k) => (blocklists[k] as PromiseFulfilledResult<string[]>).value),
+            (j, sentBytes) => count(readable[j], sentBytes),
+          )
+          sent.forEach((outcome, j) => (outcomes[readable[j]] = outcome))
+        } catch (error) {
+          // The commit itself failed: nothing in this group was created.
+          for (const k of readable) outcomes[k] = asError(error)
+        }
+      }
+      outcomes.forEach((outcome, k) => {
+        const { row, path: folderPath, file } = group[k]
+        if (outcome) {
+          // Only this file fails; nothing was created for it and the rest keep going.
+          row.errorCount++
+        } else {
+          row.doneCount++
+          let folder = ''
+          for (const segment of folderPath.split('/').filter(Boolean)) {
+            folder = `${folder}/${segment}`
+            existingFolders.add(folder)
+          }
+        }
+        count(k, file.size)
+      })
+    }
+
+    // The commit creates any missing folder above each one, so order and failed parents don't matter.
+    const folders = planned.filter((item) => item.directory && !existingFolders.has(childPath(item.path, item.name)))
+    for (let start = 0; start < folders.length; start += MAX_COMMIT_FOLDERS) {
+      const chunk = folders.slice(start, start + MAX_COMMIT_FOLDERS)
+      let failed: boolean[]
+      try {
+        failed = (await commitFolders(chunk.map(({ path: parent, name }) => ({ path: parent, name })))).map(
+          (result) => result.error !== undefined,
+        )
+      } catch {
+        failed = chunk.map(() => true)
+      }
+      chunk.forEach((item, k) => {
+        const row = rows.get(topLevelName(item.relativePath))
+        if (failed[k] && row) row.errorCount++
+      })
     }
 
     for (const row of rows.values()) {
