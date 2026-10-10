@@ -507,6 +507,15 @@ describe('useFileUpload', () => {
     expect(result.current.uploads[0].hashedBytes).toBe(5)
   })
 
+  it('says the drive is full on a row whose file the commit refused for quota', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    outcomesFor(() => Object.assign(new Error('저장 공간이 부족합니다.'), { quotaExceeded: true }))
+
+    const { result } = await upload([entry('a.txt')])
+
+    expect(result.current.uploads[0]).toMatchObject({ status: 'error', errorReason: '저장 공간 부족' })
+  })
+
   it('refuses more than 5,000 items without creating anything', async () => {
     const entries = Array.from({ length: 5001 }, (_, i) => entry(`폴더/f${i}.txt`))
 

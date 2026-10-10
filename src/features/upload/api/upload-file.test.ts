@@ -297,6 +297,15 @@ describe('uploadGroup', () => {
     expect(outcomes[0]?.message).toBe('로그인이 필요합니다.')
   })
 
+  it('marks a file the commit refused for a full drive', async () => {
+    answer([{ error: { status: 413, message: '저장 공간이 부족합니다.' } }])
+
+    const [outcome] = await send([target(new File(['x'], 'a'))])
+
+    expect(outcome?.message).toBe('저장 공간이 부족합니다.')
+    expect((outcome as { quotaExceeded?: boolean }).quotaExceeded).toBe(true)
+  })
+
   it('does not retry a 4xx block request', async () => {
     const [, h1] = await hashes
     api.post.mockImplementation((url: string) =>
