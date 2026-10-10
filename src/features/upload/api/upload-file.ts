@@ -7,6 +7,10 @@ export const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024 // 5GB
 export const MAX_BATCH_ITEMS = 5000
 
 const RETRY_DELAYS_MS = [1000, 2000, 4000]
+// Past the quick retries, an upload that can wait (S3 or a service down) pauses: one try every 30s,
+// for up to 10 minutes, then the file fails. The picked File stays usable while the tab is open.
+const PAUSED_RETRY_MS = 30_000
+const MAX_PAUSE_MS = 10 * 60_000
 
 export type ConflictResolution = 'REPLACE' | 'KEEP_BOTH' | 'SKIP'
 
@@ -74,16 +78,44 @@ function isRetryable(error: unknown) {
   return status === undefined || status >= 500
 }
 
-async function withRetry<T>(send: () => Promise<T>): Promise<T> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await send()
-    } catch (error) {
-      if (attempt >= RETRY_DELAYS_MS.length || !isRetryable(error)) throw error
-      // Up to 50% jitter, so clients that failed together (S3 down) don't all come back on the same beat.
-      const delay = RETRY_DELAYS_MS[attempt] * (1 + Math.random() / 2)
-      await new Promise((resolve) => setTimeout(resolve, delay))
+/**
+ * Sends, and on a retryable failure tries again: three quick retries, then — given `onPause` —
+ * a paused wait ({@link PAUSED_RETRY_MS} apart, at most {@link MAX_PAUSE_MS}), told through
+ * `onPause(true)` and, however it ends, `onPause(false)`. `shouldStop` cuts the waiting short once
+ * the outcome no longer matters (another request already failed the group).
+ */
+async function withRetry<T>(
+  send: () => Promise<T>,
+  onPause?: (paused: boolean) => void,
+  shouldStop: () => boolean = () => false,
+): Promise<T> {
+  let pausedAt: number | undefined
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await send()
+      } catch (error) {
+        if (!isRetryable(error) || shouldStop()) throw error
+        let delay: number
+        if (attempt < RETRY_DELAYS_MS.length) {
+          delay = RETRY_DELAYS_MS[attempt]
+        } else {
+          if (!onPause) throw error
+          if (pausedAt === undefined) {
+            pausedAt = Date.now()
+            onPause(true)
+          }
+          if (Date.now() - pausedAt >= MAX_PAUSE_MS) throw error
+          delay = PAUSED_RETRY_MS
+        }
+        // Up to 50% jitter, so clients that failed together (S3 down) don't all come back on the same
+        // beat — and never sooner than the server's Retry-After.
+        const retryAfter = ((error as { retryAfter?: number }).retryAfter ?? 0) * 1000
+        await new Promise((resolve) => setTimeout(resolve, Math.max(delay * (1 + Math.random() / 2), retryAfter)))
+      }
     }
+  } finally {
+    if (pausedAt !== undefined) onPause?.(false)
   }
 }
 
@@ -155,13 +187,21 @@ export async function uploadGroup(
   targets: UploadTarget[],
   blocklists: string[][],
   onProgress: (index: number, sentBytes: number) => void,
+  onPause: (paused: boolean) => void = () => {},
 ): Promise<(Error | null)[]> {
+  // Up to three block requests wait at once; the group is paused while any of them is.
+  let waiting = 0
+  const pause = (paused: boolean) => {
+    waiting += paused ? 1 : -1
+    if (waiting === (paused ? 1 : 0)) onPause(paused)
+  }
   // One id per file for every commit of this attempt, so a commit whose response was lost can be
   // sent again and get back the version it already made.
   const uploadIds = targets.map(() => crypto.randomUUID())
   const commit = async (indexes: number[]) => {
-    const { results } = await withRetry(() =>
-      apiClient.post<{ results: CommitResult[] }>('/api/v1/files/commit', {
+    const { results } = await withRetry(
+      () =>
+        apiClient.post<{ results: CommitResult[] }>('/api/v1/files/commit', {
         files: indexes.map((i) => ({
           path: targets[i].path,
           name: targets[i].name,
@@ -169,7 +209,8 @@ export async function uploadGroup(
           size: targets[i].file.size,
           blocklist: blocklists[i],
         })),
-      }),
+        }),
+      pause,
     )
     return results
   }
@@ -212,9 +253,12 @@ export async function uploadGroup(
   }
 
   let sendError: unknown = null
+  // Files a block request was refused for (a file changed since it was hashed, say): only they fail.
+  const refused = new Map<number, unknown>()
   let nextRequest = 0
   const sendRequests = async () => {
-    // Once one request has spent its retries (S3 down, say), the rest would fail the same way.
+    // Once one request has given up — paused too long, or the 24-hour limit — the rest would fail
+    // the same way.
     while (sendError === null && nextRequest < requests.length) {
       const blocks = requests[nextRequest++]
       try {
@@ -225,10 +269,19 @@ export async function uploadGroup(
             formData.append('block', block)
           }
           return apiClient.post('/api/v1/storage/blocks', formData)
-        })
+        }, pause, () => sendError !== null)
       } catch (error) {
-        sendError ??= error
-        return
+        // 400/413 are about this request's blocks; anything else (429 limit, 401 session gone, a
+        // pause that ran out) would fail every request the same way.
+        const { status } = error as { status?: number }
+        if (status !== 400 && status !== 413) {
+          sendError ??= error
+          return
+        }
+        for (const [i, hashes] of missing) {
+          if (blocks.some(([hash]) => hashes.has(hash))) refused.set(i, error)
+        }
+        continue
       }
       for (const [i, hashes] of missing) {
         const before = hashes.size
@@ -239,10 +292,11 @@ export async function uploadGroup(
   }
   await Promise.all(Array.from({ length: Math.min(PARALLEL_BLOCK_REQUESTS, requests.length) }, sendRequests))
 
-  const ready = [...missing].filter(([, hashes]) => hashes.size === 0).map(([i]) => i)
+  const ready = [...missing].filter(([i, hashes]) => hashes.size === 0 && !refused.has(i)).map(([i]) => i)
   for (const [i, hashes] of missing) {
-    if (hashes.size > 0) {
-      outcomes[i] = sendError instanceof Error ? sendError : new Error('Block upload failed')
+    if (hashes.size > 0 || refused.has(i)) {
+      const error = refused.get(i) ?? sendError
+      outcomes[i] = error instanceof Error ? error : new Error('Block upload failed')
     }
   }
   if (ready.length > 0) {

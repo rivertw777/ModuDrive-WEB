@@ -468,6 +468,45 @@ describe('useFileUpload', () => {
     ])
   })
 
+  it('marks the row paused while the upload waits for the server, and back once it resumes', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    let resume!: () => void
+    vi.mocked(uploadGroup).mockImplementationOnce(
+      (targets, _blocklists, _onProgress, onPause) =>
+        new Promise((resolve) => {
+          onPause?.(true)
+          resume = () => {
+            onPause?.(false)
+            resolve(targets.map(() => null))
+          }
+        }),
+    )
+    const { result } = renderUpload()
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.onUpload([entry('a.txt')])
+    })
+
+    await waitFor(() => expect(result.current.uploads[0]?.status).toBe('paused'))
+    await act(async () => {
+      resume()
+      await pending
+    })
+    expect(result.current.uploads[0].status).toBe('done')
+  })
+
+  it('adds up hashed bytes on the row as hashing goes', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    vi.mocked(hashFile).mockImplementation((file, onHashed) => {
+      onHashed?.(file.size)
+      return Promise.resolve([])
+    })
+
+    const { result } = await upload([entry('폴더/a.txt', file('a.txt', 'aa')), entry('폴더/b.txt', file('b.txt', 'bbb'))])
+
+    expect(result.current.uploads[0].hashedBytes).toBe(5)
+  })
+
   it('refuses more than 5,000 items without creating anything', async () => {
     const entries = Array.from({ length: 5001 }, (_, i) => entry(`폴더/f${i}.txt`))
 

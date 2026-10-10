@@ -59,6 +59,8 @@ apiClient.interceptors.response.use(
         status: error.response?.status,
         data: error.response?.data?.data,
         traceId: error.response?.headers?.['x-trace-id'],
+        // Seconds to wait before trying again, sent with a 503 (GlobalExceptionHandler).
+        retryAfter: Number(error.response?.headers?.['retry-after']) || undefined,
       }),
     )
   },

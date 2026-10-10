@@ -86,4 +86,16 @@ describe('hashFile', () => {
     FakeWorker.instances[1].answer(['b'])
     expect(await next).toEqual(['b'])
   })
+
+  it('reports each range\'s bytes as it finishes', async () => {
+    const { hashFile } = await loadWithPool(2)
+    const onHashed = vi.fn()
+
+    const hashing = hashFile({ size: 16 * BLOCK_SIZE + 10 } as Blob, onHashed)
+    FakeWorker.instances[1].answer(['tail'])
+    FakeWorker.instances[0].answer(['h0'])
+    await hashing
+
+    expect(onHashed.mock.calls).toEqual([[10], [16 * BLOCK_SIZE]])
+  })
 })
