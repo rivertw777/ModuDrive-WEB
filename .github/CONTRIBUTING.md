@@ -24,6 +24,7 @@ Examples:
 ## 2. Branch
 
 ```
+prod                            # production-ready only → deploy to the prod stack
 dev                             # integration branch (default)
 demo                            # merge dev here → deploy to the demo stack (.github/workflows/deploy.yml)
 feature/<issue-number>-<slug>   # new feature
@@ -34,7 +35,7 @@ chore/<slug>                    # build, deps, config
 ```
 
 - slug: lowercase kebab-case (e.g. add-category-filters)
-- No direct push to `dev` or `demo`, PR only
+- No direct push to `prod`, `dev` or `demo`, PR only
 
 ## 3. Commit
 
@@ -63,4 +64,5 @@ Scopes:
 - Title: same format as commit message
 - One PR = one purpose
 - `feature/* → dev`: Merge commit
+- `dev → prod`: Squash merge
 - `dev → demo`: Merge commit
