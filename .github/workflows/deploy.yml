@@ -2,8 +2,9 @@
 # The bucket, distribution and deploy role come from ModuDrive-API's Terraform (.infra/web.tf); the role
 # trusts only this repository's GitHub environment of the same name, through OIDC — no stored keys.
 #
-# Push to demo → demo, or run it by hand. The GitHub environment holds these variables, filled from
-# ModuDrive-API's terraform outputs (.docs/guide/003-aws-migration.md 1-11):
+# Which environment: push to demo → demo, push to prod → prod, or run it by hand for either — the same
+# branches as ModuDrive-API's deploy. Each GitHub environment holds these variables, filled from that
+# environment's ModuDrive-API terraform outputs (.docs/guide/003-aws-migration.md 1-11):
 #   AWS_DEPLOY_ROLE_ARN   github_web_deploy_role_arn
 #   WEB_BUCKET            web_bucket
 #   WEB_DISTRIBUTION_ID   web_distribution_id
@@ -12,16 +13,16 @@ name: deploy
 
 on:
   push:
-    branches: [demo]
+    branches: [demo, prod]
   workflow_dispatch:
     inputs:
       environment:
         type: choice
-        options: [demo]
+        options: [demo, prod]
 
 # One deploy at a time; a second waits instead of racing the first's sync.
 concurrency:
-  group: deploy-${{ inputs.environment || 'demo' }}
+  group: deploy-${{ inputs.environment || github.ref_name }}
   cancel-in-progress: false
 
 permissions:
@@ -34,7 +35,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment || 'demo' }}
+    environment: ${{ inputs.environment || github.ref_name }}
     timeout-minutes: 20
     steps:
       # Until the environment is set up there's nothing to deploy to — skip instead of failing every push.
