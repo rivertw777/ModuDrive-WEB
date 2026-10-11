@@ -1,0 +1,91 @@
+# Builds the SPA and ships dist/ to the environment's S3 bucket behind CloudFront (app.<domain>).
+# The bucket, distribution and deploy role come from ModuDrive-API's Terraform (.infra/web.tf); the role
+# trusts only this repository's GitHub environment of the same name, through OIDC — no stored keys.
+#
+# Push to demo → demo, or run it by hand. The GitHub environment holds these variables, filled from
+# ModuDrive-API's terraform outputs (.docs/guide/003-aws-migration.md 1-11):
+#   AWS_DEPLOY_ROLE_ARN   github_web_deploy_role_arn
+#   WEB_BUCKET            web_bucket
+#   WEB_DISTRIBUTION_ID   web_distribution_id
+#   API_BASE_URL          https://api.<domain> (also the CSP's connect-src on CloudFront)
+name: deploy
+
+on:
+  push:
+    branches: [demo]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [demo]
+
+# One deploy at a time; a second waits instead of racing the first's sync.
+concurrency:
+  group: deploy-${{ inputs.environment || 'demo' }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # OIDC → AWS
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'demo' }}
+    timeout-minutes: 20
+    steps:
+      # Until the environment is set up there's nothing to deploy to — skip instead of failing every push.
+      - id: ready
+        run: |
+          if [ -z "${{ vars.AWS_DEPLOY_ROLE_ARN }}" ]; then
+            echo "::notice::AWS_DEPLOY_ROLE_ARN is not set for this environment — nothing to deploy to yet"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.ok == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Test and build
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          npm ci
+          npx vitest run
+          npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Hashed files under assets/ never change under the same name, so browsers may keep them for a
+      # year; everything else (index.html, public/) must be checked again on every load or a new
+      # deploy wouldn't show up. assets/ goes first so the new index.html never points at a missing file.
+      - name: Upload
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          BUCKET: ${{ vars.WEB_BUCKET }}
+        run: |
+          aws s3 sync dist/assets "s3://$BUCKET/assets" --cache-control "public, max-age=31536000, immutable"
+          aws s3 sync dist "s3://$BUCKET" --exclude "assets/*" --cache-control "no-cache" --delete
+          aws s3 sync dist/assets "s3://$BUCKET/assets" --delete
+
+      - name: Invalidate CloudFront
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          id=$(aws cloudfront create-invalidation --distribution-id "${{ vars.WEB_DISTRIBUTION_ID }}" \
+            --paths '/*' --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "${{ vars.WEB_DISTRIBUTION_ID }}" --id "$id"
