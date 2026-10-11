@@ -52,14 +52,18 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Test and build
+      - name: Test
         if: steps.ready.outputs.ok == 'true'
-        env:
-          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
         run: |
           npm ci
           npx vitest run
-          npm run build
+
+      # The API URL goes into the build only: tests run against .env.test's localhost URL.
+      - name: Build
+        if: steps.ready.outputs.ok == 'true'
+        env:
+          VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: npm run build
 
       - uses: aws-actions/configure-aws-credentials@v4
         if: steps.ready.outputs.ok == 'true'
