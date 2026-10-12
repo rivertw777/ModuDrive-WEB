@@ -11,6 +11,7 @@ const { viewPublicFile } = await import('../api/view-public-file')
 beforeEach(() => {
   vi.mocked(viewFile).mockReset()
   vi.mocked(viewPublicFile).mockReset()
+  vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-image')
   vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 })
 
@@ -47,7 +48,7 @@ describe('FilePreview', () => {
   })
 
   it('renders an image via the authenticated source', async () => {
-    vi.mocked(viewFile).mockResolvedValue('blob:mock-image')
+    vi.mocked(viewFile).mockResolvedValue(new Blob(['png']))
 
     render(
       <FilePreview fileName="photo.png" fileSize={1024} source={{ type: 'auth', fileId: 'f-1' }} />,
@@ -60,7 +61,7 @@ describe('FilePreview', () => {
   })
 
   it('revokes the object URL on unmount', async () => {
-    vi.mocked(viewFile).mockResolvedValue('blob:mock-image')
+    vi.mocked(viewFile).mockResolvedValue(new Blob(['png']))
 
     const { unmount } = render(
       <FilePreview fileName="photo.png" fileSize={1024} source={{ type: 'auth', fileId: 'f-1' }} />,
@@ -117,17 +118,17 @@ describe('FilePreview', () => {
   })
 
   it('renders fetched text content for a .txt file', async () => {
-    vi.mocked(viewFile).mockResolvedValue('blob:mock-text')
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ text: () => Promise.resolve('hello world') }),
-    )
+    vi.mocked(viewFile).mockResolvedValue(new Blob(['hello world']))
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
 
     render(
       <FilePreview fileName="notes.txt" fileSize={1024} source={{ type: 'auth', fileId: 'f-1' }} />,
     )
 
     await waitFor(() => expect(screen.getByText('hello world')).toBeInTheDocument())
+    // Reading the text back via fetch(blob:) is a connect-src request the CSP blocks.
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it('renders nothing for an svg file (no safe inline preview)', () => {
