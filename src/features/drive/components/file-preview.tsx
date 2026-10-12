@@ -39,8 +39,8 @@ function streamUrl(
  * and FileViewerModal (double-click full-screen view) via `source` — same rendering, different
  * fetch. `fullscreen` swaps the sidebar-sized caps for viewer-sized ones.
  *
- * text/image are small enough to just blob-fetch (revoked on unmount/file change so repeated
- * opens don't leak memory). audio/video instead point straight at the Range/206-backed view
+ * text/image are small enough to just blob-fetch — text is read straight off the Blob, an image
+ * gets an object URL (revoked on unmount/file change so repeated opens don't leak memory). audio/video instead point straight at the Range/206-backed view
  * endpoint — the element pulls its own bytes and seeks natively; a public link's `key` already
  * is the credential (it goes in the URL), and an authenticated view needs nothing extra — the
  * element's own request carries the session cookie. */
@@ -80,17 +80,14 @@ export function FilePreview({
     ;(sourceType === 'auth'
       ? viewFile(sourceId, fileName)
       : viewPublicFile(sourceId, shareKey ?? null, fileName))
-      .then(async (blobUrl) => {
-        if (cancelled) {
-          URL.revokeObjectURL(blobUrl)
-          return
-        }
-        objectUrl = blobUrl
+      .then(async (blob) => {
+        if (cancelled) return
         if (kind === 'text') {
-          const content = await (await fetch(blobUrl)).text()
+          const content = await blob.text()
           if (!cancelled) setText(content)
         } else {
-          setUrl(blobUrl)
+          objectUrl = URL.createObjectURL(blob)
+          setUrl(objectUrl)
         }
       })
       .catch(() => {

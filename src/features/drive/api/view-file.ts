@@ -4,8 +4,9 @@ import { env } from '@/config/env'
 // Inline counterpart to download-file.ts: same raw-bytes request, but hits /view so the backend
 // sends a real Content-Type + `inline` disposition instead of octet-stream/attachment — required
 // for the returned blob to actually render in an <img>/<audio>/<video> tag instead of the browser
-// refusing it or offering a save dialog. Caller owns the returned object URL and must revoke it.
-export async function viewFile(fileId: string, fileName: string): Promise<string> {
+// refusing it or offering a save dialog. Returns the Blob itself: text is read off it directly,
+// since fetch()ing an object URL back is a connect-src request the CSP blocks (no blob: there).
+export async function viewFile(fileId: string, fileName: string): Promise<Blob> {
   const response = (await axios.get(
     `${env.API_BASE_URL}/api/v1/storage/view/${encodeURIComponent(fileId)}`,
     {
@@ -16,5 +17,5 @@ export async function viewFile(fileId: string, fileName: string): Promise<string
     },
   )) as unknown as AxiosResponse<Blob>
 
-  return URL.createObjectURL(response.data)
+  return response.data
 }

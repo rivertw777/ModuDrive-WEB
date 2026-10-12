@@ -15,9 +15,10 @@ function contentSecurityPolicy(apiBaseUrl: string) {
     "script-src 'self'",
     "style-src 'self' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    // blob: — file previews are object URLs (features/drive/api/view-file.ts)
+    // blob: — image previews are object URLs (features/drive/components/file-preview.tsx); audio/video
+    // stream straight from the API instead (file-preview.tsx streamUrl), hence its origin in media-src
     "img-src 'self' blob: data:",
-    "media-src 'self' blob:",
+    `media-src 'self' blob: ${new URL(apiBaseUrl).origin}`,
     `connect-src 'self' ${new URL(apiBaseUrl).origin}`,
     "object-src 'none'",
     "base-uri 'self'",
