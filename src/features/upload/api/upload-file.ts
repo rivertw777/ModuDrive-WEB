@@ -182,12 +182,18 @@ const checksumOf = (hash: string) =>
   btoa(String.fromCharCode(...Array.from({ length: hash.length / 2 }, (_, i) => parseInt(hash.slice(i * 2, i * 2 + 2), 16))))
 
 /** PUTs one block straight to S3 through its presigned URL (spec 001 6). S3 checks the bytes against
- * the signed checksum and size. A network failure rejects with no status — worth another try. */
+ * the signed checksum and size, and writes only where nothing is yet — a 412 means the block is
+ * already there, which is what the upload wanted. A network failure, or a 409 (another PUT of the
+ * same block in flight), rejects with no status — worth another try, which then ends in 412. */
 async function putBlock(url: string, hash: string, block: Blob) {
-  const response = await fetch(url, { method: 'PUT', body: block, headers: { 'x-amz-checksum-sha256': checksumOf(hash) } })
-  if (!response.ok) {
-    throw Object.assign(new Error('블록을 올리지 못했습니다.'), { status: response.status, fromS3: true })
-  }
+  const response = await fetch(url, {
+    method: 'PUT',
+    body: block,
+    headers: { 'x-amz-checksum-sha256': checksumOf(hash), 'If-None-Match': '*' },
+  })
+  if (response.ok || response.status === 412) return
+  if (response.status === 409) throw new Error('블록을 올리는 중 충돌했습니다.')
+  throw Object.assign(new Error('블록을 올리지 못했습니다.'), { status: response.status, fromS3: true })
 }
 
 /**
