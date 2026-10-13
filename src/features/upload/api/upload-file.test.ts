@@ -122,7 +122,42 @@ describe('uploadGroup', () => {
     expect(init.method).toBe('PUT')
     expect((init.body as Blob).size).toBe(4 * MB)
     const digest = await crypto.subtle.digest('SHA-256', bytes.subarray(4 * MB, 8 * MB))
-    expect(init.headers).toEqual({ 'x-amz-checksum-sha256': btoa(String.fromCharCode(...new Uint8Array(digest))) })
+    expect(init.headers).toEqual({
+      'x-amz-checksum-sha256': btoa(String.fromCharCode(...new Uint8Array(digest))),
+      'If-None-Match': '*',
+    })
+  })
+
+  it('counts a block S3 already holds (412) as sent', async () => {
+    const [h0, h1, h2] = await hashes
+    answer([{ needBlocks: [h0, h1, h2] }], [committed])
+    s3Answers((hash) => (hash === h1 ? 412 : 200))
+
+    const outcomes = await send([target(big)])
+
+    expect(outcomes).toEqual([null])
+    expect(s3.mock.calls.filter(([url]) => url === s3Url(h1))).toHaveLength(1)
+    expect(commitCalls()).toHaveLength(2)
+  })
+
+  it('tries again when another PUT of the same block is in flight (409), ending in 412', async () => {
+    const [, h1] = await hashes
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      answer([{ needBlocks: [h1] }], [committed])
+      const statuses = [409, 412]
+      s3Answers(() => statuses.shift() ?? 200)
+
+      const upload = uploadGroup([target(big)], [await hashes], () => {})
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null])
+      expect(s3).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('sends no bytes and commits once when the server already has every block', async () => {
