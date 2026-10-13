@@ -120,17 +120,18 @@ async function withRetry<T>(
 }
 
 // Mirror the caps in file-service (CommitFileUploadRequest, CommitFileUploadService) and
-// storage-service (UploadBlocksService): spec 001 2장.
+// storage-service (PresignBlockUploadsService): spec 001 2장.
 const MAX_GROUP_FILES = 100
 const MAX_GROUP_HASHES = 1280
-const MAX_REQUEST_BLOCKS = 64
-const MAX_REQUEST_BYTES = 8 * 1024 * 1024
+const MAX_URL_REQUEST_BLOCKS = 64
+// A URL request's blocks are PUT right after it: 32MB plus a 10-minute pause still ends well inside
+// the URLs' hour (spec 001 6).
+const MAX_URL_REQUEST_BYTES = 32 * 1024 * 1024
 // A file over this many blocks (256MB) goes in a group of its own: a group's files all finish
 // together, so small files sharing it would wait out the big file's transfer.
 const SOLO_BLOCKS = 64
-// Block requests in flight at once: enough to hide each request's round trip, few enough to leave
-// storage-service's upload seats (spec 006 2-4-4) to other users.
-const PARALLEL_BLOCK_REQUESTS = 3
+// Block PUTs in flight at once — as many connections as a browser opens to one origin anyway.
+const PARALLEL_BLOCK_PUTS = 6
 
 export type UploadTarget = { path: string; name: string; file: File }
 
@@ -176,12 +177,31 @@ const commitError = ({ status, message }: { status: number; message: string }) =
 
 const blockBytes = (file: File, index: number) => Math.min(BLOCK_SIZE, file.size - index * BLOCK_SIZE)
 
+/** The SHA-256 as S3 takes it in x-amz-checksum-sha256: Base64 of the raw digest. */
+const checksumOf = (hash: string) =>
+  btoa(String.fromCharCode(...Array.from({ length: hash.length / 2 }, (_, i) => parseInt(hash.slice(i * 2, i * 2 + 2), 16))))
+
+/** PUTs one block straight to S3 through its presigned URL (spec 001 6). S3 checks the bytes against
+ * the signed checksum and size, and writes only where nothing is yet — a 412 means the block is
+ * already there, which is what the upload wanted. A network failure, or a 409 (another PUT of the
+ * same block in flight), rejects with no status — worth another try, which then ends in 412. */
+async function putBlock(url: string, hash: string, block: Blob) {
+  const response = await fetch(url, {
+    method: 'PUT',
+    body: block,
+    headers: { 'x-amz-checksum-sha256': checksumOf(hash), 'If-None-Match': '*' },
+  })
+  if (response.ok || response.status === 412) return
+  if (response.status === 409) throw new Error('블록을 올리는 중 충돌했습니다.')
+  throw Object.assign(new Error('블록을 올리지 못했습니다.'), { status: response.status, fromS3: true })
+}
+
 /**
  * Uploads one group of files (see {@link groupForCommit}) the way API
  * .docs/spec/001-file-upload-spec.md §2 lays out. Each file is the SHA-256 list of its 4MB blocks
  * (its blocklist, from `hashFile`). One commit for the whole group answers, per file, which blocks the server
- * doesn't have yet; those are sent once each — a block shared by several files too — several per
- * request, then the files that needed them are committed again together. So files already in the
+ * doesn't have yet; those are sent once each — a block shared by several files too — straight to S3
+ * through URLs storage-service signs, then the files that needed them are committed again together. So files already in the
  * drive, or a re-upload after a failure, skip what's already there: asking again is how an upload
  * resumes.
  *
@@ -194,7 +214,7 @@ export async function uploadGroup(
   onProgress: (index: number, sentBytes: number) => void,
   onPause: (paused: boolean) => void = () => {},
 ): Promise<(Error | null)[]> {
-  // Up to three block requests wait at once; the group is paused while any of them is.
+  // Several requests can wait at once; the group is paused while any of them is.
   let waiting = 0
   const pause = (paused: boolean) => {
     waiting += paused ? 1 : -1
@@ -238,64 +258,76 @@ export async function uploadGroup(
   })
   if (missing.size === 0) return outcomes.map((outcome) => outcome ?? null)
 
-  // Every needed block once, packed into requests of at most 64 blocks / 8MB.
-  const needed = new Map<string, Blob>()
+  // Every needed block once, its URL asked for in requests of at most 64 blocks / 32MB.
+  const queue: { request: number; index: number; hash: string; block: Blob }[] = []
+  const requests: { hash: string; size: number }[][] = [[]]
+  const queued = new Set<string>()
+  let requestBytes = 0
   for (const [i, hashes] of missing) {
     blocklists[i].forEach((hash, index) => {
-      if (hashes.has(hash) && !needed.has(hash)) needed.set(hash, blockAt(targets[i].file, index))
+      if (!hashes.has(hash) || queued.has(hash)) return
+      queued.add(hash)
+      const block = blockAt(targets[i].file, index)
+      const current = requests[requests.length - 1]
+      if (
+        current.length === MAX_URL_REQUEST_BLOCKS ||
+        (current.length > 0 && requestBytes + block.size > MAX_URL_REQUEST_BYTES)
+      ) {
+        requests.push([])
+        requestBytes = 0
+      }
+      queue.push({ request: requests.length - 1, index: requests[requests.length - 1].length, hash, block })
+      requests[requests.length - 1].push({ hash, size: block.size })
+      requestBytes += block.size
     })
-  }
-  const requests: [string, Blob][][] = [[]]
-  let requestBytes = 0
-  for (const entry of needed) {
-    const current = requests[requests.length - 1]
-    if (current.length === MAX_REQUEST_BLOCKS || (current.length > 0 && requestBytes + entry[1].size > MAX_REQUEST_BYTES)) {
-      requests.push([])
-      requestBytes = 0
-    }
-    requests[requests.length - 1].push(entry)
-    requestBytes += entry[1].size
   }
 
   let sendError: unknown = null
-  // Files a block request was refused for (a file changed since it was hashed, say): only they fail.
+  // Files a block was refused for (a file changed since it was hashed, say): only they fail.
   const refused = new Map<number, unknown>()
-  let nextRequest = 0
-  const sendRequests = async () => {
+  // A request's URLs, asked for when its first block is about to go.
+  const urls = new Map<number, Promise<string[]>>()
+  const urlsFor = (request: number) => {
+    let pending = urls.get(request)
+    if (!pending) {
+      pending = withRetry(
+        () => apiClient.post<{ urls: string[] }>('/api/v1/storage/blocks/upload-urls', { blocks: requests[request] }),
+        pause,
+        () => sendError !== null,
+      ).then((response) => response.urls)
+      urls.set(request, pending)
+    }
+    return pending
+  }
+  let next = 0
+  const sendBlocks = async () => {
     // Once one request has given up — paused too long, or the 24-hour limit — the rest would fail
     // the same way.
-    while (sendError === null && nextRequest < requests.length) {
-      const blocks = requests[nextRequest++]
+    while (sendError === null && next < queue.length) {
+      const { request, index, hash, block } = queue[next++]
       try {
-        await withRetry(() => {
-          const formData = new FormData()
-          for (const [hash, block] of blocks) {
-            formData.append('hash', hash)
-            formData.append('block', block)
-          }
-          return apiClient.post('/api/v1/storage/blocks', formData)
-        }, pause, () => sendError !== null)
+        const url = (await urlsFor(request))[index]
+        await withRetry(() => putBlock(url, hash, block), pause, () => sendError !== null)
       } catch (error) {
-        // 400/413 are about this request's blocks; anything else (429 limit, 401 session gone, a
-        // pause that ran out) would fail every request the same way.
-        const { status } = error as { status?: number }
-        if (status !== 400 && status !== 413) {
+        // About this block: refused in the URL request (400/413), or by S3 (400 the bytes changed,
+        // 403 the URL expired). Anything else (429 limit, 401 session gone, a pause that ran out)
+        // would fail every block the same way.
+        const { status, fromS3 } = error as { status?: number; fromS3?: boolean }
+        if (status !== 400 && status !== 413 && !(fromS3 && status === 403)) {
           sendError ??= error
           return
         }
         for (const [i, hashes] of missing) {
-          if (blocks.some(([hash]) => hashes.has(hash))) refused.set(i, error)
+          if (hashes.has(hash)) refused.set(i, error)
         }
         continue
       }
       for (const [i, hashes] of missing) {
-        const before = hashes.size
-        for (const [hash] of blocks) hashes.delete(hash)
-        if (hashes.size < before) onProgress(i, sentBytes(i))
+        if (hashes.delete(hash)) onProgress(i, sentBytes(i))
       }
     }
   }
-  await Promise.all(Array.from({ length: Math.min(PARALLEL_BLOCK_REQUESTS, requests.length) }, sendRequests))
+  await Promise.all(Array.from({ length: Math.min(PARALLEL_BLOCK_PUTS, queue.length) }, sendBlocks))
 
   const ready = [...missing].filter(([i, hashes]) => hashes.size === 0 && !refused.has(i)).map(([i]) => i)
   for (const [i, hashes] of missing) {

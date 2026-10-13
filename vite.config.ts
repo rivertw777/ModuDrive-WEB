@@ -19,7 +19,8 @@ function contentSecurityPolicy(apiBaseUrl: string) {
     // stream straight from the API instead (file-preview.tsx streamUrl), hence its origin in media-src
     "img-src 'self' blob: data:",
     `media-src 'self' blob: ${new URL(apiBaseUrl).origin}`,
-    `connect-src 'self' ${new URL(apiBaseUrl).origin}`,
+    // Block uploads PUT straight to S3 (API spec 001 6) — locally LocalStack; on AWS web.tf names the bucket
+    `connect-src 'self' ${new URL(apiBaseUrl).origin} http://localhost:4566`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
