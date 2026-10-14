@@ -2,11 +2,15 @@
  * `file` is null for a folder — the only way an empty folder can reach the batch. */
 export type UploadEntry = { relativePath: string; file: File | null }
 
+/** macOS reports Hangul names decomposed (NFD); the API stores names composed (NFC) and echoes
+ * `relativePath` back in that form, so the batch answer must be matched against NFC too. */
+const nfc = (path: string) => path.normalize('NFC')
+
 /** From an `<input type="file">`. A `webkitdirectory` pick fills `webkitRelativePath`
  * ("사진/2024/a.jpg") on every file; a plain multi-file pick leaves it empty. Empty folders
  * never show up this way — the browser doesn't report them. */
 export function entriesFromFileList(files: Iterable<File>): UploadEntry[] {
-  return Array.from(files, (file) => ({ relativePath: file.webkitRelativePath || file.name, file }))
+  return Array.from(files, (file) => ({ relativePath: nfc(file.webkitRelativePath || file.name), file }))
 }
 
 /**
@@ -42,11 +46,11 @@ function isDirectoryEntry(entry: FileSystemEntry): entry is FileSystemDirectoryE
 async function walk(entry: FileSystemEntry, path: string, out: UploadEntry[]) {
   if (isFileEntry(entry)) {
     const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject))
-    out.push({ relativePath: path, file })
+    out.push({ relativePath: nfc(path), file })
     return
   }
   if (!isDirectoryEntry(entry)) return
-  out.push({ relativePath: path, file: null })
+  out.push({ relativePath: nfc(path), file: null })
   const reader = entry.createReader()
   // readEntries hands back at most ~100 entries per call — keep reading until it returns none.
   for (;;) {

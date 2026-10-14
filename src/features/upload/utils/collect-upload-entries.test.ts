@@ -48,6 +48,13 @@ describe('entriesFromFileList', () => {
 
     expect(entries.map((e) => e.relativePath)).toEqual(['사진/2024/a.jpg', 'b.txt'])
   })
+
+  it('composes macOS-decomposed Hangul names (NFD) to NFC', async () => {
+    const nfd = '보고서'.normalize('NFD')
+    expect(entriesFromFileList([file(`${nfd}.pdf`, `${nfd}/${nfd}.pdf`)])[0].relativePath).toBe('보고서/보고서.pdf')
+    const [dir, child] = await entriesFromDataTransfer(dataTransfer([dirEntry(nfd, [fileEntry(`${nfd}.pdf`)])]))
+    expect([dir.relativePath, child.relativePath]).toEqual(['보고서', '보고서/보고서.pdf'])
+  })
 })
 
 describe('entriesFromDataTransfer', () => {
