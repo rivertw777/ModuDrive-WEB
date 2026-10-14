@@ -26,7 +26,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
   const { data: files, isLoading, isError, error: loadError } = useFilesByCategory(category)
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   // Category views span every folder, so uploads here land in the drive root.
-  const { onUpload, uploads, clearUploads, uploadError, conflict, resolveConflict } =
+  const { onUpload, uploads, clearUploads, cancelUpload, uploadError, conflict, resolveConflict } =
     useFileUpload('/')
 
   const onSelect = (file: FileEntry) => setSelectedFileId(file.fileId)
@@ -66,7 +66,7 @@ export function CategoryExplorer({ category }: { category: FileCategory }) {
 
       <UploadConflictDialog conflict={conflict} onResolve={resolveConflict} />
 
-      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} />
+      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} onCancel={cancelUpload} />
     </div>
   )
 }

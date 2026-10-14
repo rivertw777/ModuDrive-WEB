@@ -25,6 +25,7 @@ export function DriveExplorer({ path }: { path: string }) {
     onUpload,
     uploads,
     clearUploads,
+    cancelUpload,
     uploadError,
     showUploadError,
     conflict,
@@ -102,7 +103,7 @@ export function DriveExplorer({ path }: { path: string }) {
 
       <UploadConflictDialog conflict={conflict} onResolve={resolveConflict} />
 
-      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} />
+      <UploadStatusPanel uploads={uploads} onDismiss={clearUploads} onCancel={cancelUpload} />
     </div>
   )
 }

@@ -205,6 +205,9 @@ async function putBlock(url: string, hash: string, block: Blob) {
  * drive, or a re-upload after a failure, skip what's already there: asking again is how an upload
  * resumes.
  *
+ * A file `isCancelled` says the user gave up on gets no more of its blocks sent and no second
+ * commit; one already committed by the first commit stays.
+ *
  * Resolves with one outcome per file, in order: null when it was committed, else why it failed.
  * Rejects only when a commit request itself fails, which fails the whole group.
  */
@@ -213,6 +216,7 @@ export async function uploadGroup(
   blocklists: string[][],
   onProgress: (index: number, sentBytes: number) => void,
   onPause: (paused: boolean) => void = () => {},
+  isCancelled: (index: number) => boolean = () => false,
 ): Promise<(Error | null)[]> {
   // Several requests can wait at once; the group is paused while any of them is.
   let waiting = 0
@@ -305,6 +309,7 @@ export async function uploadGroup(
     // the same way.
     while (sendError === null && next < queue.length) {
       const { request, index, hash, block } = queue[next++]
+      if ([...missing].every(([i, hashes]) => !hashes.has(hash) || isCancelled(i))) continue
       try {
         const url = (await urlsFor(request))[index]
         await withRetry(() => putBlock(url, hash, block), pause, () => sendError !== null)
@@ -329,9 +334,13 @@ export async function uploadGroup(
   }
   await Promise.all(Array.from({ length: Math.min(PARALLEL_BLOCK_PUTS, queue.length) }, sendBlocks))
 
-  const ready = [...missing].filter(([i, hashes]) => hashes.size === 0 && !refused.has(i)).map(([i]) => i)
+  const ready = [...missing]
+    .filter(([i, hashes]) => hashes.size === 0 && !refused.has(i) && !isCancelled(i))
+    .map(([i]) => i)
   for (const [i, hashes] of missing) {
-    if (hashes.size > 0 || refused.has(i)) {
+    if (isCancelled(i)) {
+      outcomes[i] = new Error('Upload cancelled')
+    } else if (hashes.size > 0 || refused.has(i)) {
       const error = refused.get(i) ?? sendError
       outcomes[i] = error instanceof Error ? error : new Error('Block upload failed')
     }

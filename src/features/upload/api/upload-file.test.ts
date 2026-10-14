@@ -184,6 +184,27 @@ describe('uploadGroup', () => {
     expect(commitCalls()[1].map((file: { name: string }) => file.name)).toEqual(['a', 'c'])
   })
 
+  it('sends no blocks for a cancelled file and leaves it out of the second commit', async () => {
+    const [h0, h1, h2] = await hashes
+    const shared = new Uint8Array(10).fill(9)
+    const hs = await sha256Hex(shared)
+    answer([{ needBlocks: [h0, h1, h2] }, { needBlocks: [hs] }], [committed])
+    const targets = [target(big), target(new File([shared], 'small'))]
+
+    const outcomes = await uploadGroup(
+      targets,
+      await Promise.all(targets.map(({ file }) => hashFile(file))),
+      () => {},
+      () => {},
+      (i) => i === 0,
+    )
+
+    expect(putHashes()).toEqual([hs])
+    expect(commitCalls()[1].map((file: { name: string }) => file.name)).toEqual(['small'])
+    expect(outcomes[0]?.message).toBe('Upload cancelled')
+    expect(outcomes[1]).toBeNull()
+  })
+
   it('asks for URLs in requests of at most 64 blocks', async () => {
     const files = Array.from({ length: 65 }, (_, i) => new File([`file ${i}`], `f${i}`))
     const blocklists = await Promise.all(files.map((file) => hashFile(file)))
