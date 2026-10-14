@@ -15,10 +15,10 @@ vi.mock('../api/upload-file', async (importOriginal) => ({
   uploadGroup: vi.fn(),
   commitFolders: vi.fn(),
 }))
-vi.mock('../utils/hash-in-worker', () => ({ hashFile: vi.fn() }))
+vi.mock('../utils/hash-in-worker', () => ({ hashFile: vi.fn(), cancelHashing: vi.fn() }))
 
 const { planUploadBatch, uploadGroup, commitFolders, MAX_FILE_SIZE } = await import('../api/upload-file')
-const { hashFile } = await import('../utils/hash-in-worker')
+const { hashFile, cancelHashing } = await import('../utils/hash-in-worker')
 
 type BatchCall = [string, BatchItem[], Record<string, ConflictResolution>]
 
@@ -549,5 +549,63 @@ describe('useFileUpload', () => {
       await pending
     })
     expect(leave()).toBe(false)
+  })
+
+  it('cancels one row mid-upload: its files are told to stop, it is not failed, the rest still finish', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    let finish!: () => void
+    let stillWanted!: (index: number) => boolean
+    vi.mocked(uploadGroup).mockImplementationOnce(
+      (targets, _blocklists, _onProgress, _onPause, isCancelled) =>
+        new Promise((resolve) => {
+          stillWanted = (i) => !isCancelled?.(i)
+          finish = () => resolve(targets.map((_, i) => (isCancelled?.(i) ? new Error('Upload cancelled') : null)))
+        }),
+    )
+    const a = file('a.txt')
+    const { result } = renderUpload()
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.onUpload([entry('a.txt', a), entry('b.txt')])
+    })
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalled())
+
+    act(() => result.current.cancelUpload(result.current.uploads[0].id))
+    expect(cancelHashing).toHaveBeenCalledWith(a)
+    expect([stillWanted(0), stillWanted(1)]).toEqual([false, true])
+    await act(async () => {
+      finish()
+      await pending
+    })
+
+    expect(result.current.uploads.map((item) => item.status)).toEqual(['cancelled', 'done'])
+  })
+
+  it('never sends a row cancelled while its pick waited behind another', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    let finishFirst!: () => void
+    vi.mocked(uploadGroup).mockImplementationOnce(
+      (targets) => new Promise((resolve) => (finishFirst = () => resolve(targets.map(() => null)))),
+    )
+    const { result } = renderUpload()
+    let first!: Promise<void>
+    let second!: Promise<void>
+    act(() => {
+      first = result.current.onUpload([entry('a.txt')])
+    })
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalled())
+    act(() => {
+      second = result.current.onUpload([entry('b.txt')])
+    })
+    act(() => result.current.cancelUpload(result.current.uploads[1].id))
+    await act(async () => {
+      finishFirst()
+      await first
+      await second
+    })
+
+    expect(planUploadBatch).toHaveBeenCalledTimes(1)
+    expect(commits()).toEqual([['/docs', 'a.txt']])
+    expect(result.current.uploads.map((item) => item.status)).toEqual(['done', 'cancelled'])
   })
 })
