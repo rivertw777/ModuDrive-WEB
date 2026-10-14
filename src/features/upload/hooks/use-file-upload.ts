@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   MAX_BATCH_ITEMS,
@@ -74,6 +74,15 @@ export function useFileUpload(path: string) {
   // bytes go one file at a time across picks too, and two batches can never both be waiting on
   // the one conflict dialog.
   const queue = useRef<Promise<void>>(Promise.resolve())
+
+  // Leaving the page drops the picked Files, so an upload still running would just stop: ask first.
+  const active = uploads.some((item) => item.status === 'uploading' || item.status === 'paused')
+  useEffect(() => {
+    if (!active) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [active])
 
   const resolveConflict = (choice: ConflictChoice | null) => {
     setConflict(null)

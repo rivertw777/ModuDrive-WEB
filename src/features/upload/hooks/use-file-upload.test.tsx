@@ -525,4 +525,29 @@ describe('useFileUpload', () => {
     expect(result.current.uploads).toEqual([])
     expect(planUploadBatch).not.toHaveBeenCalled()
   })
+  it('asks before the page is left while an upload is running, and stops asking once it ends', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    let finish!: () => void
+    vi.mocked(uploadGroup).mockImplementationOnce(
+      (targets) => new Promise((resolve) => (finish = () => resolve(targets.map(() => null)))),
+    )
+    const leave = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    const { result } = renderUpload()
+    let pending!: Promise<void>
+    act(() => {
+      pending = result.current.onUpload([entry('a.txt')])
+    })
+
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalled())
+    expect(leave()).toBe(true)
+    await act(async () => {
+      finish()
+      await pending
+    })
+    expect(leave()).toBe(false)
+  })
 })
