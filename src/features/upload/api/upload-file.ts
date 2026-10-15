@@ -123,10 +123,9 @@ async function withRetry<T>(
 // storage-service (PresignBlockUploadsService): spec 001 2장.
 const MAX_GROUP_FILES = 100
 const MAX_GROUP_HASHES = 1280
+// At most 256MB (64 × 4MB), PUT right after the request; a URL that still runs out of its hour
+// (a long pause on a slow link) is asked for again once (spec 001 6).
 const MAX_URL_REQUEST_BLOCKS = 64
-// A URL request's blocks are PUT right after it: 32MB plus a 10-minute pause still ends well inside
-// the URLs' hour (spec 001 6).
-const MAX_URL_REQUEST_BYTES = 32 * 1024 * 1024
 // A file over this many blocks (256MB) goes in a group of its own: a group's files all finish
 // together, so small files sharing it would wait out the big file's transfer.
 const SOLO_BLOCKS = 64
@@ -262,47 +261,43 @@ export async function uploadGroup(
   })
   if (missing.size === 0) return outcomes.map((outcome) => outcome ?? null)
 
-  // Every needed block once, its URL asked for in requests of at most 64 blocks / 32MB.
+  // Every needed block once, its URL asked for in requests of at most 64 blocks.
   const queue: { request: number; index: number; hash: string; block: Blob }[] = []
   const requests: { hash: string; size: number }[][] = [[]]
   const queued = new Set<string>()
-  let requestBytes = 0
   for (const [i, hashes] of missing) {
     blocklists[i].forEach((hash, index) => {
       if (!hashes.has(hash) || queued.has(hash)) return
       queued.add(hash)
       const block = blockAt(targets[i].file, index)
       const current = requests[requests.length - 1]
-      if (
-        current.length === MAX_URL_REQUEST_BLOCKS ||
-        (current.length > 0 && requestBytes + block.size > MAX_URL_REQUEST_BYTES)
-      ) {
-        requests.push([])
-        requestBytes = 0
-      }
+      if (current.length === MAX_URL_REQUEST_BLOCKS) requests.push([])
       queue.push({ request: requests.length - 1, index: requests[requests.length - 1].length, hash, block })
       requests[requests.length - 1].push({ hash, size: block.size })
-      requestBytes += block.size
     })
   }
 
   let sendError: unknown = null
   // Files a block was refused for (a file changed since it was hashed, say): only they fail.
   const refused = new Map<number, unknown>()
+  const askUrls = (blocks: { hash: string; size: number }[]) =>
+    withRetry(
+      () => apiClient.post<{ urls: string[] }>('/api/v1/storage/blocks/upload-urls', { blocks }),
+      pause,
+      () => sendError !== null,
+    ).then((response) => response.urls)
   // A request's URLs, asked for when its first block is about to go.
   const urls = new Map<number, Promise<string[]>>()
   const urlsFor = (request: number) => {
     let pending = urls.get(request)
     if (!pending) {
-      pending = withRetry(
-        () => apiClient.post<{ urls: string[] }>('/api/v1/storage/blocks/upload-urls', { blocks: requests[request] }),
-        pause,
-        () => sendError !== null,
-      ).then((response) => response.urls)
+      pending = askUrls(requests[request])
       urls.set(request, pending)
     }
     return pending
   }
+  const put = (url: string, hash: string, block: Blob) =>
+    withRetry(() => putBlock(url, hash, block), pause, () => sendError !== null)
   let next = 0
   const sendBlocks = async () => {
     // Once one request has given up — paused too long, or the 24-hour limit — the rest would fail
@@ -311,11 +306,18 @@ export async function uploadGroup(
       const { request, index, hash, block } = queue[next++]
       if ([...missing].every(([i, hashes]) => !hashes.has(hash) || isCancelled(i))) continue
       try {
-        const url = (await urlsFor(request))[index]
-        await withRetry(() => putBlock(url, hash, block), pause, () => sendError !== null)
+        try {
+          await put((await urlsFor(request))[index], hash, block)
+        } catch (error) {
+          const { status, fromS3 } = error as { status?: number; fromS3?: boolean }
+          if (!(fromS3 && status === 403)) throw error
+          // The URL ran out of its hour: one fresh URL for this block, one more try.
+          const [url] = await askUrls([{ hash, size: block.size }])
+          await put(url, hash, block)
+        }
       } catch (error) {
         // About this block: refused in the URL request (400/413), or by S3 (400 the bytes changed,
-        // 403 the URL expired). Anything else (429 limit, 401 session gone, a pause that ran out)
+        // 403 even with a fresh URL). Anything else (429 limit, 401 session gone, a pause that ran out)
         // would fail every block the same way.
         const { status, fromS3 } = error as { status?: number; fromS3?: boolean }
         if (status !== 400 && status !== 413 && !(fromS3 && status === 403)) {

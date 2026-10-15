@@ -218,7 +218,7 @@ describe('uploadGroup', () => {
     expect(urlCalls().map((request) => request.length)).toEqual([64, 1])
   })
 
-  it('asks for URLs in requests of at most 32MB', async () => {
+  it('asks for full 4MB blocks 64 at a time, not by bytes', async () => {
     const files = fourMbFiles(9)
     const blocklists = await Promise.all(files.map((file) => hashFile(file)))
     answer(
@@ -228,7 +228,7 @@ describe('uploadGroup', () => {
 
     await send(files.map((file) => target(file)))
 
-    expect(urlCalls().map((request) => request.length)).toEqual([8, 1])
+    expect(urlCalls().map((request) => request.length)).toEqual([9])
   })
 
   it('keeps up to six PUTs in flight at once', async () => {
@@ -346,9 +346,9 @@ describe('uploadGroup', () => {
   })
 
   it.each([
-    [400, 'the file changed since it was hashed'],
-    [403, 'the URL expired'],
-  ])('fails only the files whose block S3 refused with %i (%s), and keeps sending the rest', async (status) => {
+    [400, 'the file changed since it was hashed', 1],
+    [403, 'the URL expired, and a fresh one too', 2],
+  ])('fails only the files whose block S3 refused with %i (%s), and keeps sending the rest', async (status, _, puts) => {
     const [h0, h1, h2] = await hashes
     const other = new File(['other'], 'c')
     const [otherHash] = await hashFile(other)
@@ -360,7 +360,24 @@ describe('uploadGroup', () => {
     expect((outcomes[0] as { status?: number }).status).toBe(status)
     expect(outcomes[1]).toBeNull()
     expect(commitCalls()[1]).toHaveLength(1)
-    expect(s3.mock.calls.filter(([url]) => url === s3Url(h0))).toHaveLength(1) // not retried
+    expect(s3.mock.calls.filter(([url]) => url === s3Url(h0))).toHaveLength(puts)
+  })
+
+  it('asks for a fresh URL once when S3 says the URL expired (403)', async () => {
+    const [h0, h1, h2] = await hashes
+    answer([{ needBlocks: [h0, h1, h2] }], [committed])
+    let expired = true
+    s3Answers((hash) => {
+      if (hash !== h0 || !expired) return 200
+      expired = false
+      return 403
+    })
+
+    const outcomes = await send([target(big)])
+
+    expect(outcomes).toEqual([null])
+    expect(urlCalls()).toEqual([[h0, h1, h2], [h0]])
+    expect(putHashes().filter((hash) => hash === h0)).toHaveLength(2)
   })
 
   it('does not retry a 429 — on uploads it is only the 24-hour limit', async () => {
