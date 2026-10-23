@@ -17,6 +17,7 @@ import {
 import type { UploadEntry } from '../utils/collect-upload-entries'
 import { cancelHashing, hashFile } from '../utils/hash-in-worker'
 import { actionErrorText } from '@/stores/alert-store'
+import { runBatch } from '@/utils/run-batch'
 
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
 export type ConflictChoice = 'replace' | 'keep-both'
@@ -45,6 +46,11 @@ export type UploadItem = {
   status: 'uploading' | 'paused' | 'done' | 'error' | 'cancelled'
 }
 
+// Commit groups in flight at once: one group's commits and URL requests overlap another's block
+// transfer, instead of the transfer stopping for every round trip. The PUTs of both still share the
+// browser's few connections to S3, so it adds no bandwidth contention of its own.
+const GROUPS_IN_FLIGHT = 2
+
 const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
   replace: 'REPLACE',
   'keep-both': 'KEEP_BOTH',
@@ -58,8 +64,9 @@ const cancelled = (row: UploadItem | undefined) => row?.status === 'cancelled'
 /**
  * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2): one batch
  * request checks the whole tree for name conflicts and says where everything lands, then the files
- * are committed a group at a time (which creates them and the folders above them), and the folders
- * no file commit made — empty ones, or ones whose files all failed — are committed last.
+ * are committed in groups, two in flight at once (which creates them and the folders above them),
+ * and the folders no file commit made — empty ones, or ones whose files all failed — are committed
+ * last.
  * Hashing starts the moment files are picked, so it runs while the batch check and any conflict
  * dialog wait.
  * A name conflict pauses on that one item (`conflict`) until the caller answers via
@@ -270,9 +277,9 @@ export function useFileUpload(path: string) {
       sendable.push({ path: target.path, name: target.name, file: entry.file, row })
     }
 
-    for (const whole of groupForCommit(sendable)) {
+    const sendGroup = async (whole: (UploadTarget & { row: UploadItem })[]) => {
       const group = whole.filter((target) => !cancelled(target.row))
-      if (group.length === 0) continue
+      if (group.length === 0) return
       // Each file's bytes counted so far, so a row's total moves by the difference.
       const counted = group.map(() => 0)
       const count = (k: number, sent: number) => {
@@ -326,6 +333,8 @@ export function useFileUpload(path: string) {
         count(k, file.size)
       })
     }
+    // sendGroup catches its own failures, so nothing here rejects.
+    await runBatch(groupForCommit(sendable), sendGroup, GROUPS_IN_FLIGHT)
 
     // The commit creates any missing folder above each one, so order and failed parents don't matter.
     const folders = planned.filter(
