@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { LinkIcon } from '@/components/ui/icons'
 
@@ -7,6 +7,9 @@ import { LinkIcon } from '@/components/ui/icons'
 export function CopyLinkButton({ link }: { link: string | null }) {
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState(false)
+  const resetTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => () => clearTimeout(resetTimer.current), [])
 
   const onCopy = async () => {
     if (!link) return
@@ -14,7 +17,8 @@ export function CopyLinkButton({ link }: { link: string | null }) {
       await navigator.clipboard.writeText(link)
       setCopyError(false)
       setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
+      clearTimeout(resetTimer.current)
+      resetTimer.current = setTimeout(() => setCopied(false), 1500)
     } catch {
       setCopyError(true)
     }
