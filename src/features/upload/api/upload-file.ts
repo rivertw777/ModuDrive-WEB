@@ -53,7 +53,7 @@ export const MAX_COMMIT_FOLDERS = 1000
 export type FolderResult = { fileId?: string; error?: { status: number; message: string } }
 
 /** Creates the folders no file commit made — empty ones, or ones whose files all failed — together
- * with any missing folder above them, through the same commit (spec 001 2-2). One result per
+ * with any missing folder above them, through the same commit (spec 001 2-6). One result per
  * folder, in order; an existing folder is answered as is. */
 export async function commitFolders(folders: { path: string; name: string }[]) {
   const { directories } = await withRetry(() =>
@@ -120,11 +120,11 @@ async function withRetry<T>(
 }
 
 // Mirror the caps in file-service (CommitFileUploadRequest, CommitFileUploadService) and
-// storage-service (PresignBlockUploadsService): spec 001 2장.
+// storage-service (PresignBlockUploadsService): spec 001 6.
 const MAX_GROUP_FILES = 100
 const MAX_GROUP_HASHES = 1280
 // At most 256MB (64 × 4MB), PUT right after the request; a URL that still runs out of its hour
-// (a long pause on a slow link) is asked for again once (spec 001 6).
+// (a long pause on a slow link) is asked for again once (spec 001 2-4).
 const MAX_URL_REQUEST_BLOCKS = 64
 // A file over this many blocks (256MB) goes in a group of its own: a group's files all finish
 // together, so small files sharing it would wait out the big file's transfer.

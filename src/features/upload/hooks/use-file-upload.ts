@@ -41,7 +41,7 @@ export type UploadItem = {
   errorCount: number
   /** Why the row failed before anything was sent, e.g. "5GB 초과". */
   errorReason?: string
-  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-1).
+  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-5).
    * `cancelled`: the user stopped it; whatever was already committed stays. */
   status: 'uploading' | 'paused' | 'done' | 'error' | 'cancelled'
 }
@@ -112,7 +112,7 @@ export function useFileUpload(path: string) {
     setUploads((prev) => prev.map((item) => (item.id === row.id ? { ...row } : item)))
 
   /** Stops one row: no more hashing, blocks or commits for it. Files already committed stay, and
-   * blocks already in S3 are left to the uncommitted-block purge (spec 001 11). */
+   * blocks already in S3 are left to the uncommitted-block purge (spec 001 5). */
   const cancelUpload = (id: string) => {
     const owned = live.current.get(id)
     if (!owned || (owned.row.status !== 'uploading' && owned.row.status !== 'paused')) return
