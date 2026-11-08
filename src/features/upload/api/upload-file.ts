@@ -135,6 +135,9 @@ const PARALLEL_BLOCK_PUTS = 6
 // byte — is given up and tried again like a network failure (spec 001 2-4-3). Counted from the last
 // progress, not the start, so a slow link that keeps sending is never cut.
 const PUT_IDLE_TIMEOUT_MS = 30_000
+// A file the commit answered 503 for (storage-service couldn't check its blocks) is sent again on
+// the usual retries, no sooner than this: the time the S3 circuit stays open (spec 001 2-4-3).
+const COMMIT_RETRY_AFTER_S = 10
 
 export type UploadTarget = { path: string; name: string; file: File }
 
@@ -263,21 +266,34 @@ export async function uploadGroup(
   // One id per file for every commit of this attempt, so a commit whose response was lost can be
   // sent again and get back the version it already made.
   const uploadIds = targets.map(() => crypto.randomUUID())
+  // Files answered 5xx (storage-service couldn't check their blocks) are committed again, alone; the
+  // rest keep their answer. Once the retries give up, those files fail with their 5xx.
   const commit = async (indexes: number[]) => {
-    const { results } = await withRetry(
-      () =>
-        apiClient.post<{ results: CommitResult[] }>('/api/v1/files/commit', {
-        files: indexes.map((i) => ({
-          path: targets[i].path,
-          name: targets[i].name,
-          uploadId: uploadIds[i],
-          size: targets[i].file.size,
-          blocklist: blocklists[i],
-        })),
-        }),
-      pause,
-    )
-    return results
+    const answers = new Map<number, CommitResult>()
+    let pending = indexes
+    const unavailable = (i: number) => (answers.get(i)?.error?.status ?? 0) >= 500
+    try {
+      await withRetry(async () => {
+        const { results } = await apiClient.post<{ results: CommitResult[] }>('/api/v1/files/commit', {
+          files: pending.map((i) => ({
+            path: targets[i].path,
+            name: targets[i].name,
+            uploadId: uploadIds[i],
+            size: targets[i].file.size,
+            blocklist: blocklists[i],
+          })),
+        })
+        results.forEach((result, k) => answers.set(pending[k], result))
+        pending = pending.filter(unavailable)
+        if (pending.length > 0) {
+          throw Object.assign(new Error('Commit unavailable'), { status: 503, retryAfter: COMMIT_RETRY_AFTER_S })
+        }
+      }, pause)
+    } catch (error) {
+      // The request itself failed: nothing answered for the files still pending.
+      if (!pending.every(unavailable)) throw error
+    }
+    return indexes.map((i) => answers.get(i) as CommitResult)
   }
 
   const outcomes: (Error | null | undefined)[] = targets.map(() => undefined)
