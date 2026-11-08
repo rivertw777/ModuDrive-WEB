@@ -41,7 +41,7 @@ export type UploadItem = {
   errorCount: number
   /** Why the row failed before anything was sent, e.g. "5GB 초과". */
   errorReason?: string
-  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-5).
+  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-4-3).
    * `cancelled`: the user stopped it; whatever was already committed stays. */
   status: 'uploading' | 'paused' | 'done' | 'error' | 'cancelled'
 }
