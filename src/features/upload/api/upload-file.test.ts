@@ -405,6 +405,47 @@ describe('uploadGroup', () => {
     }
   })
 
+  it('commits again, no sooner than 10 seconds, only the files the commit answered 503', async () => {
+    const targets = [target(new File(['a'], 'a')), target(new File(['b'], 'b'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.' } }
+      answer([unavailable, committed], [committed])
+      const upload = uploadGroup(targets, blocklists, () => {})
+      await vi.advanceTimersByTimeAsync(9_000)
+      expect(commitCalls()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null, null])
+      expect(commitCalls()[1]).toEqual([commitCalls()[0][0]]) // same uploadId, the 503 file alone
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('fails only the 503 files once the commit retries give up, keeping the files already committed', async () => {
+    const targets = [target(new File(['a'], 'a')), target(new File(['b'], 'b'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] })
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.' } }
+      api.post.mockImplementation(() =>
+        Promise.resolve({ results: commitCalls().length === 1 ? [unavailable, committed] : [unavailable] }),
+      )
+      const upload = uploadGroup(targets, blocklists, () => {})
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(30_000)
+
+      const outcomes = await upload
+      expect(outcomes[0]?.message).toBe('저장소에 일시적으로 연결할 수 없습니다.')
+      expect(outcomes[1]).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('waits at least as long as Retry-After says before asking for URLs again', async () => {
     const blocklist = await hashes
     const [, h1] = blocklist
