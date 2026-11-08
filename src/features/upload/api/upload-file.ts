@@ -131,6 +131,10 @@ const MAX_URL_REQUEST_BLOCKS = 64
 const SOLO_BLOCKS = 64
 // Block PUTs in flight at once — as many connections as a browser opens to one origin anyway.
 const PARALLEL_BLOCK_PUTS = 6
+// A PUT that moves no bytes for this long — S3 stopped reading, or never answers after the last
+// byte — is given up and tried again like a network failure (spec 001 2-4-3). Counted from the last
+// progress, not the start, so a slow link that keeps sending is never cut.
+const PUT_IDLE_TIMEOUT_MS = 30_000
 
 export type UploadTarget = { path: string; name: string; file: File }
 
@@ -180,19 +184,52 @@ const blockBytes = (file: File, index: number) => Math.min(BLOCK_SIZE, file.size
 const checksumOf = (hash: string) =>
   btoa(String.fromCharCode(...Array.from({ length: hash.length / 2 }, (_, i) => parseInt(hash.slice(i * 2, i * 2 + 2), 16))))
 
-/** PUTs one block straight to S3 through its presigned URL (spec 001 6). S3 checks the bytes against
+// Block PUTs in flight across every group at once (use-file-upload runs two): a PUT past the
+// browser's connections to S3 would sit queued inside the browser, moving nothing, and the idle limit
+// would cut it while it never got to send.
+let putsInFlight = 0
+const putTurns: (() => void)[] = []
+async function inPutSlot<T>(send: () => Promise<T>) {
+  if (putsInFlight < PARALLEL_BLOCK_PUTS) putsInFlight++
+  else await new Promise<void>((turn) => putTurns.push(turn))
+  try {
+    return await send()
+  } finally {
+    const next = putTurns.shift()
+    if (next) next()
+    else putsInFlight--
+  }
+}
+
+/** PUTs one block straight to S3 through its presigned URL (spec 001 2-4). S3 checks the bytes against
  * the signed checksum and size, and writes only where nothing is yet — a 412 means the block is
- * already there, which is what the upload wanted. A network failure, or a 409 (another PUT of the
- * same block in flight), rejects with no status — worth another try, which then ends in 412. */
-async function putBlock(url: string, hash: string, block: Blob) {
-  const response = await fetch(url, {
-    method: 'PUT',
-    body: block,
-    headers: { 'x-amz-checksum-sha256': checksumOf(hash), 'If-None-Match': '*' },
+ * already there, which is what the upload wanted. A network failure, a PUT gone idle, or a 409
+ * (another PUT of the same block in flight) rejects with no status — worth another try, which then
+ * ends in 412. XHR, not fetch: only XHR reports upload progress, which the idle limit runs on. */
+function putBlock(url: string, hash: string, block: Blob) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    let idle: ReturnType<typeof setTimeout> | undefined
+    const moved = () => {
+      clearTimeout(idle)
+      idle = setTimeout(() => xhr.abort(), PUT_IDLE_TIMEOUT_MS)
+    }
+    xhr.upload.onprogress = moved
+    xhr.onloadend = () => {
+      clearTimeout(idle)
+      const { status } = xhr
+      if ((status >= 200 && status < 300) || status === 412) resolve()
+      // 0: no answer — the network failed, the PUT went idle, or CORS hid an S3 error.
+      else if (status === 0) reject(new Error('블록을 올리지 못했습니다.'))
+      else if (status === 409) reject(new Error('블록을 올리는 중 충돌했습니다.'))
+      else reject(Object.assign(new Error('블록을 올리지 못했습니다.'), { status, fromS3: true }))
+    }
+    xhr.open('PUT', url)
+    xhr.setRequestHeader('x-amz-checksum-sha256', checksumOf(hash))
+    xhr.setRequestHeader('If-None-Match', '*')
+    moved()
+    xhr.send(block)
   })
-  if (response.ok || response.status === 412) return
-  if (response.status === 409) throw new Error('블록을 올리는 중 충돌했습니다.')
-  throw Object.assign(new Error('블록을 올리지 못했습니다.'), { status: response.status, fromS3: true })
 }
 
 /**
@@ -297,7 +334,7 @@ export async function uploadGroup(
     return pending
   }
   const put = (url: string, hash: string, block: Blob) =>
-    withRetry(() => putBlock(url, hash, block), pause, () => sendError !== null)
+    withRetry(() => inPutSlot(() => putBlock(url, hash, block)), pause, () => sendError !== null)
   let next = 0
   const sendBlocks = async () => {
     // Once one request has given up — paused too long, or the 24-hour limit — the rest would fail

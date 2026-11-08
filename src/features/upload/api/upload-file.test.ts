@@ -38,8 +38,39 @@ const urlCalls = () =>
 const s3Url = (hash: string) => `https://bucket.s3.test/blocks/${hash}?signed`
 const urlsFor = (body: UrlRequest) => Promise.resolve({ urls: body.blocks.map((block) => s3Url(block.hash)) })
 
-/** S3: each PUT answers with the next status for its hash (200 once they run out). */
+/** S3: each PUT answers with the next status for its hash (200 once they run out). A rejection is a
+ * network failure; a promise that never settles, an S3 that never answers. */
 const s3 = vi.fn<(url: string, init: RequestInit) => Promise<{ ok: boolean; status: number }>>()
+/** The XHR putBlock sends through, handing each PUT to {@link s3}. */
+class FakeXhr {
+  status = 0
+  upload: { onprogress?: () => void } = {}
+  onloadend?: () => void
+  private url = ''
+  private headers: Record<string, string> = {}
+  private done = false
+  open(_method: string, url: string) {
+    this.url = url
+  }
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value
+  }
+  send(body: Blob) {
+    s3(this.url, { method: 'PUT', body, headers: this.headers }).then(
+      ({ status }) => this.end(status),
+      () => this.end(0),
+    )
+  }
+  abort() {
+    this.end(0)
+  }
+  private end(status: number) {
+    if (this.done) return
+    this.done = true
+    this.status = status
+    this.onloadend?.()
+  }
+}
 const putHashes = () => s3.mock.calls.map(([url]) => url.split('/blocks/')[1].split('?')[0])
 const s3Answers = (statusOf: (hash: string) => number) =>
   s3.mockImplementation((url) => {
@@ -68,7 +99,7 @@ beforeEach(() => {
   api.post.mockReset()
   s3.mockReset()
   s3Answers(() => 200)
-  vi.stubGlobal('fetch', s3)
+  vi.stubGlobal('XMLHttpRequest', FakeXhr)
 })
 
 describe('groupForCommit', () => {
@@ -258,6 +289,37 @@ describe('uploadGroup', () => {
     expect(urlCalls()).toHaveLength(1)
   })
 
+  it('keeps six PUTs in flight across groups uploading at once, none queued in the browser', async () => {
+    const groups = [fourMbFiles(4), fourMbFiles(8).slice(4)]
+    const blocklists = await Promise.all(groups.map((files) => Promise.all(files.map((file) => hashFile(file)))))
+    api.post.mockImplementation((url: string, body: UrlRequest & { files: { blocklist: string[] }[] }) =>
+      url === '/api/v1/files/commit'
+        ? Promise.resolve({
+            results: body.files.map(({ blocklist }) =>
+              putHashes().includes(blocklist[0]) ? committed : { needBlocks: blocklist },
+            ),
+          })
+        : urlsFor(body),
+    )
+    let inFlight = 0
+    let most = 0
+    const releases: (() => void)[] = []
+    s3.mockImplementation(() => {
+      inFlight++
+      most = Math.max(most, inFlight)
+      return new Promise((resolve) => releases.push(() => (inFlight--, resolve({ ok: true, status: 200 }))))
+    })
+
+    const uploads = groups.map((files, g) => uploadGroup(files.map((file) => target(file)), blocklists[g], () => {}))
+    await vi.waitFor(() => expect(releases).toHaveLength(6))
+    while (releases.length > 0) {
+      releases.splice(0).forEach((release) => release())
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(await Promise.all(uploads)).toEqual(groups.map((files) => files.map(() => null)))
+    expect(most).toBe(6)
+  })
+
   it('fails only the file the server rejected', async () => {
     answer([{ error: { status: 400, message: '같은 위치에 같은 이름의 항목이 이미 존재합니다.' } }, committed])
 
@@ -312,10 +374,32 @@ describe('uploadGroup', () => {
       while (!done) await vi.advanceTimersByTimeAsync(30_000)
 
       const outcomes = await upload
-      expect(outcomes[0]?.message).toBe('Failed to fetch')
+      expect(outcomes[0]?.message).toBe('블록을 올리지 못했습니다.')
       expect(outcomes[1]).toBeNull()
       expect(commitCalls()).toHaveLength(1)
       expect(new Set(putHashes())).toEqual(new Set([h0, h1, h2]))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up on a PUT that moves nothing for 30 seconds and sends it again', async () => {
+    const [, h1] = await hashes
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      answer([{ needBlocks: [h1] }], [committed])
+      let answered = false
+      s3.mockImplementation(() => (answered ? Promise.resolve({ ok: false, status: 412 }) : new Promise(() => {})))
+      const upload = uploadGroup([target(big)], [await hashes], () => {})
+      await vi.advanceTimersByTimeAsync(29_000)
+      expect(s3).toHaveBeenCalledTimes(1)
+      answered = true
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null])
+      expect(s3).toHaveBeenCalledTimes(2)
     } finally {
       vi.useRealTimers()
     }
