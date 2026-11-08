@@ -16,9 +16,11 @@ function progressOf(item: UploadItem) {
 export function UploadStatusPanel({
   uploads,
   onDismiss,
+  onCancel,
 }: {
   uploads: UploadItem[]
   onDismiss: () => void
+  onCancel: (id: string) => void
 }) {
   const [collapsed, setCollapsed] = useState(false)
   if (uploads.length === 0) return null
@@ -26,13 +28,16 @@ export function UploadStatusPanel({
   const uploadingCount = uploads.filter((item) => item.status === 'uploading' || item.status === 'paused').length
   const doneCount = uploads.filter((item) => item.status === 'done').length
   const errorCount = uploads.filter((item) => item.status === 'error').length
+  const cancelledCount = uploads.filter((item) => item.status === 'cancelled').length
 
   const headerText =
     uploadingCount > 0
       ? `항목 ${uploadingCount}개 업로드 중`
       : errorCount > 0
         ? `${doneCount}개 완료, ${errorCount}개 실패`
-        : `${doneCount}개 항목 업로드 완료`
+        : doneCount === 0 && cancelledCount > 0
+          ? '업로드를 취소했습니다'
+          : `${doneCount}개 항목 업로드 완료`
 
   return (
     <div className="fixed bottom-4 right-4 z-30 w-[26rem] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
@@ -106,6 +111,18 @@ export function UploadStatusPanel({
                   </span>
                   <ClockIcon size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
                 </>
+              )}
+              {(item.status === 'uploading' || item.status === 'paused') && (
+                <button
+                  onClick={() => onCancel(item.id)}
+                  aria-label={`${item.name} 업로드 취소`}
+                  className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                >
+                  <XIcon size={16} />
+                </button>
+              )}
+              {item.status === 'cancelled' && (
+                <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">취소됨</span>
               )}
               {item.status === 'done' && (
                 <CheckIcon size={18} className="shrink-0 text-green-600 dark:text-green-400" />

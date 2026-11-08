@@ -38,8 +38,39 @@ const urlCalls = () =>
 const s3Url = (hash: string) => `https://bucket.s3.test/blocks/${hash}?signed`
 const urlsFor = (body: UrlRequest) => Promise.resolve({ urls: body.blocks.map((block) => s3Url(block.hash)) })
 
-/** S3: each PUT answers with the next status for its hash (200 once they run out). */
+/** S3: each PUT answers with the next status for its hash (200 once they run out). A rejection is a
+ * network failure; a promise that never settles, an S3 that never answers. */
 const s3 = vi.fn<(url: string, init: RequestInit) => Promise<{ ok: boolean; status: number }>>()
+/** The XHR putBlock sends through, handing each PUT to {@link s3}. */
+class FakeXhr {
+  status = 0
+  upload: { onprogress?: () => void } = {}
+  onloadend?: () => void
+  private url = ''
+  private headers: Record<string, string> = {}
+  private done = false
+  open(_method: string, url: string) {
+    this.url = url
+  }
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value
+  }
+  send(body: Blob) {
+    s3(this.url, { method: 'PUT', body, headers: this.headers }).then(
+      ({ status }) => this.end(status),
+      () => this.end(0),
+    )
+  }
+  abort() {
+    this.end(0)
+  }
+  private end(status: number) {
+    if (this.done) return
+    this.done = true
+    this.status = status
+    this.onloadend?.()
+  }
+}
 const putHashes = () => s3.mock.calls.map(([url]) => url.split('/blocks/')[1].split('?')[0])
 const s3Answers = (statusOf: (hash: string) => number) =>
   s3.mockImplementation((url) => {
@@ -68,7 +99,7 @@ beforeEach(() => {
   api.post.mockReset()
   s3.mockReset()
   s3Answers(() => 200)
-  vi.stubGlobal('fetch', s3)
+  vi.stubGlobal('XMLHttpRequest', FakeXhr)
 })
 
 describe('groupForCommit', () => {
@@ -184,6 +215,27 @@ describe('uploadGroup', () => {
     expect(commitCalls()[1].map((file: { name: string }) => file.name)).toEqual(['a', 'c'])
   })
 
+  it('sends no blocks for a cancelled file and leaves it out of the second commit', async () => {
+    const [h0, h1, h2] = await hashes
+    const shared = new Uint8Array(10).fill(9)
+    const hs = await sha256Hex(shared)
+    answer([{ needBlocks: [h0, h1, h2] }, { needBlocks: [hs] }], [committed])
+    const targets = [target(big), target(new File([shared], 'small'))]
+
+    const outcomes = await uploadGroup(
+      targets,
+      await Promise.all(targets.map(({ file }) => hashFile(file))),
+      () => {},
+      () => {},
+      (i) => i === 0,
+    )
+
+    expect(putHashes()).toEqual([hs])
+    expect(commitCalls()[1].map((file: { name: string }) => file.name)).toEqual(['small'])
+    expect(outcomes[0]?.message).toBe('Upload cancelled')
+    expect(outcomes[1]).toBeNull()
+  })
+
   it('asks for URLs in requests of at most 64 blocks', async () => {
     const files = Array.from({ length: 65 }, (_, i) => new File([`file ${i}`], `f${i}`))
     const blocklists = await Promise.all(files.map((file) => hashFile(file)))
@@ -197,7 +249,7 @@ describe('uploadGroup', () => {
     expect(urlCalls().map((request) => request.length)).toEqual([64, 1])
   })
 
-  it('asks for URLs in requests of at most 32MB', async () => {
+  it('asks for full 4MB blocks 64 at a time, not by bytes', async () => {
     const files = fourMbFiles(9)
     const blocklists = await Promise.all(files.map((file) => hashFile(file)))
     answer(
@@ -207,7 +259,7 @@ describe('uploadGroup', () => {
 
     await send(files.map((file) => target(file)))
 
-    expect(urlCalls().map((request) => request.length)).toEqual([8, 1])
+    expect(urlCalls().map((request) => request.length)).toEqual([9])
   })
 
   it('keeps up to six PUTs in flight at once', async () => {
@@ -235,6 +287,37 @@ describe('uploadGroup', () => {
     expect(await upload).toEqual(files.map(() => null))
     expect(most).toBe(6)
     expect(urlCalls()).toHaveLength(1)
+  })
+
+  it('keeps six PUTs in flight across groups uploading at once, none queued in the browser', async () => {
+    const groups = [fourMbFiles(4), fourMbFiles(8).slice(4)]
+    const blocklists = await Promise.all(groups.map((files) => Promise.all(files.map((file) => hashFile(file)))))
+    api.post.mockImplementation((url: string, body: UrlRequest & { files: { blocklist: string[] }[] }) =>
+      url === '/api/v1/files/commit'
+        ? Promise.resolve({
+            results: body.files.map(({ blocklist }) =>
+              putHashes().includes(blocklist[0]) ? committed : { needBlocks: blocklist },
+            ),
+          })
+        : urlsFor(body),
+    )
+    let inFlight = 0
+    let most = 0
+    const releases: (() => void)[] = []
+    s3.mockImplementation(() => {
+      inFlight++
+      most = Math.max(most, inFlight)
+      return new Promise((resolve) => releases.push(() => (inFlight--, resolve({ ok: true, status: 200 }))))
+    })
+
+    const uploads = groups.map((files, g) => uploadGroup(files.map((file) => target(file)), blocklists[g], () => {}))
+    await vi.waitFor(() => expect(releases).toHaveLength(6))
+    while (releases.length > 0) {
+      releases.splice(0).forEach((release) => release())
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(await Promise.all(uploads)).toEqual(groups.map((files) => files.map(() => null)))
+    expect(most).toBe(6)
   })
 
   it('fails only the file the server rejected', async () => {
@@ -291,10 +374,94 @@ describe('uploadGroup', () => {
       while (!done) await vi.advanceTimersByTimeAsync(30_000)
 
       const outcomes = await upload
-      expect(outcomes[0]?.message).toBe('Failed to fetch')
+      expect(outcomes[0]?.message).toBe('블록을 올리지 못했습니다.')
       expect(outcomes[1]).toBeNull()
       expect(commitCalls()).toHaveLength(1)
       expect(new Set(putHashes())).toEqual(new Set([h0, h1, h2]))
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('gives up on a PUT that moves nothing for 30 seconds and sends it again', async () => {
+    const [, h1] = await hashes
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      answer([{ needBlocks: [h1] }], [committed])
+      let answered = false
+      s3.mockImplementation(() => (answered ? Promise.resolve({ ok: false, status: 412 }) : new Promise(() => {})))
+      const upload = uploadGroup([target(big)], [await hashes], () => {})
+      await vi.advanceTimersByTimeAsync(29_000)
+      expect(s3).toHaveBeenCalledTimes(1)
+      answered = true
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null])
+      expect(s3).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('commits again, no sooner than its retryAfter, only the files the commit answered 503', async () => {
+    const targets = [target(new File(['a'], 'a')), target(new File(['b'], 'b'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.', retryAfter: 10 } }
+      answer([unavailable, committed], [committed])
+      const upload = uploadGroup(targets, blocklists, () => {})
+      await vi.advanceTimersByTimeAsync(9_999)
+      expect(commitCalls()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(5_001) // 10s, plus up to 50% jitter
+
+      expect(await upload).toEqual([null, null])
+      expect(commitCalls()[1]).toEqual([commitCalls()[0][0]]) // same uploadId, the 503 file alone
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("jitters on top of retryAfter, so files told to wait together don't all come back together", async () => {
+    const targets = [target(new File(['a'], 'a'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.', retryAfter: 10 } }
+      answer([unavailable], [committed])
+      const upload = uploadGroup(targets, blocklists, () => {})
+      await vi.advanceTimersByTimeAsync(14_000)
+      expect(commitCalls()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null])
+      expect(commitCalls()).toHaveLength(2)
+    } finally {
+      vi.mocked(Math.random).mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('fails only the 503 files once the commit retries give up, keeping the files already committed', async () => {
+    const targets = [target(new File(['a'], 'a')), target(new File(['b'], 'b'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout', 'Date'] })
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.' } }
+      api.post.mockImplementation(() =>
+        Promise.resolve({ results: commitCalls().length === 1 ? [unavailable, committed] : [unavailable] }),
+      )
+      const upload = uploadGroup(targets, blocklists, () => {})
+      let done = false
+      void upload.finally(() => (done = true))
+      while (!done) await vi.advanceTimersByTimeAsync(30_000)
+
+      const outcomes = await upload
+      expect(outcomes[0]?.message).toBe('저장소에 일시적으로 연결할 수 없습니다.')
+      expect(outcomes[1]).toBeNull()
     } finally {
       vi.useRealTimers()
     }
@@ -314,9 +481,9 @@ describe('uploadGroup', () => {
             : urlsFor(body),
       )
       const upload = uploadGroup([target(big)], [blocklist], () => {})
-      await vi.advanceTimersByTimeAsync(9_000)
+      await vi.advanceTimersByTimeAsync(9_999)
       expect(urlCalls()).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_001) // 10s, plus up to 50% jitter
       expect(urlCalls()).toHaveLength(2)
       expect(await upload).toEqual([null])
     } finally {
@@ -325,9 +492,9 @@ describe('uploadGroup', () => {
   })
 
   it.each([
-    [400, 'the file changed since it was hashed'],
-    [403, 'the URL expired'],
-  ])('fails only the files whose block S3 refused with %i (%s), and keeps sending the rest', async (status) => {
+    [400, 'the file changed since it was hashed', 1],
+    [403, 'the URL expired, and a fresh one too', 2],
+  ])('fails only the files whose block S3 refused with %i (%s), and keeps sending the rest', async (status, _, puts) => {
     const [h0, h1, h2] = await hashes
     const other = new File(['other'], 'c')
     const [otherHash] = await hashFile(other)
@@ -339,7 +506,24 @@ describe('uploadGroup', () => {
     expect((outcomes[0] as { status?: number }).status).toBe(status)
     expect(outcomes[1]).toBeNull()
     expect(commitCalls()[1]).toHaveLength(1)
-    expect(s3.mock.calls.filter(([url]) => url === s3Url(h0))).toHaveLength(1) // not retried
+    expect(s3.mock.calls.filter(([url]) => url === s3Url(h0))).toHaveLength(puts)
+  })
+
+  it('asks for a fresh URL once when S3 says the URL expired (403)', async () => {
+    const [h0, h1, h2] = await hashes
+    answer([{ needBlocks: [h0, h1, h2] }], [committed])
+    let expired = true
+    s3Answers((hash) => {
+      if (hash !== h0 || !expired) return 200
+      expired = false
+      return 403
+    })
+
+    const outcomes = await send([target(big)])
+
+    expect(outcomes).toEqual([null])
+    expect(urlCalls()).toEqual([[h0, h1, h2], [h0]])
+    expect(putHashes().filter((hash) => hash === h0)).toHaveLength(2)
   })
 
   it('does not retry a 429 — on uploads it is only the 24-hour limit', async () => {

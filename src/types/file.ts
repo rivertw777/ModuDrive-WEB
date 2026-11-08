@@ -1,6 +1,6 @@
 /** TRASHED = in the trash, recoverable via restore. DELETED = purged (tombstone) — a live listing
  * never actually returns this; it's here for type completeness. */
-export type FileStatus = 'PENDING' | 'UPLOADED' | 'TRASHED' | 'DELETED'
+export type FileStatus = 'UPLOADED' | 'TRASHED' | 'DELETED'
 /** Nested — EDITOR includes everything VIEWER can do. */
 export type Role = 'VIEWER' | 'EDITOR'
 export type FileCategory = 'IMAGE' | 'VIDEO' | 'DOCUMENT' | 'AUDIO' | 'OTHER'

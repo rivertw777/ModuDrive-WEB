@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   MAX_BATCH_ITEMS,
@@ -15,8 +15,9 @@ import {
   type UploadTarget,
 } from '../api/upload-file'
 import type { UploadEntry } from '../utils/collect-upload-entries'
-import { hashFile } from '../utils/hash-in-worker'
+import { cancelHashing, hashFile } from '../utils/hash-in-worker'
 import { actionErrorText } from '@/stores/alert-store'
+import { runBatch } from '@/utils/run-batch'
 
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
 export type ConflictChoice = 'replace' | 'keep-both'
@@ -40,9 +41,15 @@ export type UploadItem = {
   errorCount: number
   /** Why the row failed before anything was sent, e.g. "5GB 초과". */
   errorReason?: string
-  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-1). */
-  status: 'uploading' | 'paused' | 'done' | 'error'
+  /** `paused`: the server is down past the quick retries; it keeps trying on its own (spec 001 2-4-3).
+   * `cancelled`: the user stopped it; whatever was already committed stays. */
+  status: 'uploading' | 'paused' | 'done' | 'error' | 'cancelled'
 }
+
+// Commit groups in flight at once: one group's commits and URL requests overlap another's block
+// transfer, instead of the transfer stopping for every round trip. The PUTs of both still share the
+// browser's few connections to S3, so it adds no bandwidth contention of its own.
+const GROUPS_IN_FLIGHT = 2
 
 const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
   replace: 'REPLACE',
@@ -52,12 +59,14 @@ const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
 const topLevelName = (relativePath: string) => relativePath.split('/')[0]
 const asError = (error: unknown) => (error instanceof Error ? error : new Error(String(error)))
 const childPath = (parent: string, name: string) => (parent === '/' ? `/${name}` : `${parent}/${name}`)
+const cancelled = (row: UploadItem | undefined) => row?.status === 'cancelled'
 
 /**
  * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2): one batch
  * request checks the whole tree for name conflicts and says where everything lands, then the files
- * are committed a group at a time (which creates them and the folders above them), and the folders
- * no file commit made — empty ones, or ones whose files all failed — are committed last.
+ * are committed in groups, two in flight at once (which creates them and the folders above them),
+ * and the folders no file commit made — empty ones, or ones whose files all failed — are committed
+ * last.
  * Hashing starts the moment files are picked, so it runs while the batch check and any conflict
  * dialog wait.
  * A name conflict pauses on that one item (`conflict`) until the caller answers via
@@ -74,6 +83,17 @@ export function useFileUpload(path: string) {
   // bytes go one file at a time across picks too, and two batches can never both be waiting on
   // the one conflict dialog.
   const queue = useRef<Promise<void>>(Promise.resolve())
+  // Each row's local object and files, so a cancel reaches the run that owns them.
+  const live = useRef(new Map<string, { row: UploadItem; files: File[] }>())
+
+  // Leaving the page drops the picked Files, so an upload still running would just stop: ask first.
+  const active = uploads.some((item) => item.status === 'uploading' || item.status === 'paused')
+  useEffect(() => {
+    if (!active) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [active])
 
   const resolveConflict = (choice: ConflictChoice | null) => {
     setConflict(null)
@@ -90,6 +110,16 @@ export function useFileUpload(path: string) {
   /** Pushes the local row's current counters into state. */
   const sync = (row: UploadItem) =>
     setUploads((prev) => prev.map((item) => (item.id === row.id ? { ...row } : item)))
+
+  /** Stops one row: no more hashing, blocks or commits for it. Files already committed stay, and
+   * blocks already in S3 are left to the uncommitted-block purge (spec 001 5). */
+  const cancelUpload = (id: string) => {
+    const owned = live.current.get(id)
+    if (!owned || (owned.row.status !== 'uploading' && owned.row.status !== 'paused')) return
+    owned.row.status = 'cancelled'
+    for (const file of owned.files) cancelHashing(file)
+    sync(owned.row)
+  }
 
   const finish = (row: UploadItem) => {
     row.status = row.errorCount > 0 ? 'error' : 'done'
@@ -139,6 +169,12 @@ export function useFileUpload(path: string) {
       return queue.current
     }
     setUploads((prev) => [...prev, ...Array.from(rows.values(), (row) => ({ ...row }))])
+    for (const row of rows.values()) {
+      const files = accepted.flatMap(({ relativePath, file }) =>
+        file && topLevelName(relativePath) === row.name ? [file] : [],
+      )
+      live.current.set(row.id, { row, files })
+    }
 
     // Queued in pick order on the hashing pool, so earlier picks are still hashed first.
     const hashes = new Map<File, Promise<string[]>>()
@@ -164,6 +200,8 @@ export function useFileUpload(path: string) {
     accepted: UploadEntry[],
     hashes: Map<File, Promise<string[]>>,
   ) => {
+    // Rows cancelled while this pick waited its turn never reach the batch, so no dialog asks about them.
+    accepted = accepted.filter((entry) => !cancelled(rows.get(topLevelName(entry.relativePath))))
     const items: BatchItem[] = accepted.map((entry) =>
       entry.file
         ? { relativePath: entry.relativePath, directory: false, size: entry.file.size }
@@ -192,6 +230,7 @@ export function useFileUpload(path: string) {
       } catch (error) {
         setUploadError(actionErrorText(error))
         for (const row of rows.values()) {
+          if (cancelled(row)) continue
           row.status = 'error'
           sync(row)
         }
@@ -227,7 +266,7 @@ export function useFileUpload(path: string) {
     const sendable: (UploadTarget & { row: UploadItem })[] = []
     for (const entry of accepted) {
       const row = rows.get(topLevelName(entry.relativePath))
-      if (!entry.file || !row || skippedIds.has(row.id)) continue
+      if (!entry.file || !row || skippedIds.has(row.id) || cancelled(row)) continue
       const target = targets.get(entry.relativePath)
       if (!target) {
         // The batch should have planned every file it wasn't told to skip.
@@ -238,7 +277,9 @@ export function useFileUpload(path: string) {
       sendable.push({ path: target.path, name: target.name, file: entry.file, row })
     }
 
-    for (const group of groupForCommit(sendable)) {
+    const sendGroup = async (whole: (UploadTarget & { row: UploadItem })[]) => {
+      const group = whole.filter((target) => !cancelled(target.row))
+      if (group.length === 0) return
       // Each file's bytes counted so far, so a row's total moves by the difference.
       const counted = group.map(() => 0)
       const count = (k: number, sent: number) => {
@@ -261,10 +302,12 @@ export function useFileUpload(path: string) {
             (j, sentBytes) => count(readable[j], sentBytes),
             (paused) => {
               for (const row of new Set(group.map((target) => target.row))) {
+                if (cancelled(row)) continue
                 row.status = paused ? 'paused' : 'uploading'
                 sync(row)
               }
             },
+            (j) => cancelled(group[readable[j]].row),
           )
           sent.forEach((outcome, j) => (outcomes[readable[j]] = outcome))
         } catch (error) {
@@ -274,6 +317,7 @@ export function useFileUpload(path: string) {
       }
       outcomes.forEach((outcome, k) => {
         const { row, path: folderPath, file } = group[k]
+        if (cancelled(row)) return
         if (outcome) {
           // Only this file fails; nothing was created for it and the rest keep going.
           row.errorCount++
@@ -289,9 +333,16 @@ export function useFileUpload(path: string) {
         count(k, file.size)
       })
     }
+    // sendGroup catches its own failures, so nothing here rejects.
+    await runBatch(groupForCommit(sendable), sendGroup, GROUPS_IN_FLIGHT)
 
     // The commit creates any missing folder above each one, so order and failed parents don't matter.
-    const folders = planned.filter((item) => item.directory && !existingFolders.has(childPath(item.path, item.name)))
+    const folders = planned.filter(
+      (item) =>
+        item.directory &&
+        !existingFolders.has(childPath(item.path, item.name)) &&
+        !cancelled(rows.get(topLevelName(item.relativePath))),
+    )
     for (let start = 0; start < folders.length; start += MAX_COMMIT_FOLDERS) {
       const chunk = folders.slice(start, start + MAX_COMMIT_FOLDERS)
       let failed: boolean[]
@@ -316,12 +367,16 @@ export function useFileUpload(path: string) {
     void queryClient.invalidateQueries({ queryKey: ['files'] })
   }
 
-  const clearUploads = () => setUploads([])
+  const clearUploads = () => {
+    setUploads([])
+    live.current.clear()
+  }
 
   return {
     onUpload,
     uploads,
     clearUploads,
+    cancelUpload,
     uploadError,
     /** For failures outside the hook's own flow, e.g. a dropped folder that couldn't be read. */
     showUploadError: setUploadError,

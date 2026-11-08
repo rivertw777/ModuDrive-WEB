@@ -82,3 +82,11 @@ export async function hashFile(file: Blob, onHashed: (bytes: number) => void = (
   pump()
   return (await Promise.all(ranges)).flat()
 }
+
+/** Drops `file`'s ranges still waiting for a worker, so `hashFile` rejects; a range a worker already
+ * holds finishes first. For an upload cancelled while it hashes. */
+export function cancelHashing(file: Blob) {
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (queue[i].file === file) queue.splice(i, 1)[0].reject(new Error('Upload cancelled'))
+  }
+}

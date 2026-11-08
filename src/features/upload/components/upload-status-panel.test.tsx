@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UploadStatusPanel } from './upload-status-panel'
 import type { UploadItem } from '../hooks/use-file-upload'
@@ -22,7 +22,7 @@ describe('UploadStatusPanel', () => {
     render(
       <UploadStatusPanel
         uploads={[row({ name: '사진', directory: true, fileCount: 40, doneCount: 12, sentBytes: 25 })]}
-        onDismiss={vi.fn()}
+        onDismiss={vi.fn()} onCancel={vi.fn()}
       />,
     )
 
@@ -39,7 +39,7 @@ describe('UploadStatusPanel', () => {
           row({ id: '0', name: '사진', directory: true, fileCount: 3, doneCount: 2, errorCount: 1, status: 'error' }),
           row({ id: '1', name: 'b.txt', status: 'done' }),
         ]}
-        onDismiss={vi.fn()}
+        onDismiss={vi.fn()} onCancel={vi.fn()}
       />,
     )
 
@@ -48,16 +48,29 @@ describe('UploadStatusPanel', () => {
   })
 
   it('shows how far hashing got before the first byte is sent', () => {
-    render(<UploadStatusPanel uploads={[row({ hashedBytes: 37 })]} onDismiss={vi.fn()} />)
+    render(<UploadStatusPanel uploads={[row({ hashedBytes: 37 })]} onDismiss={vi.fn()} onCancel={vi.fn()} />)
 
     expect(screen.getByText('준비 중 37%')).toBeInTheDocument()
   })
 
   it('shows a paused row as waiting, still counted as uploading', () => {
-    render(<UploadStatusPanel uploads={[row({ sentBytes: 40, status: 'paused' })]} onDismiss={vi.fn()} />)
+    render(<UploadStatusPanel uploads={[row({ sentBytes: 40, status: 'paused' })]} onDismiss={vi.fn()} onCancel={vi.fn()} />)
 
     expect(screen.getByText('연결 대기 중 · 자동으로 다시 시도합니다')).toBeInTheDocument()
     expect(screen.getByText('40%')).toBeInTheDocument()
     expect(screen.getByText('항목 1개 업로드 중')).toBeInTheDocument()
+  })
+
+  it('cancels a row from its button, and shows a cancelled row as such', () => {
+    const onCancel = vi.fn()
+    const { rerender } = render(<UploadStatusPanel uploads={[row({ id: '7' })]} onDismiss={vi.fn()} onCancel={onCancel} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'a.txt 업로드 취소' }))
+    expect(onCancel).toHaveBeenCalledWith('7')
+
+    rerender(<UploadStatusPanel uploads={[row({ id: '7', status: 'cancelled' })]} onDismiss={vi.fn()} onCancel={onCancel} />)
+    expect(screen.getByText('취소됨')).toBeInTheDocument()
+    expect(screen.getByText('업로드를 취소했습니다')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'a.txt 업로드 취소' })).not.toBeInTheDocument()
   })
 })
