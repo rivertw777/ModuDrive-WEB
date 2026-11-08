@@ -405,21 +405,42 @@ describe('uploadGroup', () => {
     }
   })
 
-  it('commits again, no sooner than 10 seconds, only the files the commit answered 503', async () => {
+  it('commits again, no sooner than its retryAfter, only the files the commit answered 503', async () => {
     const targets = [target(new File(['a'], 'a')), target(new File(['b'], 'b'))]
     const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
     vi.useFakeTimers({ toFake: ['setTimeout'] })
     try {
-      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.' } }
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.', retryAfter: 10 } }
       answer([unavailable, committed], [committed])
       const upload = uploadGroup(targets, blocklists, () => {})
-      await vi.advanceTimersByTimeAsync(9_000)
+      await vi.advanceTimersByTimeAsync(9_999)
       expect(commitCalls()).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_001) // 10s, plus up to 50% jitter
 
       expect(await upload).toEqual([null, null])
       expect(commitCalls()[1]).toEqual([commitCalls()[0][0]]) // same uploadId, the 503 file alone
     } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("jitters on top of retryAfter, so files told to wait together don't all come back together", async () => {
+    const targets = [target(new File(['a'], 'a'))]
+    const blocklists = await Promise.all(targets.map(({ file }) => hashFile(file)))
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    try {
+      const unavailable = { error: { status: 503, message: '저장소에 일시적으로 연결할 수 없습니다.', retryAfter: 10 } }
+      answer([unavailable], [committed])
+      const upload = uploadGroup(targets, blocklists, () => {})
+      await vi.advanceTimersByTimeAsync(14_000)
+      expect(commitCalls()).toHaveLength(1)
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      expect(await upload).toEqual([null])
+      expect(commitCalls()).toHaveLength(2)
+    } finally {
+      vi.mocked(Math.random).mockRestore()
       vi.useRealTimers()
     }
   })
@@ -460,9 +481,9 @@ describe('uploadGroup', () => {
             : urlsFor(body),
       )
       const upload = uploadGroup([target(big)], [blocklist], () => {})
-      await vi.advanceTimersByTimeAsync(9_000)
+      await vi.advanceTimersByTimeAsync(9_999)
       expect(urlCalls()).toHaveLength(1)
-      await vi.advanceTimersByTimeAsync(1_000)
+      await vi.advanceTimersByTimeAsync(5_001) // 10s, plus up to 50% jitter
       expect(urlCalls()).toHaveLength(2)
       expect(await upload).toEqual([null])
     } finally {

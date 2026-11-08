@@ -108,10 +108,10 @@ async function withRetry<T>(
           if (Date.now() - pausedAt >= MAX_PAUSE_MS) throw error
           delay = PAUSED_RETRY_MS
         }
-        // Up to 50% jitter, so clients that failed together (S3 down) don't all come back on the same
-        // beat — and never sooner than the server's Retry-After.
+        // Never sooner than the server's Retry-After, plus up to 50% jitter on top, so clients that
+        // failed together (S3 down) don't all come back on the same beat — Retry-After included.
         const retryAfter = ((error as { retryAfter?: number }).retryAfter ?? 0) * 1000
-        await new Promise((resolve) => setTimeout(resolve, Math.max(delay * (1 + Math.random() / 2), retryAfter)))
+        await new Promise((resolve) => setTimeout(resolve, Math.max(delay, retryAfter) * (1 + Math.random() / 2)))
       }
     }
   } finally {
@@ -135,17 +135,14 @@ const PARALLEL_BLOCK_PUTS = 6
 // byte — is given up and tried again like a network failure (spec 001 2-4-3). Counted from the last
 // progress, not the start, so a slow link that keeps sending is never cut.
 const PUT_IDLE_TIMEOUT_MS = 30_000
-// A file the commit answered 503 for (storage-service couldn't check its blocks) is sent again on
-// the usual retries, no sooner than this: the time the S3 circuit stays open (spec 001 2-4-3).
-const COMMIT_RETRY_AFTER_S = 10
-
 export type UploadTarget = { path: string; name: string; file: File }
 
 type CommitResult = {
   needBlocks?: string[]
   fileId?: string
   versionId?: string
-  error?: { status: number; message: string }
+  /** `retryAfter`: on a 503, the seconds to wait before committing the file again (spec 001 2-4-3). */
+  error?: { status: number; message: string; retryAfter?: number }
 }
 
 /**
@@ -266,8 +263,9 @@ export async function uploadGroup(
   // One id per file for every commit of this attempt, so a commit whose response was lost can be
   // sent again and get back the version it already made.
   const uploadIds = targets.map(() => crypto.randomUUID())
-  // Files answered 5xx (storage-service couldn't check their blocks) are committed again, alone; the
-  // rest keep their answer. Once the retries give up, those files fail with their 5xx.
+  // Files answered 5xx (storage-service couldn't check their blocks) are committed again, alone, no
+  // sooner than their error's retryAfter; the rest keep their answer. Once the retries give up, those
+  // files fail with their 5xx.
   const commit = async (indexes: number[]) => {
     const answers = new Map<number, CommitResult>()
     let pending = indexes
@@ -286,7 +284,9 @@ export async function uploadGroup(
         results.forEach((result, k) => answers.set(pending[k], result))
         pending = pending.filter(unavailable)
         if (pending.length > 0) {
-          throw Object.assign(new Error('Commit unavailable'), { status: 503, retryAfter: COMMIT_RETRY_AFTER_S })
+          // As long as the longest wait a pending file was told — the retries' Retry-After.
+          const retryAfter = Math.max(0, ...pending.map((i) => answers.get(i)?.error?.retryAfter ?? 0))
+          throw Object.assign(new Error('Commit unavailable'), { status: 503, retryAfter })
         }
       }, pause)
     } catch (error) {
