@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { AlertCircleIcon, CheckIcon, ChevronRightIcon, ClockIcon, LoaderIcon, XIcon } from '@/components/ui/icons'
 import { cn } from '@/utils/cn'
 import type { UploadItem } from '../hooks/use-file-upload'
@@ -69,71 +69,82 @@ export function UploadStatusPanel({
       {!collapsed && (
         <ul className="max-h-64 overflow-y-auto">
           {uploads.map((item) => (
-            <li key={item.id} className="flex items-center gap-3 px-5 py-3 text-sm">
-              <EntryIcon name={item.name} directory={item.directory} size={20} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-slate-700 dark:text-slate-300">{item.name}</span>
-                {item.status === 'paused' && (
-                  <span className="block text-xs text-amber-600 dark:text-amber-400">
-                    연결 대기 중 · 자동으로 다시 시도합니다
-                  </span>
-                )}
-                {!item.directory && item.errorReason && (
-                  <span className="block text-xs text-red-600 dark:text-red-400">
-                    {item.errorReason}
-                  </span>
-                )}
-                {item.directory && item.fileCount > 0 && (
-                  <span className="block text-xs text-slate-400 dark:text-slate-500">
-                    {item.doneCount}/{item.fileCount}개 파일
-                    {item.errorCount > 0 && (
-                      <span className="text-red-600 dark:text-red-400">
-                        {' · '}
-                        {item.errorCount}개 실패
-                        {item.errorReason && ` (${item.errorReason})`}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </span>
-              {item.status === 'uploading' && (
-                <>
-                  <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
-                    {progressOf(item)}
-                  </span>
-                  <LoaderIcon size={16} className="shrink-0 animate-spin text-slate-400" />
-                </>
-              )}
-              {item.status === 'paused' && (
-                <>
-                  <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
-                    {progressOf(item)}
-                  </span>
-                  <ClockIcon size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
-                </>
-              )}
-              {(item.status === 'uploading' || item.status === 'paused') && (
-                <button
-                  onClick={() => onCancel(item.id)}
-                  aria-label={`${item.name} 업로드 취소`}
-                  className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-                >
-                  <XIcon size={16} />
-                </button>
-              )}
-              {item.status === 'cancelled' && (
-                <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">취소됨</span>
-              )}
-              {item.status === 'done' && (
-                <CheckIcon size={18} className="shrink-0 text-green-600 dark:text-green-400" />
-              )}
-              {item.status === 'error' && (
-                <AlertCircleIcon size={18} className="shrink-0 text-red-600 dark:text-red-400" />
-              )}
-            </li>
+            <UploadRow key={item.id} item={item} onCancel={onCancel} />
           ))}
         </ul>
       )}
     </div>
   )
 }
+
+/** One row. Only rows whose item changed re-render: a flush replaces just the rows that moved, and
+ * onCancel acts through refs, so an older one does the same. */
+const UploadRow = memo(
+  function UploadRow({ item, onCancel }: { item: UploadItem; onCancel: (id: string) => void }) {
+    return (
+      <li className="flex items-center gap-3 px-5 py-3 text-sm">
+        <EntryIcon name={item.name} directory={item.directory} size={20} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-slate-700 dark:text-slate-300">{item.name}</span>
+          {item.status === 'paused' && (
+            <span className="block text-xs text-amber-600 dark:text-amber-400">
+              연결 대기 중 · 자동으로 다시 시도합니다
+            </span>
+          )}
+          {!item.directory && item.errorReason && (
+            <span className="block text-xs text-red-600 dark:text-red-400">
+              {item.errorReason}
+            </span>
+          )}
+          {item.directory && item.fileCount > 0 && (
+            <span className="block text-xs text-slate-400 dark:text-slate-500">
+              {item.doneCount}/{item.fileCount}개 파일
+              {item.errorCount > 0 && (
+                <span className="text-red-600 dark:text-red-400">
+                  {' · '}
+                  {item.errorCount}개 실패
+                  {item.errorReason && ` (${item.errorReason})`}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+        {item.status === 'uploading' && (
+          <>
+            <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
+              {progressOf(item)}
+            </span>
+            <LoaderIcon size={16} className="shrink-0 animate-spin text-slate-400" />
+          </>
+        )}
+        {item.status === 'paused' && (
+          <>
+            <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">
+              {progressOf(item)}
+            </span>
+            <ClockIcon size={16} className="shrink-0 text-amber-600 dark:text-amber-400" />
+          </>
+        )}
+        {(item.status === 'uploading' || item.status === 'paused') && (
+          <button
+            onClick={() => onCancel(item.id)}
+            aria-label={`${item.name} 업로드 취소`}
+            className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          >
+            <XIcon size={16} />
+          </button>
+        )}
+        {item.status === 'cancelled' && (
+          <span className="shrink-0 text-sm text-slate-400 dark:text-slate-500">취소됨</span>
+        )}
+        {item.status === 'done' && (
+          <CheckIcon size={18} className="shrink-0 text-green-600 dark:text-green-400" />
+        )}
+        {item.status === 'error' && (
+          <AlertCircleIcon size={18} className="shrink-0 text-red-600 dark:text-red-400" />
+        )}
+      </li>
+    )
+  },
+  (before, after) => before.item === after.item,
+)

@@ -50,6 +50,7 @@ export type UploadItem = {
 // transfer, instead of the transfer stopping for every round trip. The PUTs of both still share the
 // browser's few connections to S3, so it adds no bandwidth contention of its own.
 const GROUPS_IN_FLIGHT = 2
+const PROGRESS_SYNC_MS = 100
 
 const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
   replace: 'REPLACE',
@@ -107,9 +108,37 @@ export function useFileUpload(path: string) {
       setConflict(next)
     })
 
-  /** Pushes the local row's current counters into state. */
-  const sync = (row: UploadItem) =>
-    setUploads((prev) => prev.map((item) => (item.id === row.id ? { ...row } : item)))
+  // Rows whose byte counters moved since the last flush. Every hashed block and every sent block
+  // moves one, and a render per event kept the main thread too busy to start the next block PUT
+  // (issue #324), so progress goes into state at most every PROGRESS_SYNC_MS.
+  const dirty = useRef(new Map<string, UploadItem>())
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const flush = () => {
+    if (flushTimer.current) clearTimeout(flushTimer.current)
+    flushTimer.current = null
+    const rows = dirty.current
+    if (rows.size === 0) return
+    dirty.current = new Map()
+    setUploads((prev) =>
+      prev.map((item) => {
+        const row = rows.get(item.id)
+        return row ? { ...row } : item
+      }),
+    )
+  }
+
+  /** Pushes the local row into state now — a status or file count changed — along with any progress
+   * still waiting for its flush. */
+  const sync = (row: UploadItem) => {
+    dirty.current.set(row.id, row)
+    flush()
+  }
+
+  /** Pushes the local row's byte counters into state with the next flush. */
+  const syncProgress = (row: UploadItem) => {
+    dirty.current.set(row.id, row)
+    flushTimer.current ??= setTimeout(flush, PROGRESS_SYNC_MS)
+  }
 
   /** Stops one row: no more hashing, blocks or commits for it. Files already committed stay, and
    * blocks already in S3 are left to the uncommitted-block purge (spec 001 5). */
@@ -183,7 +212,7 @@ export function useFileUpload(path: string) {
       if (!file || !row) continue
       const hashing = hashFile(file, (bytes) => {
         row.hashedBytes += bytes
-        sync(row)
+        syncProgress(row)
       })
       hashing.catch(() => undefined) // awaited per group; this only keeps a skipped file's failure handled
       hashes.set(file, hashing)
@@ -286,7 +315,7 @@ export function useFileUpload(path: string) {
         const { row } = group[k]
         row.sentBytes += sent - counted[k]
         counted[k] = sent
-        sync(row)
+        syncProgress(row)
       }
       // A file that can't be read (deleted, no permission) fails alone; the rest of the group goes on.
       const blocklists = await Promise.allSettled(group.map(({ file }) => hashes.get(file) ?? hashFile(file)))
