@@ -507,6 +507,23 @@ describe('useFileUpload', () => {
     expect(result.current.uploads[0].hashedBytes).toBe(5)
   })
 
+  it('pushes byte progress into the row a moment later, all at once', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    vi.mocked(hashFile).mockImplementation((file, onHashed) => {
+      onHashed?.(1)
+      onHashed?.(file.size - 1)
+      return Promise.resolve([])
+    })
+    const { result } = renderUpload()
+
+    act(() => {
+      void result.current.onUpload([entry('폴더/a.txt', file('a.txt', 'aa')), entry('폴더/b.txt', file('b.txt', 'bbb'))])
+    })
+
+    expect(result.current.uploads[0].hashedBytes).toBe(0)
+    await waitFor(() => expect(result.current.uploads[0].hashedBytes).toBe(5))
+  })
+
   it('says the drive is full on a row whose file the commit refused for quota', async () => {
     vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
     outcomesFor(() => Object.assign(new Error('저장 공간이 부족합니다.'), { quotaExceeded: true }))
