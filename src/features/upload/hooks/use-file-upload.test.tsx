@@ -453,7 +453,8 @@ describe('useFileUpload', () => {
       done = hook.result.current.onUpload(entries)
     })
     await waitFor(() => expect(uploadGroup).toHaveBeenCalledTimes(1))
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    // Long enough for a second group to have hashed and called uploadGroup, were it started.
+    await new Promise((resolve) => setTimeout(resolve, 50))
     expect(uploadGroup).toHaveBeenCalledTimes(1)
 
     lows[0]()

@@ -131,10 +131,12 @@ const MAX_URL_REQUEST_BLOCKS = 64
 const SOLO_BLOCKS = 64
 // Block PUTs in flight at once — as many connections as a browser opens to one origin anyway.
 const PARALLEL_BLOCK_PUTS = 6
-// A group says it is running low once this few of its blocks are left to hand to a PUT: four rounds
-// of the PUT slots, which outlasts the next group's first commit and URL request (a few round trips)
-// even for the smallest blocks, so its PUTs are ready the moment these end.
-const SEND_AHEAD_BLOCKS = PARALLEL_BLOCK_PUTS * 4
+// A group says it is running low once this few of its blocks are left to hand to a PUT: eight rounds
+// of the PUT slots. The next group's first commit and URL request (a few round trips, more for a
+// commit of 100 files) need to fit in them for its PUTs to follow on without a gap; with the
+// smallest blocks a round is one PUT round trip, so the margin is in rounds, not bytes. Starting a
+// bit early costs nothing but an earlier commit — its PUTs queue behind these.
+const SEND_AHEAD_BLOCKS = PARALLEL_BLOCK_PUTS * 8
 // A PUT that moves no bytes for this long — S3 stopped reading, or never answers after the last
 // byte — is given up and tried again like a network failure (spec 001 2-4-3). Counted from the last
 // progress, not the start, so a slow link that keeps sending is never cut.
@@ -373,13 +375,9 @@ export async function uploadGroup(
         onRunningLow()
       }
       if ([...missing].every(([i, hashes]) => !hashes.has(hash) || isCancelled(i))) continue
-      const urlsOfRequest = urlsFor(request)
-      // The next request's URLs on their way while this one's blocks go, so its first PUT doesn't
-      // wait out a round trip. Its failure is met by the blocks that await it.
-      if (request + 1 < requests.length) urlsFor(request + 1).catch(() => {})
       try {
         try {
-          await put((await urlsOfRequest)[index], hash, block)
+          await put((await urlsFor(request))[index], hash, block)
         } catch (error) {
           const { status, fromS3 } = error as { status?: number; fromS3?: boolean }
           if (!(fromS3 && status === 403)) throw error

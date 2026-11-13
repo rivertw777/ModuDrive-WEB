@@ -11,6 +11,7 @@ export async function runPipelined<T>(
   run: (item: T, ready: () => void) => Promise<void>,
   limit: number,
 ): Promise<void> {
+  limit = Math.max(1, limit)
   const running = new Set<Promise<void>>()
   for (const item of items) {
     let ready = () => {}

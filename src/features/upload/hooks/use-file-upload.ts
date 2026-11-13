@@ -52,6 +52,10 @@ export type UploadItem = {
 // most this many at once: one sending, the next getting ready, one finishing its second commit. It
 // caps the commits one upload keeps on the server; the PUTs of all of them share the same few
 // connections to S3, so more groups would add no speed.
+// Known limit: a group with nothing to send (a re-upload, every block already there) cues the next one
+// only when it ends, and one waiting out a paused commit holds the rest back — commits there go one at
+// a time instead of overlapping. Start the next group on the first commit's answer too if resumes of
+// big folders turn out slow.
 const MAX_GROUPS_IN_FLIGHT = 3
 const PROGRESS_SYNC_MS = 100
 
