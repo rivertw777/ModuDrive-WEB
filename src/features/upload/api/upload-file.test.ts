@@ -249,6 +249,51 @@ describe('uploadGroup', () => {
     expect(urlCalls().map((request) => request.length)).toEqual([64, 1])
   })
 
+  it('says it is running low once, when 48 blocks are left to send, while its PUTs are still going', async () => {
+    const files = Array.from({ length: 54 }, (_, i) => new File([`file ${i}`], `f${i}`))
+    const blocklists = await Promise.all(files.map((file) => hashFile(file)))
+    answer(
+      blocklists.map((list) => ({ needBlocks: list })),
+      files.map(() => committed),
+    )
+    const releases: (() => void)[] = []
+    s3.mockImplementation(() => new Promise((resolve) => releases.push(() => resolve({ ok: true, status: 200 }))))
+    const runningLow = vi.fn()
+
+    const upload = uploadGroup(files.map((file) => target(file)), blocklists, () => {}, undefined, undefined, runningLow)
+    await vi.waitFor(() => expect(releases).toHaveLength(6))
+    // Six of 54 handed out: 48 left, so the next group may start — before any PUT has finished.
+    expect(runningLow).toHaveBeenCalledTimes(1)
+    while (releases.length > 0) {
+      releases.splice(0).forEach((release) => release())
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(await upload).toEqual(files.map(() => null))
+    expect(runningLow).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not say it is running low while more than 48 blocks are left', async () => {
+    const files = Array.from({ length: 60 }, (_, i) => new File([`file ${i}`], `f${i}`))
+    const blocklists = await Promise.all(files.map((file) => hashFile(file)))
+    answer(
+      blocklists.map((list) => ({ needBlocks: list })),
+      files.map(() => committed),
+    )
+    const releases: (() => void)[] = []
+    s3.mockImplementation(() => new Promise((resolve) => releases.push(() => resolve({ ok: true, status: 200 }))))
+    const runningLow = vi.fn()
+
+    const upload = uploadGroup(files.map((file) => target(file)), blocklists, () => {}, undefined, undefined, runningLow)
+    await vi.waitFor(() => expect(releases).toHaveLength(6))
+    expect(runningLow).not.toHaveBeenCalled()
+    while (releases.length > 0) {
+      releases.splice(0).forEach((release) => release())
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    await upload
+    expect(runningLow).toHaveBeenCalledTimes(1)
+  })
+
   it('asks for full 4MB blocks 64 at a time, not by bytes', async () => {
     const files = fourMbFiles(9)
     const blocklists = await Promise.all(files.map((file) => hashFile(file)))

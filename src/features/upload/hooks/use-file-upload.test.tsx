@@ -434,6 +434,42 @@ describe('useFileUpload', () => {
     expect(result.current.uploads[0].sentBytes).toBe(150)
   })
 
+  it('starts the next group only once the one before is running low on blocks to send', async () => {
+    vi.mocked(planUploadBatch).mockImplementation((_path, items) => Promise.resolve(created(items)))
+    const lows: (() => void)[] = []
+    const ends: (() => void)[] = []
+    vi.mocked(uploadGroup).mockImplementation(
+      (targets, _blocklists, _progress, _pause, _cancelled, runningLow) =>
+        new Promise((resolve) => {
+          lows.push(runningLow ?? (() => {}))
+          ends.push(() => resolve(targets.map(() => null)))
+        }),
+    )
+    const entries = Array.from({ length: 250 }, (_, i) => entry(`폴더/f${i}.txt`))
+
+    const hook = renderUpload()
+    let done!: Promise<void>
+    act(() => {
+      done = hook.result.current.onUpload(entries)
+    })
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalledTimes(1))
+    // Long enough for a second group to have hashed and called uploadGroup, were it started.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(uploadGroup).toHaveBeenCalledTimes(1)
+
+    lows[0]()
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalledTimes(2))
+    lows[1]()
+    await waitFor(() => expect(uploadGroup).toHaveBeenCalledTimes(3))
+    await act(async () => {
+      ends.forEach((end) => end())
+      await done
+    })
+    expect(rows(hook.result)).toEqual([
+      { name: '폴더', directory: true, status: 'done', fileCount: 250, doneCount: 250, errorCount: 0 },
+    ])
+  })
+
   it('starts hashing every file the moment they are picked, before the batch check answers', async () => {
     let answerBatch!: () => void
     vi.mocked(planUploadBatch).mockImplementation(
