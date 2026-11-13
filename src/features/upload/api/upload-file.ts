@@ -131,6 +131,12 @@ const MAX_URL_REQUEST_BLOCKS = 64
 const SOLO_BLOCKS = 64
 // Block PUTs in flight at once — as many connections as a browser opens to one origin anyway.
 const PARALLEL_BLOCK_PUTS = 6
+// A group says it is running low once this few of its blocks are left to hand to a PUT: eight rounds
+// of the PUT slots. The next group's first commit and URL request (a few round trips, more for a
+// commit of 100 files) need to fit in them for its PUTs to follow on without a gap; with the
+// smallest blocks a round is one PUT round trip, so the margin is in rounds, not bytes. Starting a
+// bit early costs nothing but an earlier commit — its PUTs queue behind these.
+const SEND_AHEAD_BLOCKS = PARALLEL_BLOCK_PUTS * 8
 // A PUT that moves no bytes for this long — S3 stopped reading, or never answers after the last
 // byte — is given up and tried again like a network failure (spec 001 2-4-3). Counted from the last
 // progress, not the start, so a slow link that keeps sending is never cut.
@@ -184,7 +190,7 @@ const blockBytes = (file: File, index: number) => Math.min(BLOCK_SIZE, file.size
 const checksumOf = (hash: string) =>
   btoa(String.fromCharCode(...Array.from({ length: hash.length / 2 }, (_, i) => parseInt(hash.slice(i * 2, i * 2 + 2), 16))))
 
-// Block PUTs in flight across every group at once (use-file-upload runs two): a PUT past the
+// Block PUTs in flight across every group at once (use-file-upload runs several): a PUT past the
 // browser's connections to S3 would sit queued inside the browser, moving nothing, and the idle limit
 // would cut it while it never got to send.
 let putsInFlight = 0
@@ -244,6 +250,11 @@ function putBlock(url: string, hash: string, block: Blob) {
  * A file `isCancelled` says the user gave up on gets no more of its blocks sent and no second
  * commit; one already committed by the first commit stays.
  *
+ * `onRunningLow` is called once, when at most {@link SEND_AHEAD_BLOCKS} of the group's blocks are
+ * left to send — the caller's cue to start the next group, whose first commit and URL request then
+ * overlap these last PUTs (use-file-upload). A group that ends sooner (nothing to send, or a
+ * failure) leaves that cue to its caller.
+ *
  * Resolves with one outcome per file, in order: null when it was committed, else why it failed.
  * Rejects only when a commit request itself fails, which fails the whole group.
  */
@@ -253,6 +264,7 @@ export async function uploadGroup(
   onProgress: (index: number, sentBytes: number) => void,
   onPause: (paused: boolean) => void = () => {},
   isCancelled: (index: number) => boolean = () => false,
+  onRunningLow: () => void = () => {},
 ): Promise<(Error | null)[]> {
   // Several requests can wait at once; the group is paused while any of them is.
   let waiting = 0
@@ -352,11 +364,16 @@ export async function uploadGroup(
   const put = (url: string, hash: string, block: Blob) =>
     withRetry(() => inPutSlot(() => putBlock(url, hash, block)), pause, () => sendError !== null)
   let next = 0
+  let lowSaid = false
   const sendBlocks = async () => {
     // Once one request has given up — paused too long, or the 24-hour limit — the rest would fail
     // the same way.
     while (sendError === null && next < queue.length) {
       const { request, index, hash, block } = queue[next++]
+      if (!lowSaid && queue.length - next <= SEND_AHEAD_BLOCKS) {
+        lowSaid = true
+        onRunningLow()
+      }
       if ([...missing].every(([i, hashes]) => !hashes.has(hash) || isCancelled(i))) continue
       try {
         try {

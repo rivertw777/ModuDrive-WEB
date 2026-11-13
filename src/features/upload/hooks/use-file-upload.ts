@@ -17,7 +17,7 @@ import {
 import type { UploadEntry } from '../utils/collect-upload-entries'
 import { cancelHashing, hashFile } from '../utils/hash-in-worker'
 import { actionErrorText } from '@/stores/alert-store'
-import { runBatch } from '@/utils/run-batch'
+import { runPipelined } from '../utils/run-pipelined'
 
 /** How the user resolved a same-name conflict; `null` (from 취소) skips just that item. */
 export type ConflictChoice = 'replace' | 'keep-both'
@@ -46,10 +46,17 @@ export type UploadItem = {
   status: 'uploading' | 'paused' | 'done' | 'error' | 'cancelled'
 }
 
-// Commit groups in flight at once: one group's commits and URL requests overlap another's block
-// transfer, instead of the transfer stopping for every round trip. The PUTs of both still share the
-// browser's few connections to S3, so it adds no bandwidth contention of its own.
-const GROUPS_IN_FLIGHT = 2
+// Groups run as a pipeline: the next one starts when the one before is running low on blocks to send
+// (uploadGroup's onRunningLow), so its first commit and URL request overlap those last PUTs and its
+// own PUTs follow on with no gap — the previous group's second commit then runs under them too. At
+// most this many at once: one sending, the next getting ready, one finishing its second commit. It
+// caps the commits one upload keeps on the server; the PUTs of all of them share the same few
+// connections to S3, so more groups would add no speed.
+// Known limit: a group with nothing to send (a re-upload, every block already there) cues the next one
+// only when it ends, and one waiting out a paused commit holds the rest back — commits there go one at
+// a time instead of overlapping. Start the next group on the first commit's answer too if resumes of
+// big folders turn out slow.
+const MAX_GROUPS_IN_FLIGHT = 3
 const PROGRESS_SYNC_MS = 100
 
 const RESOLUTION: Record<ConflictChoice, ConflictResolution> = {
@@ -65,7 +72,7 @@ const cancelled = (row: UploadItem | undefined) => row?.status === 'cancelled'
 /**
  * Uploads a picked selection into `path` (API .docs/spec/001-file-upload-spec.md §2): one batch
  * request checks the whole tree for name conflicts and says where everything lands, then the files
- * are committed in groups, two in flight at once (which creates them and the folders above them),
+ * are committed in groups, pipelined (which creates them and the folders above them),
  * and the folders no file commit made — empty ones, or ones whose files all failed — are committed
  * last.
  * Hashing starts the moment files are picked, so it runs while the batch check and any conflict
@@ -306,7 +313,7 @@ export function useFileUpload(path: string) {
       sendable.push({ path: target.path, name: target.name, file: entry.file, row })
     }
 
-    const sendGroup = async (whole: (UploadTarget & { row: UploadItem })[]) => {
+    const sendGroup = async (whole: (UploadTarget & { row: UploadItem })[], runningLow: () => void) => {
       const group = whole.filter((target) => !cancelled(target.row))
       if (group.length === 0) return
       // Each file's bytes counted so far, so a row's total moves by the difference.
@@ -337,6 +344,7 @@ export function useFileUpload(path: string) {
               }
             },
             (j) => cancelled(group[readable[j]].row),
+            runningLow,
           )
           sent.forEach((outcome, j) => (outcomes[readable[j]] = outcome))
         } catch (error) {
@@ -363,7 +371,7 @@ export function useFileUpload(path: string) {
       })
     }
     // sendGroup catches its own failures, so nothing here rejects.
-    await runBatch(groupForCommit(sendable), sendGroup, GROUPS_IN_FLIGHT)
+    await runPipelined(groupForCommit(sendable), sendGroup, MAX_GROUPS_IN_FLIGHT)
 
     // The commit creates any missing folder above each one, so order and failed parents don't matter.
     const folders = planned.filter(
