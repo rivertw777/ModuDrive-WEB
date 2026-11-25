@@ -9,7 +9,8 @@ import {
   XIcon,
 } from '@/components/ui/icons'
 import { canPreviewFile } from '@/utils/file'
-import { downloadFile } from '../api/download-file'
+import { downloadArchive } from '../api/download-archive'
+import { alertActionError } from '@/stores/alert-store'
 import { EntryIcon } from '@/components/file/entry-icon'
 import { FilePreview, type Source } from './file-preview'
 import { ShareModal } from '@/features/sharing'
@@ -110,7 +111,7 @@ export function FileViewerModal({
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={onDownload ?? (() => downloadFile(fileId, fileName))}
+              onClick={onDownload ?? (() => downloadArchive([fileId]).catch(alertActionError))}
               aria-label="다운로드"
               className="inline-flex size-9 items-center justify-center rounded-full hover:bg-white/10"
             >

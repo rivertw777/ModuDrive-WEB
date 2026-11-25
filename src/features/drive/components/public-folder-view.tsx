@@ -9,7 +9,6 @@ import { useFileViewStore } from '@/stores/file-view-store'
 import { useForceLightMode } from '@/hooks/use-force-light-mode'
 import { useWindowedList } from '@/hooks/use-windowed-list'
 import { usePublicChildren } from '../api/get-public-file'
-import { downloadPublicFile } from '../api/download-public-file'
 import { downloadPublicArchive } from '../api/download-archive'
 import { formatDate, formatFileSize, sortFiles } from '@/utils/file'
 import { type PublicFile } from '../types'
@@ -82,17 +81,11 @@ export function PublicFolderView({
     visible.map((entry) => entry.fileId),
   )
   const selectedEntries = visible.filter((entry) => selected.has(entry.fileId))
-  // One plain file downloads as itself; a folder or several items come down as one zip.
-  const download = (picked: PublicFile[]) => {
-    if (picked.length === 1 && !picked[0].directory) {
-      downloadPublicFile(picked[0].fileId, shareKey, picked[0].name)
-      return
-    }
+  const download = (picked: PublicFile[]) =>
     downloadPublicArchive(
       picked.map((entry) => entry.fileId),
       shareKey,
     ).catch(alertActionError)
-  }
 
   const openMenu = (entry: PublicFile, event: React.MouseEvent) => {
     const batch = selected.has(entry.fileId) && selected.size > 1
@@ -304,7 +297,7 @@ export function PublicFolderView({
           fileSize={preview.fileSize}
           canShare={false}
           source={{ type: 'public', fileId: preview.fileId, shareKey }}
-          onDownload={() => downloadPublicFile(preview.fileId, shareKey, preview.name)}
+          onDownload={() => download([preview])}
           onPrev={onPrev}
           onNext={onNext}
         />

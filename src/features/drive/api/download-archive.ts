@@ -3,11 +3,12 @@ import { env } from '@/config/env'
 import { apiClient } from '@/lib/api-client'
 import type { ApiResponse } from '@/types/api'
 
-// Several files and/or folders download as one zip, in two steps: a checked "prepare" call
-// (errors like too-large or quota come back here as a normal rejection), then a plain link to
-// the single-use token it returns. Link navigation, not a Blob fetch, so the browser shows its
-// own download progress and never holds a multi-GB zip in memory — the response is
-// `Content-Disposition: attachment`, so the page itself stays put.
+// Every download, in two steps: a checked "prepare" call (errors like too-large or quota come back
+// here as a normal rejection), then a plain link to the single-use token it returns. One picked
+// file comes down as itself, under its real name; a folder or several items as one zip. Link
+// navigation, not a Blob fetch, so the browser shows its own download progress and never holds a
+// multi-GB file in memory — the response is `Content-Disposition: attachment`, so the page itself
+// stays put.
 function followArchiveLink(token: string) {
   const link = document.createElement('a')
   link.href = `${env.API_BASE_URL}/api/v1/storage/public/archive/${encodeURIComponent(token)}`
@@ -19,8 +20,9 @@ export async function downloadArchive(fileIds: string[]) {
   followArchiveLink(token)
 }
 
-// Anonymous counterpart for public links: plain axios with no bearer token, same reason as
-// download-public-file.ts (an expired token must not log a visitor out). Errors are rethrown
+// Anonymous counterpart for public links: plain axios with no bearer token, so a visitor signed in
+// on an expired token can't get logged out by downloading a public link. `fileIds` are shared
+// entries or ones nested under a shared folder; `key` only matters for a guest invite. Errors are rethrown
 // with the server's message, matching what apiClient gives the signed-in path.
 export async function downloadPublicArchive(fileIds: string[], key: string | null) {
   try {
