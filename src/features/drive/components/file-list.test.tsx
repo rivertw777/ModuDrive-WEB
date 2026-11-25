@@ -8,18 +8,15 @@ import type { FileEntry } from '@/types/file'
 
 vi.mock('../api/toggle-favorite', () => ({ useToggleFavorite: vi.fn() }))
 vi.mock('../api/move-file', () => ({ useMoveFile: vi.fn() }))
-vi.mock('../api/download-file', () => ({ downloadFile: vi.fn() }))
 vi.mock('../api/download-archive', () => ({
   downloadArchive: vi.fn(() => Promise.resolve()),
 }))
 
 const { useToggleFavorite } = await import('../api/toggle-favorite')
 const { useMoveFile } = await import('../api/move-file')
-const { downloadFile } = await import('../api/download-file')
 const { downloadArchive } = await import('../api/download-archive')
 
 beforeEach(() => {
-  vi.mocked(downloadFile).mockClear()
   vi.mocked(downloadArchive).mockClear()
   vi.mocked(useToggleFavorite).mockReturnValue({ mutate: vi.fn() } as unknown as ReturnType<
     typeof useToggleFavorite
@@ -94,12 +91,11 @@ describe('FileList server pagination mode', () => {
 describe('FileList download', () => {
   const files = [entry('a.txt'), entry('photos', { directory: true, fileSize: null })]
 
-  it('downloads a single plain file as itself', async () => {
+  it('downloads a single plain file through the same token link', async () => {
     renderList({}, files)
     await userEvent.pointer({ keys: '[MouseRight]', target: screen.getByText('a.txt') })
     await userEvent.click(screen.getByRole('button', { name: '다운로드' }))
-    expect(downloadFile).toHaveBeenCalledWith('a.txt', 'a.txt')
-    expect(downloadArchive).not.toHaveBeenCalled()
+    expect(downloadArchive).toHaveBeenCalledWith(['a.txt'])
   })
 
   it('offers download on a folder and fetches it as a zip', async () => {
@@ -120,6 +116,5 @@ describe('FileList download', () => {
     await user.pointer({ keys: '[MouseRight]', target: screen.getByText('photos') })
     await user.click(screen.getByRole('button', { name: '다운로드 (2개)' }))
     expect(downloadArchive).toHaveBeenCalledWith(expect.arrayContaining(['a.txt', 'photos']))
-    expect(downloadFile).not.toHaveBeenCalled()
   })
 })

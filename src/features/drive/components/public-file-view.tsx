@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom'
 import { ErrorState, LoadingState } from '@/components/ui/state'
 import { DownloadIcon, FileIcon, FolderIcon } from '@/components/ui/icons'
 import { usePublicFile } from '../api/get-public-file'
-import { downloadPublicFile } from '../api/download-public-file'
+import { downloadPublicArchive } from '../api/download-archive'
+import { alertActionError } from '@/stores/alert-store'
 import { canPreviewFile } from '@/utils/file'
 import { EntryIcon } from '@/components/file/entry-icon'
 import { FilePreview } from './file-preview'
@@ -44,7 +45,7 @@ export function PublicFileView({ fileId, shareKey }: { fileId: string; shareKey:
           {file && !file.directory && (
             <button
               type="button"
-              onClick={() => downloadPublicFile(fileId, shareKey, file.name)}
+              onClick={() => downloadPublicArchive([fileId], shareKey).catch(alertActionError)}
               aria-label="다운로드"
               className="inline-flex size-9 items-center justify-center rounded-full hover:bg-white/10"
             >
