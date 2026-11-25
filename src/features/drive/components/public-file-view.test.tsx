@@ -9,12 +9,12 @@ vi.mock('../api/get-public-file', () => ({
   usePublicFile: vi.fn(),
   usePublicChildren: vi.fn(),
 }))
-vi.mock('../api/download-public-file', () => ({
-  downloadPublicFile: vi.fn(),
+vi.mock('../api/download-archive', () => ({
+  downloadPublicArchive: vi.fn(() => Promise.resolve()),
 }))
 
 const { usePublicFile, usePublicChildren } = await import('../api/get-public-file')
-const { downloadPublicFile } = await import('../api/download-public-file')
+const { downloadPublicArchive } = await import('../api/download-archive')
 
 const file: PublicFile = {
   fileId: 'file-1',
@@ -55,7 +55,7 @@ describe('PublicFileView', () => {
 
     await user.click(screen.getByRole('button', { name: '다운로드' }))
 
-    expect(downloadPublicFile).toHaveBeenCalledWith('file-1', 'key-1', 'report.pdf')
+    expect(downloadPublicArchive).toHaveBeenCalledWith(['file-1'], 'key-1')
   })
 
   it('browses a shared folder and downloads a nested file by its own id', async () => {
@@ -74,7 +74,7 @@ describe('PublicFileView', () => {
 
     await user.click(screen.getByRole('button', { name: 'nested.txt 다운로드' }))
 
-    expect(downloadPublicFile).toHaveBeenCalledWith('child-1', 'key-1', 'nested.txt')
+    expect(downloadPublicArchive).toHaveBeenCalledWith(['child-1'], 'key-1')
   })
 
   it('nudges toward login on a failed fetch instead of asserting the file is missing', () => {

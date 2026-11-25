@@ -1,8 +1,8 @@
 import axios, { type AxiosResponse } from 'axios'
 import { env } from '@/config/env'
 
-// Anonymous counterpart to view-file.ts, same relationship as download-public-file.ts has to
-// download-file.ts: no bearer token, hits the permitAll /public/:fileId/view route. Returns the
+// Anonymous counterpart to view-file.ts: no bearer token, hits the permitAll /public/:fileId/view
+// route. Returns the
 // Blob, same as viewFile. `fileId` is the shared file or one nested under a
 // shared folder; `key` is the capability that authorizes it.
 export async function viewPublicFile(

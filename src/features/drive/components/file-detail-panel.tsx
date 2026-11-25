@@ -17,7 +17,7 @@ import { formatDate, formatFileSize } from '@/utils/file'
 import { EntryIcon } from '@/components/file/entry-icon'
 import { ROLE_LABELS } from '@/features/sharing'
 import { useFile } from '../api/get-file'
-import { downloadFile } from '../api/download-file'
+import { downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { ShareModal } from '@/features/sharing'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
@@ -109,7 +109,7 @@ export function FileDetailPanel({ fileId, onClose }: { fileId: string; onClose: 
 
           <div className="flex flex-col gap-2 pt-1">
             {file.status === 'UPLOADED' && !file.directory && (
-              <Button variant="secondary" onClick={() => downloadFile(file.fileId, file.name)}>
+              <Button variant="secondary" onClick={() => downloadArchive([file.fileId]).catch(alertActionError)}>
                 <DownloadIcon size={16} />
                 다운로드
               </Button>

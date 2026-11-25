@@ -12,7 +12,6 @@ import { MarqueeOverlay, useRowSelection } from '@/hooks/use-row-selection'
 import { useInfiniteScrollRef, useWindowedList } from '@/hooks/use-windowed-list'
 import { joinPath, locationLabel, sortFiles } from '@/utils/file'
 import { runBatch } from '@/utils/run-batch'
-import { downloadFile } from '../api/download-file'
 import { downloadArchive } from '../api/download-archive'
 import { useToggleFavorite } from '../api/toggle-favorite'
 import { useFileDragMove } from '../hooks/use-file-drag-move'
@@ -154,14 +153,8 @@ export function FileList({
   const downloadableSelected = selectedFiles.filter(
     (file) => file.directory || file.status === 'UPLOADED',
   )
-  // One plain file downloads as itself; a folder or several items come down as one zip.
-  const download = (files: FileEntry[]) => {
-    if (files.length === 1 && !files[0].directory) {
-      downloadFile(files[0].fileId, files[0].name)
-      return
-    }
+  const download = (files: FileEntry[]) =>
     downloadArchive(files.map((file) => file.fileId)).catch((error) => setActionError(actionErrorText(error)))
-  }
 
   const toggleFavoriteOf = (file: FileEntry) =>
     toggleFavorite.mutate(
