@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
+import { useAlertStore } from '@/stores/alert-store'
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { get: vi.fn() } }))
 
@@ -43,6 +44,24 @@ describe('useSessionBootstrap', () => {
 
     await vi.advanceTimersByTimeAsync(3_000)
     expect(useAuthStore.getState().status).toBe('authenticated')
+    vi.useRealTimers()
+  })
+
+  it('stays quiet on the home page during the night stop, but not on a signed-in page', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-25T17:00:00Z'), toFake: ['Date'] }) // 02:00 KST
+    useAlertStore.setState({ message: null, nightStop: false })
+    vi.mocked(apiClient.get).mockRejectedValue(Object.assign(new Error('Network Error'), { status: undefined }))
+
+    window.history.replaceState(null, '', '/')
+    const home = renderHook(() => useSessionBootstrap())
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalled())
+    expect(useAlertStore.getState().nightStop).toBe(false)
+    home.unmount()
+
+    window.history.replaceState(null, '', '/drive')
+    renderHook(() => useSessionBootstrap())
+    await waitFor(() => expect(useAlertStore.getState().nightStop).toBe(true))
+    window.history.replaceState(null, '', '/')
     vi.useRealTimers()
   })
 
