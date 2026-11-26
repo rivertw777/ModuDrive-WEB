@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
-import { notifyServerError } from '@/stores/alert-store'
+import { isNightStop, notifyServerError } from '@/stores/alert-store'
 
 /** Left behind by the JWT-era client; the session cookie replaced it (API issue #430). */
 const LEGACY_ACCESS_TOKEN_KEY = 'modudrive.accessToken'
 const RETRY_DELAY_MS = 3_000
+const PUBLIC_PAGES = new Set(['/', '/login', '/signup'])
 
 export const getSession = () => apiClient.get<{ memberId: string }>('/api/v1/auth/session')
 
@@ -26,10 +27,13 @@ export function useSessionBootstrap() {
           if (error.status === 401) useAuthStore.getState().setAnonymous('no-session')
           else {
             // The screen only shows a spinner meanwhile, so say why it's taking a while — once,
-            // not again on every 3-second retry after the user has dismissed it.
-            if (!notified) notifyServerError(error)
-            notified = true
+            // not again on every 3-second retry after the user has dismissed it. The home, login
+            // and signup pages don't wait on this check, so at night they stay quiet until the
+            // user actually calls the API (logging in, opening the drive).
             retryTimer = setTimeout(check, RETRY_DELAY_MS)
+            if (notified || (isNightStop() && PUBLIC_PAGES.has(window.location.pathname))) return
+            notifyServerError(error)
+            notified = true
           }
         },
       )

@@ -1,9 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAlertStore } from '@/stores/alert-store'
+
+// Daytime in KST, so the night-stop notice doesn't replace the common one.
+beforeEach(() => vi.useFakeTimers({ now: new Date('2026-11-26T03:00:00Z'), toFake: ['Date'] }))
+afterEach(() => vi.useRealTimers())
 
 vi.mock('@/lib/api-client', () => ({ apiClient: { post: vi.fn() } }))
 
