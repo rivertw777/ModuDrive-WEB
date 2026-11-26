@@ -2,7 +2,10 @@ import { create } from 'zustand'
 
 type AlertState = {
   message: string | null
+  /** The night-stop notice (NightStopDialog) is open instead of a plain message. */
+  nightStop: boolean
   show: (message: string) => void
+  showNightStop: () => void
   dismiss: () => void
 }
 
@@ -11,8 +14,10 @@ type AlertState = {
  * survives the route change instead of unmounting with whatever component called show(). */
 export const useAlertStore = create<AlertState>((set) => ({
   message: null,
+  nightStop: false,
   show: (message) => set({ message }),
-  dismiss: () => set({ message: null }),
+  showNightStop: () => set({ nightStop: true }),
+  dismiss: () => set({ message: null, nightStop: false }),
 }))
 
 export const SERVER_ERROR_MESSAGE = '일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
@@ -25,10 +30,21 @@ export function isServerError(error: unknown): boolean {
   return !status || status >= 500
 }
 
+/** The demo stack scales to zero 00:00–08:00 KST (API .infra/night_stop.tf), so its ALB answers
+ * 503 — or, with no CORS headers on that reply, the browser reports no response at all. */
+export function isNightStop(now = new Date()): boolean {
+  return (now.getUTCHours() + 9) % 24 < 8
+}
+
 /** 5xx / no response → the common alert, with the request's trace id (api-client) when the gateway
- * answered — the code a user quotes when reporting it. Returns whether it showed one. */
+ * answered — the code a user quotes when reporting it. During the demo's night stop it says the
+ * service is closed instead. Returns whether it showed one. */
 export function notifyServerError(error: unknown): boolean {
   if (!isServerError(error)) return false
+  if (isNightStop()) {
+    useAlertStore.getState().showNightStop()
+    return true
+  }
   const traceId = (error as { traceId?: string } | undefined)?.traceId
   useAlertStore
     .getState()

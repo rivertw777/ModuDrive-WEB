@@ -1,14 +1,34 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   SERVER_ERROR_MESSAGE,
   alertActionError,
   actionErrorText,
+  isNightStop,
   notifyServerError,
   useAlertStore,
 } from '@/stores/alert-store'
 
+// Daytime in KST, so the night-stop notice doesn't replace the common one.
+beforeEach(() => vi.useFakeTimers({ now: new Date('2026-11-26T03:00:00Z'), toFake: ['Date'] }))
+afterEach(() => vi.useRealTimers())
+
+describe('isNightStop', () => {
+  it('is true from 00:00 up to 08:00 KST only', () => {
+    expect(isNightStop(new Date('2026-11-25T14:59:00Z'))).toBe(false) // 23:59 KST
+    expect(isNightStop(new Date('2026-11-25T15:00:00Z'))).toBe(true) // 00:00 KST
+    expect(isNightStop(new Date('2026-11-25T22:59:00Z'))).toBe(true) // 07:59 KST
+    expect(isNightStop(new Date('2026-11-25T23:00:00Z'))).toBe(false) // 08:00 KST
+  })
+})
+
 describe('notifyServerError', () => {
-  beforeEach(() => useAlertStore.setState({ message: null }))
+  beforeEach(() => useAlertStore.setState({ message: null, nightStop: false }))
+
+  it('opens the night-stop notice for a 5xx or no response at night', () => {
+    vi.setSystemTime(new Date('2026-11-25T17:00:00Z')) // 02:00 KST
+    expect(notifyServerError(new Error('Network Error'))).toBe(true)
+    expect(useAlertStore.getState()).toMatchObject({ nightStop: true, message: null })
+  })
 
   it('shows the common alert for a 5xx or no response', () => {
     expect(notifyServerError({ status: 503 })).toBe(true)

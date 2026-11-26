@@ -1,5 +1,6 @@
 import { cn } from '@/utils/cn'
-import { AlertCircleIcon, FolderOpenIcon, LoaderIcon } from './icons'
+import { isNightStop, isServerError } from '@/stores/alert-store'
+import { AlertCircleIcon, ClockIcon, FolderOpenIcon, LoaderIcon } from './icons'
 
 export function LoadingState({ label = '불러오는 중...' }: { label?: string }) {
   return (
@@ -51,6 +52,20 @@ export function ErrorState({
   compact?: boolean
 }) {
   const forbidden = (error as { status?: number } | null | undefined)?.status === 403
+  // The demo's night stop (isNightStop): the service hours, not an error, like NightStopDialog.
+  if (error && isServerError(error) && isNightStop())
+    return (
+      <div
+        className={cn(
+          'flex flex-col items-center gap-2 text-center text-slate-500 dark:text-slate-400',
+          compact ? 'py-16 text-sm' : 'min-h-[60vh] justify-center gap-3 text-base',
+        )}
+      >
+        <ClockIcon size={compact ? 22 : 40} className="text-brand-600 dark:text-brand-400" />
+        <p className="font-semibold text-slate-900 dark:text-slate-100">서비스 이용 시간 안내</p>
+        <p className={compact ? 'text-xs' : 'text-sm'}>이용 가능 시간: 매일 08:00 ~ 24:00</p>
+      </div>
+    )
   return (
     <div
       className={cn(

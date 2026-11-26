@@ -1,9 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import FileRoute from './file'
 import { useAuthStore } from '@/stores/auth-store'
 import { SERVER_ERROR_MESSAGE, useAlertStore } from '@/stores/alert-store'
+
+// Daytime in KST, so the night-stop notice doesn't replace the common one.
+beforeEach(() => vi.useFakeTimers({ now: new Date('2026-11-26T03:00:00Z'), toFake: ['Date'] }))
+afterEach(() => vi.useRealTimers())
 
 const useFile = vi.fn()
 const usePublicFile = vi.fn()
